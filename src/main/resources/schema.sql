@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS alert (
     attack_technique VARCHAR(32),
     severity         VARCHAR(16),
     prev_hash        CHAR(64),
-    hash             CHAR(64)
+    hash             CHAR(64),
+    signature        VARCHAR(512)
 );
 
 CREATE TABLE IF NOT EXISTS honeytoken (

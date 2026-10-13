@@ -9,7 +9,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 
-/** Persists classified alerts, including the hash-chain links. */
+/** Persists classified alerts, including the hash-chain links and the signature. */
 public final class AlertDao {
 
     private final Database db;
@@ -21,7 +21,7 @@ public final class AlertDao {
     public synchronized void save(LedgerEntry entry) {
         Alert alert = entry.alert();
         String sql = "INSERT INTO alert(src_ip, ts, classification, attack_technique, severity, "
-                + "prev_hash, hash) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                + "prev_hash, hash, signature) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement ps = db.connection().prepareStatement(sql)) {
             ps.setString(1, alert.sourceIp());
             ps.setTimestamp(2, Timestamp.from(alert.timestamp()));
@@ -30,6 +30,7 @@ public final class AlertDao {
             ps.setString(5, alert.classification().severity().name());
             ps.setString(6, entry.prevHash());
             ps.setString(7, entry.hash());
+            ps.setString(8, entry.signature());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("failed to save alert", e);
