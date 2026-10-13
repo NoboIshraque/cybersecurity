@@ -22,10 +22,12 @@ public final class SensorMain {
 
         String consoleHost = args.length > 0 ? args[0] : "127.0.0.1";
         String sensorId = "sensor-" + InetAddress.getLocalHost().getHostName();
+        DefenceState defence = new DefenceState();
 
         SensorClient client = null;
         try {
             client = new SensorClient(sensorId, SocketFactory.getDefault(), consoleHost, CONSOLE_PORT);
+            client.startReceiving(defence::apply); // active-defence commands from the Console
             System.out.println("Connected to Console at " + consoleHost + ":" + CONSOLE_PORT
                     + " as " + sensorId);
         } catch (IOException e) {
@@ -46,10 +48,10 @@ public final class SensorMain {
             }
         };
 
-        new FakeHttpLoginDecoy(8081).start(sink);
-        new FakeFtpDecoy(8021).start(sink);
-        new FakeTelnetDecoy(8023).start(sink);
-        System.out.println("Decoys listening: http-login:8081, ftp:8021, telnet:8023.");
+        new FakeHttpLoginDecoy(8081).start(sink, defence);
+        new FakeFtpDecoy(8021).start(sink, defence);
+        new FakeTelnetDecoy(8023).start(sink, defence);
+        System.out.println("Decoys listening: http-login:8081, ftp:8021, telnet:8023 (defence-gated).");
 
         Path baitDir = Path.of("bait");
         Files.createDirectories(baitDir);
@@ -67,7 +69,7 @@ public final class SensorMain {
             }, 0, 10, TimeUnit.SECONDS);
         }
 
-        System.out.println("TODO (Phase 3): H2 persistence + more detection. See HANDOVER.md.");
+        System.out.println("TODO (Phase 5): the Specter red-team console. See HANDOVER.md.");
         Thread.currentThread().join();
     }
 }

@@ -1,16 +1,22 @@
 package com.mirage.console.response;
 
+import com.mirage.common.CommandType;
+import com.mirage.common.ResponseCommand;
+import com.mirage.console.CommandSink;
+
 public final class FeedFakeDataAction implements ResponseAction {
 
+    private final CommandSink sink;
     private final String sourceIp;
 
-    public FeedFakeDataAction(String sourceIp) {
+    public FeedFakeDataAction(CommandSink sink, String sourceIp) {
+        this.sink = sink;
         this.sourceIp = sourceIp;
     }
 
     @Override
     public void execute() {
-        // TODO: serve this source a bottomless maze of fake files and honeytokens.
+        sink.broadcast(new ResponseCommand(CommandType.FEED_FAKE, sourceIp));
         System.out.println("[response] feeding fake data to " + sourceIp);
     }
 
