@@ -10,8 +10,11 @@ import com.mirage.console.detection.DetectionRule;
 import com.mirage.console.detection.HoneytokenUseRule;
 import com.mirage.console.detection.PasswordSprayRule;
 import com.mirage.console.detection.PortScanRule;
+import com.mirage.console.ui.Dashboard;
 
 import javax.net.ServerSocketFactory;
+import javax.swing.SwingUtilities;
+import java.awt.GraphicsEnvironment;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -21,7 +24,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/** Entry point for the blue-team Console. Wires the pipeline, persistence and the Sensor server. */
+/** Entry point for the blue-team Console. Wires the pipeline, persistence, server and dashboard. */
 public final class ConsoleMain {
 
     private static final int PORT = 8443;
@@ -69,6 +72,17 @@ public final class ConsoleMain {
                 System.out.println("[warn] sensor silent (possible tamper): " + dead);
             }
         }, 15, 15, TimeUnit.SECONDS);
+
+        if (GraphicsEnvironment.isHeadless()) {
+            System.out.println("Headless: dashboard not shown (console logging only).");
+        } else {
+            SwingUtilities.invokeLater(() -> {
+                Dashboard dashboard = new Dashboard(ledger, server::connectionCount);
+                bus.subscribe(dashboard::onAlert);
+                dashboard.setVisible(true);
+            });
+            System.out.println("Dashboard opening.");
+        }
 
         System.out.println("Correlation engine running with " + rules.size() + " rules. Ctrl+C to stop.");
         Thread.currentThread().join();
