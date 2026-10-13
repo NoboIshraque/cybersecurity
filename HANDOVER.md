@@ -2,84 +2,73 @@
 
 _Last updated: 2026-10-13_
 
-This is the living status of the project. **Start here each session**, then read `CLAUDE.md`
-for conventions. Update the "Session log" and the checklists below whenever you finish work.
+Start here each session, then read `CLAUDE.md` for conventions. Update the phase statuses, the
+**Current phase** actions, and the **Session log** whenever you finish work.
 
 ## How to resume in 60 seconds
 
-1. `mvn test` — confirm the build is green (6 tests should pass).
-2. Read the **Status** checklist below to see what's done and what's next.
-3. Pick the top unchecked item under **Next steps** and go.
+1. `mvn test` — confirm the build is green.
+2. Check **Development phases** below for where we are.
+3. Work the top unchecked item in **Current phase**.
 
-## Status
+## Development phases
 
-**Phase: foundation scaffolded. Proposal submitted-ready.**
+| Phase | Focus | Status |
+| --- | --- | --- |
+| 0 | Foundation: repo, domain model, ScopeGuard, hash-chained ledger, rules, responses, engine, tests | ✅ Done |
+| 1 | Networking & liveness: TLS Console server + Sensor client, JSON protocol, heartbeats | 🔨 In progress |
+| 2 | Decoys & capture: FTP/Telnet decoys, login parsing, bait-file watcher, honeytokens | ⬜ Planned |
+| 3 | Detection & persistence: more rules, cross-host correlation, severity scoring, H2 DAO | ⬜ Planned |
+| 4 | Active defence: response dispatch to Sensors, real tarpit, feed-fakes, block list | ⬜ Planned |
+| 5 | Specter red team: scan/spray/replay strategies, campaigns, stealth timing, Specter UI | ⬜ Planned |
+| 6 | Console dashboard (Swing): network map, alert feed, dossier, ledger-verify view | ⬜ Planned |
+| 7 | Integration, testing & demo: end-to-end lab run, demo script, report screenshots | ⬜ Planned |
 
-Done
-- [x] Project topic, scope, and safety boundary decided
-- [x] Full written proposal (all template sections + 5 figures) — see **Links**
-- [x] Maven project + package layout (`common / console / sensor / specter`)
-- [x] Core domain types: `AttackEvent`, `AttackerProfile`, `Classification`, `Alert`, `LedgerEntry`, enums
-- [x] `ScopeGuard` (the safety boundary) with CIDR matching + tests
-- [x] `AlertLedger` (hash-chained, tamper-evident) + tests
-- [x] Detection rules: brute-force, port-scan, honeytoken + tests
-- [x] Response commands (tarpit / feed-fakes / block) + `ResponsePolicy` (scope-guarded)
-- [x] `CorrelationEngine` (producer–consumer) + `AlertBus` (observer)
-- [x] `Decoy` abstract + `FakeHttpLoginDecoy`; `AttackStrategy` + `BruteForceAttack` + `Attacker`
-- [x] H2 `db/schema.sql`
-- [x] 6 unit tests passing, `master` builds clean
+## Current phase — Phase 1: Networking & liveness
 
-Not started (see Next steps for order)
-- [ ] Networking: TLS Console server + Sensor client + JSON wire protocol
-- [ ] More decoys (FTP, Telnet) + real login-attempt parsing in the HTTP decoy
-- [ ] Bait-file watcher (WatchService) + honeytokens
-- [ ] Response dispatch Console→Sensor + real tarpit on the Sensor side
-- [ ] Heartbeats + SensorRegistry (detect dead sensors)
-- [ ] H2 persistence via a JDBC DAO layer (load `db/schema.sql`)
-- [ ] Swing: Console dashboard + Specter console
-- [ ] More Specter strategies (port-scan, spray, honeytoken replay) + Campaign + stealth timing
+**Goal.** A Sensor connects to the Console and streams decoy events over a (TLS-capable) socket
+using newline-delimited JSON; the Console feeds them into the correlation pipeline; heartbeats let
+the Console detect a dead Sensor.
 
-## Next steps (in order)
+- [ ] Wire protocol: `SensorMessage` (EVENT / HEARTBEAT) + a JSON codec (Jackson).
+- [ ] `ConsoleServer`: thread-pool accept loop; decode lines; route events → `BlockingQueue`,
+      heartbeats → `SensorRegistry`. TLS via an SSL socket factory; plain sockets for local/dev.
+- [ ] `SensorClient`: connect, send events and periodic heartbeats.
+- [ ] `SensorRegistry` + heartbeat sweeper (`ScheduledExecutorService`) → dead-sensor alert.
+- [ ] Tests: JSON round-trip, end-to-end networking over loopback, registry sweep.
+- [ ] `keytool` keystore instructions in `certs/` for the real TLS run.
 
-1. **Wire the network.** Build `console.ConsoleServer` (TLS `SSLServerSocket` + thread pool),
-   a Sensor-side client, and a newline-delimited JSON protocol for `AttackEvent`. Feed received
-   events into the Console's `BlockingQueue` so `CorrelationEngine` processes them. Generate a
-   self-signed lab keystore with `keytool` (document it in `certs/`, keep the `.jks` gitignored).
-2. **Flesh out decoys.** Add `FakeFtpDecoy` and `FakeTelnetDecoy`; make `FakeHttpLoginDecoy`
-   parse the `Authorization` header and emit `LOGIN_ATTEMPT` events with the attempted creds.
-3. **Bait files + honeytokens.** A `WatchService` thread that emits `FILE_CHANGE`, and a planted
-   honeytoken that emits `HONEYTOKEN_USE`.
-4. **Close the response loop.** Send `ResponseAction`s from Console to the owning Sensor and run
-   the real tarpit (slow single-byte drip) and the block list there.
-5. **Persistence.** Add H2 + a small DAO layer; load `db/schema.sql` on Console startup.
-6. **Swing UIs.** Console dashboard (network map, alert feed, dossier, ledger status) using
-   `SwingWorker`/`invokeLater`; then the Specter console.
-7. **More Specter.** `PortScanAttack`, `PasswordSprayAttack`, `HoneytokenReplayAttack`,
-   a `Campaign` bundler, and a stealth (timing) control.
+Built on branch `phase-1-networking` → draft PR.
+
+## Phase 0 — done (foundation)
+
+Domain model + `ScopeGuard` + hash-chained `AlertLedger` + detection rules + response commands +
+`CorrelationEngine` + `AlertBus` + one decoy (`FakeHttpLoginDecoy`) + one attack (`BruteForceAttack`) +
+H2 `db/schema.sql` + 6 passing unit tests. `master` builds clean.
 
 ## Decisions log
 
 - **Topic:** deception-based IDS ("Mirage"), two-sided (blue Console + red Specter).
-- **Safety:** all offence/active-defence is gated by `ScopeGuard` to a lab CIDR; no real DoS
-  or external exploitation. This is a hard rule (see `CLAUDE.md`).
-- **"Counter-attack" interpretation:** trap + slow (tarpit) + mislead (fake data) + block,
-  not hacking back an external host.
-- **Build:** single Maven module with `com.mirage.{common,console,sensor,specter}` packages
-  (the proposal's multi-jar layout is the conceptual/eventual structure).
-- **Stack:** Java 17 language level (JDK 21 toolchain), sockets + TLS, `java.util.concurrent`,
-  Swing, embedded H2, SHA-256 ledger, JUnit 5. No third-party libs yet (ScopeGuard CIDR and the
-  ledger are implemented with the JDK only).
+- **Safety:** all offence/active-defence is gated by `ScopeGuard` to a lab CIDR; no real DoS or
+  external exploitation. Hard rule (see `CLAUDE.md`).
+- **"Counter-attack" interpretation:** trap + slow (tarpit) + mislead (fake data) + block, not
+  hacking back an external host.
+- **Build:** single Maven module with `com.mirage.{common,console,sensor,specter}` packages.
+- **Stack:** Java 17 (JDK 21 toolchain), sockets + TLS, `java.util.concurrent`, Swing, H2,
+  SHA-256 ledger, JUnit 5. Phase 1 adds Jackson for the JSON wire protocol.
 - **Concurrency model:** producers (network threads) enqueue; `CorrelationEngine` is the single
   consumer and the only mutator of profiles/ledger.
+- **Course:** Object Oriented Design and Programming-II Laboratory (ICE-2206).
 
 ## Session log
 
-- **2026-10-13** — Set the topic and scope; wrote the full proposal (Claude artifact) and this
-  repo: Maven project, the core domain + ScopeGuard + ledger + rules + responses + engine +
-  one decoy + one attack, H2 schema, and 6 passing tests. Next: wire the TLS network (step 1).
+- **2026-10-13** — Set topic + scope; wrote the **report** (Claude doc) and a separate **proposal**
+  (Claude doc); bootstrapped the repo (Phase 0 foundation + 6 tests); confirmed course title
+  (ICE-2206) and both instructors; split the project into 8 phases; started **Phase 1** (networking)
+  on branch `phase-1-networking`.
 
 ## Links
 
-- **Proposal (formatted master, with rendered figures):**
-  https://claude.ai/code/artifact/f578aa80-d25b-4514-8adf-f03f27562c3b
-- In-repo proposal copy: `PROPOSAL.md`
+- **Proposal (submission):** https://claude.ai/code/artifact/d5969a4d-9277-473a-8c66-4d32e04716df
+- **Report (detailed):** https://claude.ai/code/artifact/f578aa80-d25b-4514-8adf-f03f27562c3b
+- In-repo copies: `PROPOSAL.md` (proposal), `REPORT.md` (report)

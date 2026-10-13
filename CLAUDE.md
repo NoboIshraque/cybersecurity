@@ -6,7 +6,7 @@ status and the next task.
 ## What this is
 
 Mirage is a deception-based intrusion-detection and active-defence system, built in Java for
-the *Object Oriented Design and Programming II (Lab)* course. Three cooperating apps:
+the *Object Oriented Design and Programming-II Laboratory (ICE-2206)* course. Three cooperating apps:
 
 - **Console** (blue team) — accepts Sensor connections, classifies attacker behaviour, keeps
   the hash-chained ledger and the database, drives the Swing dashboard, issues responses.
@@ -70,6 +70,6 @@ JDK 17+ (built on JDK 21), Maven 3.9+. Language level is `maven.compiler.release
 ## Pointers
 
 - Live status + next steps: `HANDOVER.md`
-- Written proposal: `PROPOSAL.md` (formatted master with figures: the Claude artifact link in
+- Proposal: `PROPOSAL.md`; full report: `REPORT.md` (formatted master with figures: the Claude artifact link in
   `HANDOVER.md`)
 - DB schema: `db/schema.sql`

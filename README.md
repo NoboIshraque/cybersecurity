@@ -2,7 +2,7 @@
 
 **Deception-based intrusion detection with an integrated attack simulator and scoped active defence.**
 
-Course project for *Object Oriented Design and Programming II (Lab) — OODP II*.
+Course project for *Object Oriented Design and Programming-II Laboratory (ICE-2206)*.
 
 Mirage watches decoy services and bait files that only an intruder would ever touch, so
 every alert is high-confidence. It profiles the attacker, classifies the behaviour against
@@ -66,8 +66,9 @@ docs/                       design notes and exported figures (as added)
 ## Documentation
 
 - [`CLAUDE.md`](CLAUDE.md) — project guide and conventions (read first each session).
-- [`HANDOVER.md`](HANDOVER.md) — live status, decisions log, and next steps.
-- [`PROPOSAL.md`](PROPOSAL.md) — the written project proposal.
+- [`HANDOVER.md`](HANDOVER.md) — live status, phases, decisions log, and next steps.
+- [`PROPOSAL.md`](PROPOSAL.md) — the project proposal (submission).
+- [`REPORT.md`](REPORT.md) — the detailed project report (report format).
 
 ## Academic note
 
