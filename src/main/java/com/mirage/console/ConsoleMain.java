@@ -34,7 +34,7 @@ public final class ConsoleMain {
 
         // 127.0.0.1 is allowed so the system can be demonstrated on one machine.
         ScopeGuard guard = new ScopeGuard(List.of("10.10.0.0/24", "127.0.0.1/32"));
-        AlertLedger ledger = new AlertLedger();
+        AlertLedger ledger = new AlertLedger(new KeyPairSigner());
         AlertBus bus = new AlertBus();
         bus.subscribe(alert -> System.out.println("[alert] " + alert.canonical()));
 
