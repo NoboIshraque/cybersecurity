@@ -7,7 +7,9 @@
 - Adil Akhtab Abir — Roll 25549011096
 - Noria Khan Sroti — Roll 25549011020
 
-**Instructor:** [Instructor Name]  ·  **Submission date:** 14 October 2026
+**Instructors:** Jasiya Fairiz Raisa (Lecturer, Dept. of ICT, BUP); Md. Shahariar Sarkar (Assistant Professor, Dept. of CSE, MIST)
+
+**Submission date:** 14 October 2026
 
 > The formatted master of this proposal, with all five rendered figures, lives here:
 > https://claude.ai/code/artifact/f578aa80-d25b-4514-8adf-f03f27562c3b
