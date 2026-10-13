@@ -19,3 +19,6 @@ Thumbs.db
 *.p12
 certs/*.jks
 certs/*.p12
+
+# Runtime bait-file directory
+bait/

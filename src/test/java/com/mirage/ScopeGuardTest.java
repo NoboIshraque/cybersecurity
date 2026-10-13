@@ -22,4 +22,11 @@ class ScopeGuardTest {
         assertFalse(guard.isAuthorised("8.8.8.8"));
         assertThrows(SecurityException.class, () -> guard.require("192.168.1.1"));
     }
+
+    @Test
+    void refusesMalformedOrNonIpSource() {
+        assertFalse(guard.isAuthorised("local-filesystem"));
+        assertFalse(guard.isAuthorised("not.an.ip"));
+        assertThrows(SecurityException.class, () -> guard.require("local-filesystem"));
+    }
 }

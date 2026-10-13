@@ -8,9 +8,9 @@ import java.util.List;
  *
  * <p>Every outbound action — a Specter simulated attack or an active-defence
  * response — must pass {@link #require(String)} first. Only addresses inside
- * the configured lab range are ever authorised; everything else is refused.
- * The default is to deny. Do NOT weaken this class: it is what keeps Mirage a
- * lawful, lab-only tool.
+ * the configured lab range are ever authorised; everything else, including a
+ * malformed or non-IP source, is refused. The default is to deny. Do NOT weaken
+ * this class: it is what keeps Mirage a lawful, lab-only tool.
  */
 public final class ScopeGuard {
 
@@ -29,7 +29,12 @@ public final class ScopeGuard {
     }
 
     public boolean isAuthorised(String ip) {
-        long value = toLong(ip);
+        long value;
+        try {
+            value = toLong(ip);
+        } catch (RuntimeException e) {
+            return false; // malformed or non-IP source is never authorised
+        }
         return allowed.stream().anyMatch(c -> c.contains(value));
     }
 
@@ -49,6 +54,9 @@ public final class ScopeGuard {
 
     private static long toLong(String ip) {
         String[] octets = ip.split("\\.");
+        if (octets.length != 4) {
+            throw new IllegalArgumentException("not an IPv4 address: " + ip);
+        }
         long result = 0;
         for (int i = 0; i < 4; i++) {
             result = (result << 8) | (Integer.parseInt(octets[i]) & 0xFF);

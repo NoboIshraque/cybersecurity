@@ -1,7 +1,9 @@
 package com.mirage.console;
 
 import com.mirage.common.AttackEvent;
+import com.mirage.common.Honeytoken;
 import com.mirage.common.ScopeGuard;
+import com.mirage.console.detection.BaitFileRule;
 import com.mirage.console.detection.BruteForceRule;
 import com.mirage.console.detection.DetectionRule;
 import com.mirage.console.detection.HoneytokenUseRule;
@@ -31,9 +33,15 @@ public final class ConsoleMain {
         AlertBus bus = new AlertBus();
         bus.subscribe(alert -> System.out.println("[alert] " + alert.canonical()));
 
+        HoneytokenStore honeytokens = new HoneytokenStore();
+        honeytokens.plant(new Honeytoken("ht-1", "svc_backup:S3cr3tBackup!", "config/backup.cfg"));
+
         ResponsePolicy policy = new ResponsePolicy(guard);
         List<DetectionRule> rules = List.of(
-                new PortScanRule(), new BruteForceRule(), new HoneytokenUseRule());
+                new PortScanRule(),
+                new BruteForceRule(),
+                new HoneytokenUseRule(honeytokens),
+                new BaitFileRule());
 
         BlockingQueue<AttackEvent> events = new LinkedBlockingQueue<>();
         CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy);
