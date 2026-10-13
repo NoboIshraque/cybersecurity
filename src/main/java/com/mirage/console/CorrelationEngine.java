@@ -60,8 +60,15 @@ public final class CorrelationEngine implements Runnable {
         Alert alert = new Alert(profile.sourceIp(), classification, Instant.now());
         ledger.append(alert);
         bus.publish(alert);
-        for (ResponseAction action : policy.actionsFor(profile.sourceIp(), classification)) {
-            action.execute();
+        try {
+            for (ResponseAction action : policy.actionsFor(profile.sourceIp(), classification)) {
+                action.execute();
+            }
+        } catch (SecurityException e) {
+            // A non-network source (e.g. a bait file) or an out-of-scope address:
+            // the alert is still recorded and surfaced, but no network response runs.
+            System.out.println("[info] no network response for " + profile.sourceIp()
+                    + ": " + e.getMessage());
         }
     }
 }
