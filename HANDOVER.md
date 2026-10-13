@@ -30,13 +30,13 @@ Start here each session, then read `CLAUDE.md` for conventions. Update the phase
 using newline-delimited JSON; the Console feeds them into the correlation pipeline; heartbeats let
 the Console detect a dead Sensor.
 
-- [ ] Wire protocol: `SensorMessage` (EVENT / HEARTBEAT) + a JSON codec (Jackson).
-- [ ] `ConsoleServer`: thread-pool accept loop; decode lines; route events → `BlockingQueue`,
+- [x] Wire protocol: `SensorMessage` (EVENT / HEARTBEAT) + a JSON codec (Jackson).
+- [x] `ConsoleServer`: thread-pool accept loop; decode lines; route events → `BlockingQueue`,
       heartbeats → `SensorRegistry`. TLS via an SSL socket factory; plain sockets for local/dev.
-- [ ] `SensorClient`: connect, send events and periodic heartbeats.
-- [ ] `SensorRegistry` + heartbeat sweeper (`ScheduledExecutorService`) → dead-sensor alert.
-- [ ] Tests: JSON round-trip, end-to-end networking over loopback, registry sweep.
-- [ ] `keytool` keystore instructions in `certs/` for the real TLS run.
+- [x] `SensorClient`: connect, send events and periodic heartbeats.
+- [x] `SensorRegistry` + heartbeat sweeper (`ScheduledExecutorService`) → dead-sensor alert.
+- [x] Tests: JSON round-trip, end-to-end networking over loopback, registry sweep.
+- [x] `keytool` keystore instructions in `certs/` (Phase 0). Remaining: swap the default plain socket factories for SSL factories built from the keystore (deployment wiring).
 
 Built on branch `phase-1-networking` → draft PR.
 
@@ -66,6 +66,7 @@ H2 `db/schema.sql` + 6 passing unit tests. `master` builds clean.
   (Claude doc); bootstrapped the repo (Phase 0 foundation + 6 tests); confirmed course title
   (ICE-2206) and both instructors; split the project into 8 phases; started **Phase 1** (networking)
   on branch `phase-1-networking`.
+- **2026-10-13 (Phase 1)** — Networking done: JSON wire protocol (Jackson), `ConsoleServer` (thread pool, newline-delimited JSON), `SensorClient`, `SensorRegistry` + heartbeat sweeper; mains wired; 11 tests green (added JSON round-trip, registry sweep, loopback end-to-end). Remaining: real TLS factory wiring.
 
 ## Links
 
