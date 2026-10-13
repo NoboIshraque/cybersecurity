@@ -3,10 +3,12 @@ package com.mirage.console;
 import com.mirage.common.AttackEvent;
 import com.mirage.common.Honeytoken;
 import com.mirage.common.ScopeGuard;
+import com.mirage.console.db.Database;
 import com.mirage.console.detection.BaitFileRule;
 import com.mirage.console.detection.BruteForceRule;
 import com.mirage.console.detection.DetectionRule;
 import com.mirage.console.detection.HoneytokenUseRule;
+import com.mirage.console.detection.PasswordSprayRule;
 import com.mirage.console.detection.PortScanRule;
 
 import javax.net.ServerSocketFactory;
@@ -19,7 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/** Entry point for the blue-team Console. Wires the pipeline and the Sensor server. */
+/** Entry point for the blue-team Console. Wires the pipeline, persistence and the Sensor server. */
 public final class ConsoleMain {
 
     private static final int PORT = 8443;
@@ -33,6 +35,10 @@ public final class ConsoleMain {
         AlertBus bus = new AlertBus();
         bus.subscribe(alert -> System.out.println("[alert] " + alert.canonical()));
 
+        Database database = new Database("jdbc:h2:file:./data/mirage");
+        Persistence persistence = new H2Persistence(database);
+        System.out.println("Persistence ready (H2 at ./data/mirage).");
+
         HoneytokenStore honeytokens = new HoneytokenStore();
         honeytokens.plant(new Honeytoken("ht-1", "svc_backup:S3cr3tBackup!", "config/backup.cfg"));
 
@@ -40,11 +46,12 @@ public final class ConsoleMain {
         List<DetectionRule> rules = List.of(
                 new PortScanRule(),
                 new BruteForceRule(),
+                new PasswordSprayRule(),
                 new HoneytokenUseRule(honeytokens),
                 new BaitFileRule());
 
         BlockingQueue<AttackEvent> events = new LinkedBlockingQueue<>();
-        CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy);
+        CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence);
         Thread engineThread = new Thread(engine, "correlation-engine");
         engineThread.setDaemon(true);
         engineThread.start();
