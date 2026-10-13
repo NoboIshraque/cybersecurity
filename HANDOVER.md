@@ -15,58 +15,56 @@ Start here each session, then read `CLAUDE.md` for conventions. Update the phase
 
 | Phase | Focus | Status |
 | --- | --- | --- |
-| 0 | Foundation: domain model, ScopeGuard, hash-chained ledger, rules, responses, engine, tests | ✅ Done |
+| 0 | Foundation: domain model, ScopeGuard, hash-chained ledger, rules, responses, engine | ✅ Done |
 | 1 | Networking & liveness: Console server + Sensor client, JSON protocol, heartbeats | ✅ Done (PR #1) |
 | 2 | Decoys & capture: FTP/Telnet decoys, login parsing, bait-file watcher, honeytokens | ✅ Done (PR #2) |
 | 3 | Detection & persistence: H2 DAO layer, password-spray rule | ✅ Done (PR #3) |
-| 4 | Active defence: Console→Sensor commands, tarpit, block list | 🔨 In review (PR #4) |
-| 5 | Specter red team: scan/spray/replay strategies, campaigns, stealth timing, Specter UI | ⬜ Next |
-| 6 | Console dashboard (Swing): network map, alert feed, dossier, ledger-verify view | ⬜ Planned |
+| 4 | Active defence: Console→Sensor commands, tarpit, block list | ✅ Done (PR #4) |
+| 5 | Specter red team: scan/spray/replay/brute strategies, campaigns, stealth, Specter UI | 🔨 In review (PR #5) |
+| 6 | Console dashboard (Swing): network map, alert feed, dossier, ledger-verify view | ⬜ Next |
 | 7 | Integration, testing & demo: end-to-end lab run, demo script, report screenshots | ⬜ Planned |
 
 ## Done so far
 
-- **Phase 0** — domain model, `ScopeGuard`, hash-chained `AlertLedger`, rules, response commands, engine.
-- **Phase 1** — JSON wire protocol, `ConsoleServer`, `SensorClient`, `SensorRegistry` + heartbeats; CI.
-- **Phase 2** — HTTP/FTP/Telnet decoys capture logins; `BaitFileWatcher`; honeytokens.
-- **Phase 3** — H2 persistence (`Database`, `EventDao`, `AlertDao`, `Persistence`); `PasswordSprayRule`.
-- **Phase 4** (in review) — bidirectional protocol: the Console broadcasts scoped `ResponseCommand`s to
-  Sensors (`CommandSink`, `ConsoleServer.broadcast`). Sensors hold a `DefenceState` (a `ConnectionGate`):
-  blocked sources are dropped, tarpitted sources get a slow single-byte drip. Response actions now
-  dispatch real commands. 26 tests green (incl. end-to-end command delivery and a blocked-source drop).
+- **Phase 0–4** — foundation; networking + heartbeats + CI; decoys & capture + honeytokens; H2
+  persistence + password-spray rule; active defence (Console→Sensor commands, tarpit, block list).
+- **Phase 5** (in review) — Specter red team: `PortScanAttack`, `PasswordSprayAttack`,
+  `HoneytokenReplayAttack`, `BruteForceAttack` (now proper Base64 Basic-auth); a `Campaign` bundler;
+  `Attacker` runs a campaign with a stealth delay, scope-guarded on the caller thread; a `SpecterConsole`
+  Swing panel (target + campaign + stealth slider + live log), launched headless-safe from `SpecterMain`.
+  28 tests green (incl. an end-to-end spray against a loopback decoy).
 
-## Current / next phase — Phase 5: Specter red team
+## Current / next phase — Phase 6: Console dashboard (Swing)
 
-**Goal.** A controllable attacker that drives the demo, confined by `ScopeGuard` to the lab range.
+**Goal.** A live blue-team dashboard, the counterpart to the Specter console.
 
-- [ ] `PortScanAttack` (sweep a range of ports/decoys), `PasswordSprayAttack`, `HoneytokenReplayAttack`.
-- [ ] A `Campaign` that bundles strategies into a scenario.
-- [ ] Stealth timing (a configurable delay between attempts: low-and-slow vs fast-and-loud).
-- [ ] The Specter Swing console (target picker restricted to the lab range, campaign selector,
-      stealth slider, live attack log). GUI compiles; keep logic in testable non-GUI classes.
-- [ ] Tests for the strategies/campaign logic (point them at a local decoy over loopback).
+- [ ] A `Dashboard` JFrame that subscribes to the `AlertBus` and shows alerts in a live table
+      (time, source, classification, ATT&CK, severity), newest first, colour-coded by severity.
+- [ ] A "verify ledger" button that runs `AlertLedger.verify()` and shows the result.
+- [ ] A simple sensor/connection status line (from `SensorRegistry` / `ConsoleServer.connectionCount`).
+- [ ] Wire the dashboard into `ConsoleMain` (headless-safe, like Specter).
+- [ ] Keep display logic in a testable view-model where practical; GUI itself just compiles.
 
-(Merge PR #4 first, then branch Phase 5 off an up-to-date `master`.)
+(Merge PR #5 first, then branch Phase 6 off an up-to-date `master`.)
 
 ## Decisions log
 
 - **Topic:** deception-based IDS ("Mirage"), two-sided (blue Console + red Specter).
 - **Safety:** all offence/active-defence gated by `ScopeGuard` to a lab CIDR; non-IP sources refused.
-- **"Counter-attack" interpretation:** trap + slow (tarpit) + mislead (fake data) + block — all now wired.
-- **Build:** single Maven module. Deps: Jackson (JSON), H2 (persistence). Java 17. GitHub Actions CI.
-- **Protocol:** newline-delimited JSON both ways — `SensorMessage` (Sensor→Console), `ResponseCommand`
-  (Console→Sensor). The Console pushes commands on the same socket a Sensor connected with.
-- **Concurrency:** producers enqueue; `CorrelationEngine` is the single consumer/mutator.
+  `Attacker` checks scope synchronously on the caller thread before launching.
+- **"Counter-attack":** trap + slow (tarpit) + mislead + block — all wired (Phase 4).
+- **Build:** single Maven module. Deps: Jackson, H2. Java 17. GitHub Actions CI.
+- **GUIs** (Specter now, Console dashboard next) are launched headless-safe; logic stays in testable
+  non-GUI classes.
 - **Course:** Object Oriented Design and Programming-II Laboratory (ICE-2206).
 
 ## Session log
 
 - **2026-10-13** — Scope + docs; Phase 0 bootstrap; course/instructors confirmed.
-- **2026-10-13 (Phase 1)** — Networking + liveness + CI; merged PR #1.
-- **2026-10-13 (Phase 2)** — Decoys & capture, honeytokens; merged PR #2.
-- **2026-10-13 (Phase 3)** — H2 persistence + password-spray rule; merged PR #3.
-- **2026-10-13 (Phase 4)** — Active defence: Console→Sensor commands, tarpit, block list; 26 tests
-  green; opened PR #4.
+- **2026-10-13 (Phases 1–4)** — networking+CI (PR #1), decoys (PR #2), persistence (PR #3),
+  active defence (PR #4) — all merged.
+- **2026-10-13 (Phase 5)** — Specter red team (strategies, campaign, stealth, Swing console);
+  28 tests green; opened PR #5.
 
 ## Links
 
