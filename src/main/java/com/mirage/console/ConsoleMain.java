@@ -9,6 +9,7 @@ import com.mirage.console.detection.BaitFileRule;
 import com.mirage.console.detection.BruteForceRule;
 import com.mirage.console.detection.DetectionRule;
 import com.mirage.console.detection.HoneytokenUseRule;
+import com.mirage.console.detection.LateralMovementRule;
 import com.mirage.console.detection.PasswordSprayRule;
 import com.mirage.console.detection.PortScanRule;
 import com.mirage.console.ui.Dashboard;
@@ -58,7 +59,8 @@ public final class ConsoleMain {
                 new BruteForceRule(),
                 new PasswordSprayRule(),
                 new HoneytokenUseRule(honeytokens),
-                new BaitFileRule());
+                new BaitFileRule(),
+                new LateralMovementRule());
 
         CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence);
         Thread engineThread = new Thread(engine, "correlation-engine");

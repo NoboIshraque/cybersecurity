@@ -124,7 +124,7 @@ public final class ConsoleServer implements CommandSink {
             conn.sensorId = message.sensorId();
             registry.markSeen(message.sensorId(), message.timestamp());
         } else if (message.type() == MessageType.EVENT && message.event() != null) {
-            events.offer(message.event());
+            events.offer(message.event().withSensor(conn.sensorId));
         }
     }
 
