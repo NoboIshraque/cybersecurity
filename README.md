@@ -48,6 +48,8 @@ java -cp target/classes com.mirage.sensor.SensorMain
 java -cp target/classes com.mirage.specter.SpecterMain
 ```
 
+The Console and Specter open GUI windows (a live dashboard and the red-team console); the Sensor runs headless. See [`DEMO.md`](DEMO.md) for the full walkthrough.
+
 Requires JDK 17+ (built and tested on JDK 21) and Maven 3.9+.
 
 ## Project layout
@@ -71,6 +73,7 @@ docs/                       design notes and exported figures (as added)
 - [`HANDOVER.md`](HANDOVER.md) — live status, phases, decisions log, and next steps.
 - [`PROPOSAL.md`](PROPOSAL.md) — the project proposal (submission).
 - [`REPORT.md`](REPORT.md) — the detailed project report (report format).
+- [`DEMO.md`](DEMO.md) — the projector demo script (run it end to end).
 
 ## Academic note
 
