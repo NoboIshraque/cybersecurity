@@ -1,6 +1,7 @@
 package com.mirage.sensor;
 
 import com.mirage.common.AttackEvent;
+import com.mirage.common.TlsFactories;
 
 import javax.net.SocketFactory;
 import java.io.IOException;
@@ -26,7 +27,7 @@ public final class SensorMain {
 
         SensorClient client = null;
         try {
-            client = new SensorClient(sensorId, SocketFactory.getDefault(), consoleHost, CONSOLE_PORT);
+            client = new SensorClient(sensorId, socketFactory(), consoleHost, CONSOLE_PORT);
             client.startReceiving(defence::apply); // active-defence commands from the Console
             System.out.println("Connected to Console at " + consoleHost + ":" + CONSOLE_PORT
                     + " as " + sensorId);
@@ -69,7 +70,23 @@ public final class SensorMain {
             }, 0, 10, TimeUnit.SECONDS);
         }
 
-        System.out.println("TODO (Phase 5): the Specter red-team console. See HANDOVER.md.");
+        System.out.println("Sensor running. Ctrl+C to stop.");
         Thread.currentThread().join();
+    }
+
+    /** TLS when a truststore is configured (-Dmirage.truststore=...), otherwise plain sockets. */
+    private static SocketFactory socketFactory() {
+        String truststore = System.getProperty("mirage.truststore");
+        if (truststore != null) {
+            char[] password = System.getProperty("mirage.truststore.password", "changeit").toCharArray();
+            try {
+                SocketFactory factory = TlsFactories.clientFactory(Path.of(truststore), password);
+                System.out.println("TLS enabled (truststore " + truststore + ").");
+                return factory;
+            } catch (RuntimeException e) {
+                System.out.println("TLS truststore failed (" + e.getMessage() + "); using plain sockets.");
+            }
+        }
+        return SocketFactory.getDefault();
     }
 }

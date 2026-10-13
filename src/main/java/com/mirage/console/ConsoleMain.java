@@ -3,6 +3,7 @@ package com.mirage.console;
 import com.mirage.common.AttackEvent;
 import com.mirage.common.Honeytoken;
 import com.mirage.common.ScopeGuard;
+import com.mirage.common.TlsFactories;
 import com.mirage.console.db.Database;
 import com.mirage.console.detection.BaitFileRule;
 import com.mirage.console.detection.BruteForceRule;
@@ -15,6 +16,7 @@ import com.mirage.console.ui.Dashboard;
 import javax.net.ServerSocketFactory;
 import javax.swing.SwingUtilities;
 import java.awt.GraphicsEnvironment;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -47,7 +49,7 @@ public final class ConsoleMain {
 
         BlockingQueue<AttackEvent> events = new LinkedBlockingQueue<>();
         SensorRegistry registry = new SensorRegistry();
-        ConsoleServer server = new ConsoleServer(ServerSocketFactory.getDefault(), events, registry);
+        ConsoleServer server = new ConsoleServer(serverSocketFactory(), events, registry);
 
         // The server is the CommandSink: active-defence responses broadcast to the Sensors.
         ResponsePolicy policy = new ResponsePolicy(guard, server);
@@ -64,7 +66,7 @@ public final class ConsoleMain {
         engineThread.start();
 
         int port = server.start(PORT);
-        System.out.println("Console listening for Sensors on port " + port + " (plain; TLS in production).");
+        System.out.println("Console listening for Sensors on port " + port + ".");
 
         ScheduledExecutorService sweeper = Executors.newSingleThreadScheduledExecutor();
         sweeper.scheduleAtFixedRate(() -> {
@@ -86,5 +88,23 @@ public final class ConsoleMain {
 
         System.out.println("Correlation engine running with " + rules.size() + " rules. Ctrl+C to stop.");
         Thread.currentThread().join();
+    }
+
+    /** TLS when a keystore is configured (-Dmirage.keystore=...), otherwise plain sockets. */
+    private static ServerSocketFactory serverSocketFactory() {
+        String keystore = System.getProperty("mirage.keystore");
+        if (keystore != null) {
+            char[] password = System.getProperty("mirage.keystore.password", "changeit").toCharArray();
+            try {
+                ServerSocketFactory factory = TlsFactories.serverFactory(Path.of(keystore), password);
+                System.out.println("TLS enabled (keystore " + keystore + ").");
+                return factory;
+            } catch (RuntimeException e) {
+                System.out.println("TLS keystore failed (" + e.getMessage() + "); using plain sockets.");
+            }
+        } else {
+            System.out.println("TLS not configured (set -Dmirage.keystore=...); using plain sockets.");
+        }
+        return ServerSocketFactory.getDefault();
     }
 }
