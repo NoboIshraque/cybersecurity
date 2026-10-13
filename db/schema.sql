@@ -1,7 +1,8 @@
 -- Mirage embedded database schema (H2). Loaded by the Console on startup.
+-- Documented copy; the runtime loads src/main/resources/schema.sql (kept in sync).
 
 CREATE TABLE IF NOT EXISTS sensor (
-    id             IDENTITY PRIMARY KEY,
+    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
     hostname       VARCHAR(255) NOT NULL,
     ip             VARCHAR(45)  NOT NULL,
     status         VARCHAR(32)  NOT NULL,
@@ -9,7 +10,7 @@ CREATE TABLE IF NOT EXISTS sensor (
 );
 
 CREATE TABLE IF NOT EXISTS decoy (
-    id        IDENTITY PRIMARY KEY,
+    id        BIGINT AUTO_INCREMENT PRIMARY KEY,
     sensor_id BIGINT REFERENCES sensor(id),
     type      VARCHAR(32) NOT NULL,
     port      INT NOT NULL,
@@ -27,7 +28,7 @@ CREATE TABLE IF NOT EXISTS attacker_profile (
 );
 
 CREATE TABLE IF NOT EXISTS attack_event (
-    id        IDENTITY PRIMARY KEY,
+    id        BIGINT AUTO_INCREMENT PRIMARY KEY,
     sensor_id BIGINT REFERENCES sensor(id),
     decoy_id  BIGINT REFERENCES decoy(id),
     src_ip    VARCHAR(45),
@@ -37,7 +38,7 @@ CREATE TABLE IF NOT EXISTS attack_event (
 );
 
 CREATE TABLE IF NOT EXISTS alert (
-    id               IDENTITY PRIMARY KEY,
+    id               BIGINT AUTO_INCREMENT PRIMARY KEY,
     src_ip           VARCHAR(45),
     ts               TIMESTAMP,
     classification   VARCHAR(255),
@@ -48,7 +49,7 @@ CREATE TABLE IF NOT EXISTS alert (
 );
 
 CREATE TABLE IF NOT EXISTS honeytoken (
-    id               IDENTITY PRIMARY KEY,
+    id               BIGINT AUTO_INCREMENT PRIMARY KEY,
     token_value      VARCHAR(255) NOT NULL,
     planted_location VARCHAR(512),
     used             BOOLEAN DEFAULT FALSE,
@@ -56,7 +57,7 @@ CREATE TABLE IF NOT EXISTS honeytoken (
 );
 
 CREATE TABLE IF NOT EXISTS block_rule (
-    id         IDENTITY PRIMARY KEY,
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
     src_ip     VARCHAR(45) NOT NULL,
     created_ts TIMESTAMP,
     scope      VARCHAR(32),

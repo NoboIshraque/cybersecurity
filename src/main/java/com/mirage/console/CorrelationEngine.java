@@ -4,6 +4,7 @@ import com.mirage.common.Alert;
 import com.mirage.common.AttackEvent;
 import com.mirage.common.AttackerProfile;
 import com.mirage.common.Classification;
+import com.mirage.common.LedgerEntry;
 import com.mirage.console.detection.DetectionRule;
 import com.mirage.console.response.ResponseAction;
 
@@ -25,15 +26,18 @@ public final class CorrelationEngine implements Runnable {
     private final AlertLedger ledger;
     private final AlertBus bus;
     private final ResponsePolicy policy;
+    private final Persistence persistence;
     private final Map<String, AttackerProfile> profiles = new ConcurrentHashMap<>();
 
     public CorrelationEngine(BlockingQueue<AttackEvent> events, List<DetectionRule> rules,
-                             AlertLedger ledger, AlertBus bus, ResponsePolicy policy) {
+                             AlertLedger ledger, AlertBus bus, ResponsePolicy policy,
+                             Persistence persistence) {
         this.events = events;
         this.rules = rules;
         this.ledger = ledger;
         this.bus = bus;
         this.policy = policy;
+        this.persistence = persistence;
     }
 
     @Override
@@ -49,6 +53,7 @@ public final class CorrelationEngine implements Runnable {
 
     /** Package-visible so tests can drive a single event without starting a thread. */
     void process(AttackEvent event) {
+        persistence.saveEvent(event);
         AttackerProfile profile = profiles.computeIfAbsent(event.sourceIp(), AttackerProfile::new);
         profile.add(event);
         for (DetectionRule rule : rules) {
@@ -58,7 +63,8 @@ public final class CorrelationEngine implements Runnable {
 
     private void raise(AttackerProfile profile, Classification classification) {
         Alert alert = new Alert(profile.sourceIp(), classification, Instant.now());
-        ledger.append(alert);
+        LedgerEntry entry = ledger.append(alert);
+        persistence.saveAlert(entry);
         bus.publish(alert);
         try {
             for (ResponseAction action : policy.actionsFor(profile.sourceIp(), classification)) {
