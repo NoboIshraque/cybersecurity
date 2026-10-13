@@ -1,0 +1,67 @@
+package com.mirage.console;
+
+import com.mirage.common.Alert;
+import com.mirage.common.AttackEvent;
+import com.mirage.common.AttackerProfile;
+import com.mirage.common.Classification;
+import com.mirage.console.detection.DetectionRule;
+import com.mirage.console.response.ResponseAction;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * The single consumer in the producer-consumer pipeline. Network threads are
+ * producers that enqueue events; this one thread owns all profile and ledger
+ * mutation, which keeps shared state thread-safe with almost no locking.
+ */
+public final class CorrelationEngine implements Runnable {
+
+    private final BlockingQueue<AttackEvent> events;
+    private final List<DetectionRule> rules;
+    private final AlertLedger ledger;
+    private final AlertBus bus;
+    private final ResponsePolicy policy;
+    private final Map<String, AttackerProfile> profiles = new ConcurrentHashMap<>();
+
+    public CorrelationEngine(BlockingQueue<AttackEvent> events, List<DetectionRule> rules,
+                             AlertLedger ledger, AlertBus bus, ResponsePolicy policy) {
+        this.events = events;
+        this.rules = rules;
+        this.ledger = ledger;
+        this.bus = bus;
+        this.policy = policy;
+    }
+
+    @Override
+    public void run() {
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
+                process(events.take());
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /** Package-visible so tests can drive a single event without starting a thread. */
+    void process(AttackEvent event) {
+        AttackerProfile profile = profiles.computeIfAbsent(event.sourceIp(), AttackerProfile::new);
+        profile.add(event);
+        for (DetectionRule rule : rules) {
+            rule.classify(profile).ifPresent(c -> raise(profile, c));
+        }
+    }
+
+    private void raise(AttackerProfile profile, Classification classification) {
+        Alert alert = new Alert(profile.sourceIp(), classification, Instant.now());
+        ledger.append(alert);
+        bus.publish(alert);
+        for (ResponseAction action : policy.actionsFor(profile.sourceIp(), classification)) {
+            action.execute();
+        }
+    }
+}

@@ -1,0 +1,21 @@
+# Build output
+target/
+*.class
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+*.classpath
+*.project
+*.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Lab TLS material — never commit keystores
+*.jks
+*.p12
+certs/*.jks
+certs/*.p12
