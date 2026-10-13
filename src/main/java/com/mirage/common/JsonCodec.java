@@ -4,7 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-/** Encodes/decodes {@link SensorMessage}s as single-line JSON for the wire. */
+/**
+ * Encodes/decodes the two wire message types as single-line JSON:
+ * {@link SensorMessage} (Sensor to Console) and {@link ResponseCommand}
+ * (Console to Sensor).
+ */
 public final class JsonCodec {
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
@@ -15,16 +19,32 @@ public final class JsonCodec {
     }
 
     public static String encode(SensorMessage message) {
+        return write(message);
+    }
+
+    public static String encode(ResponseCommand command) {
+        return write(command);
+    }
+
+    public static SensorMessage decode(String json) {
+        return read(json, SensorMessage.class);
+    }
+
+    public static ResponseCommand decodeCommand(String json) {
+        return read(json, ResponseCommand.class);
+    }
+
+    private static String write(Object value) {
         try {
-            return MAPPER.writeValueAsString(message);
+            return MAPPER.writeValueAsString(value);
         } catch (Exception e) {
             throw new IllegalArgumentException("failed to encode message", e);
         }
     }
 
-    public static SensorMessage decode(String json) {
+    private static <T> T read(String json, Class<T> type) {
         try {
-            return MAPPER.readValue(json, SensorMessage.class);
+            return MAPPER.readValue(json, type);
         } catch (Exception e) {
             throw new IllegalArgumentException("failed to decode message: " + json, e);
         }

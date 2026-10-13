@@ -16,60 +16,57 @@ Start here each session, then read `CLAUDE.md` for conventions. Update the phase
 | Phase | Focus | Status |
 | --- | --- | --- |
 | 0 | Foundation: domain model, ScopeGuard, hash-chained ledger, rules, responses, engine, tests | ✅ Done |
-| 1 | Networking & liveness: TLS Console server + Sensor client, JSON protocol, heartbeats | ✅ Done (PR #1) |
+| 1 | Networking & liveness: Console server + Sensor client, JSON protocol, heartbeats | ✅ Done (PR #1) |
 | 2 | Decoys & capture: FTP/Telnet decoys, login parsing, bait-file watcher, honeytokens | ✅ Done (PR #2) |
-| 3 | Detection & persistence: H2 DAO layer, password-spray rule | 🔨 In review (PR #3) |
-| 4 | Active defence: response dispatch to Sensors, real tarpit, feed-fakes, block list | ⬜ Next |
-| 5 | Specter red team: scan/spray/replay strategies, campaigns, stealth timing, Specter UI | ⬜ Planned |
+| 3 | Detection & persistence: H2 DAO layer, password-spray rule | ✅ Done (PR #3) |
+| 4 | Active defence: Console→Sensor commands, tarpit, block list | 🔨 In review (PR #4) |
+| 5 | Specter red team: scan/spray/replay strategies, campaigns, stealth timing, Specter UI | ⬜ Next |
 | 6 | Console dashboard (Swing): network map, alert feed, dossier, ledger-verify view | ⬜ Planned |
 | 7 | Integration, testing & demo: end-to-end lab run, demo script, report screenshots | ⬜ Planned |
 
 ## Done so far
 
-- **Phase 0** — domain model, `ScopeGuard`, hash-chained `AlertLedger`, detection rules, response
-  commands, `CorrelationEngine`, `AlertBus`, unit tests.
-- **Phase 1** — JSON wire protocol, `ConsoleServer` (TLS-capable), `SensorClient`, `SensorRegistry`
-  + heartbeat sweeper. GitHub Actions CI (`mvn verify` on every PR and on `master`).
-- **Phase 2** — `Decoy` reads input and emits richer events; HTTP/FTP/Telnet decoys capture logins;
-  `BaitFileWatcher`; `Honeytoken` + `HoneytokenStore` + store-backed `HoneytokenUseRule`; `BaitFileRule`.
-- **Phase 3** (in review) — embedded **H2** persistence: `Database` (loads `schema.sql` from the
-  classpath), `EventDao`, `AlertDao`, a `Persistence` interface (+ `H2Persistence`, `NONE`) wired into
-  the engine so every event and alert is saved; new `PasswordSprayRule` (one password across many
-  users, T1110.003). 19 tests green.
+- **Phase 0** — domain model, `ScopeGuard`, hash-chained `AlertLedger`, rules, response commands, engine.
+- **Phase 1** — JSON wire protocol, `ConsoleServer`, `SensorClient`, `SensorRegistry` + heartbeats; CI.
+- **Phase 2** — HTTP/FTP/Telnet decoys capture logins; `BaitFileWatcher`; honeytokens.
+- **Phase 3** — H2 persistence (`Database`, `EventDao`, `AlertDao`, `Persistence`); `PasswordSprayRule`.
+- **Phase 4** (in review) — bidirectional protocol: the Console broadcasts scoped `ResponseCommand`s to
+  Sensors (`CommandSink`, `ConsoleServer.broadcast`). Sensors hold a `DefenceState` (a `ConnectionGate`):
+  blocked sources are dropped, tarpitted sources get a slow single-byte drip. Response actions now
+  dispatch real commands. 26 tests green (incl. end-to-end command delivery and a blocked-source drop).
 
-## Current / next phase — Phase 4: Active defence
+## Current / next phase — Phase 5: Specter red team
 
-**Goal.** Close the loop: the Console sends scoped responses to the Sensors, which carry them out.
+**Goal.** A controllable attacker that drives the demo, confined by `ScopeGuard` to the lab range.
 
-- [ ] Extend the wire protocol so the Console can send a `ResponseCommand` to a Sensor.
-- [ ] Real tarpit on the Sensor (hold the attacker's socket, drip one byte at a time).
-- [ ] Feed-fake-data response (serve junk instead of closing).
-- [ ] A network-wide block list the Sensors enforce (drop connections from blocked sources).
-- [ ] Make `TarpitAction` / `FeedFakeDataAction` / `BlockSourceAction` actually dispatch to Sensors.
-- [ ] Tests for the dispatch protocol and the block list.
+- [ ] `PortScanAttack` (sweep a range of ports/decoys), `PasswordSprayAttack`, `HoneytokenReplayAttack`.
+- [ ] A `Campaign` that bundles strategies into a scenario.
+- [ ] Stealth timing (a configurable delay between attempts: low-and-slow vs fast-and-loud).
+- [ ] The Specter Swing console (target picker restricted to the lab range, campaign selector,
+      stealth slider, live attack log). GUI compiles; keep logic in testable non-GUI classes.
+- [ ] Tests for the strategies/campaign logic (point them at a local decoy over loopback).
 
-(Merge PR #3 first, then branch Phase 4 off an up-to-date `master`.)
+(Merge PR #4 first, then branch Phase 5 off an up-to-date `master`.)
 
 ## Decisions log
 
 - **Topic:** deception-based IDS ("Mirage"), two-sided (blue Console + red Specter).
-- **Safety:** all offence/active-defence gated by `ScopeGuard` to a lab CIDR; non-IP sources refused
-  and get no network response. Hard rule (see `CLAUDE.md`).
-- **"Counter-attack" interpretation:** trap + slow (tarpit) + mislead (fake data) + block.
-- **Build:** single Maven module, `com.mirage.{common,console,sensor,specter}`. Deps: Jackson (JSON),
-  H2 (persistence). Java 17 (JDK 21 toolchain). CI via GitHub Actions.
-- **Persistence:** embedded H2; schema is `src/main/resources/schema.sql` (runtime) mirrored by
-  `db/schema.sql` (docs). The engine persists through a `Persistence` interface (`NONE` for tests).
-- **Concurrency model:** producers enqueue; `CorrelationEngine` is the single consumer and only
-  mutator of profiles/ledger.
+- **Safety:** all offence/active-defence gated by `ScopeGuard` to a lab CIDR; non-IP sources refused.
+- **"Counter-attack" interpretation:** trap + slow (tarpit) + mislead (fake data) + block — all now wired.
+- **Build:** single Maven module. Deps: Jackson (JSON), H2 (persistence). Java 17. GitHub Actions CI.
+- **Protocol:** newline-delimited JSON both ways — `SensorMessage` (Sensor→Console), `ResponseCommand`
+  (Console→Sensor). The Console pushes commands on the same socket a Sensor connected with.
+- **Concurrency:** producers enqueue; `CorrelationEngine` is the single consumer/mutator.
 - **Course:** Object Oriented Design and Programming-II Laboratory (ICE-2206).
 
 ## Session log
 
-- **2026-10-13** — Scope + docs (report, proposal); Phase 0 bootstrap; course/instructors confirmed.
+- **2026-10-13** — Scope + docs; Phase 0 bootstrap; course/instructors confirmed.
 - **2026-10-13 (Phase 1)** — Networking + liveness + CI; merged PR #1.
 - **2026-10-13 (Phase 2)** — Decoys & capture, honeytokens; merged PR #2.
-- **2026-10-13 (Phase 3)** — H2 persistence + password-spray rule; 19 tests green; opened PR #3.
+- **2026-10-13 (Phase 3)** — H2 persistence + password-spray rule; merged PR #3.
+- **2026-10-13 (Phase 4)** — Active defence: Console→Sensor commands, tarpit, block list; 26 tests
+  green; opened PR #4.
 
 ## Links
 

@@ -42,7 +42,12 @@ public final class ConsoleMain {
         HoneytokenStore honeytokens = new HoneytokenStore();
         honeytokens.plant(new Honeytoken("ht-1", "svc_backup:S3cr3tBackup!", "config/backup.cfg"));
 
-        ResponsePolicy policy = new ResponsePolicy(guard);
+        BlockingQueue<AttackEvent> events = new LinkedBlockingQueue<>();
+        SensorRegistry registry = new SensorRegistry();
+        ConsoleServer server = new ConsoleServer(ServerSocketFactory.getDefault(), events, registry);
+
+        // The server is the CommandSink: active-defence responses broadcast to the Sensors.
+        ResponsePolicy policy = new ResponsePolicy(guard, server);
         List<DetectionRule> rules = List.of(
                 new PortScanRule(),
                 new BruteForceRule(),
@@ -50,14 +55,11 @@ public final class ConsoleMain {
                 new HoneytokenUseRule(honeytokens),
                 new BaitFileRule());
 
-        BlockingQueue<AttackEvent> events = new LinkedBlockingQueue<>();
         CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence);
         Thread engineThread = new Thread(engine, "correlation-engine");
         engineThread.setDaemon(true);
         engineThread.start();
 
-        SensorRegistry registry = new SensorRegistry();
-        ConsoleServer server = new ConsoleServer(ServerSocketFactory.getDefault(), events, registry);
         int port = server.start(PORT);
         System.out.println("Console listening for Sensors on port " + port + " (plain; TLS in production).");
 
