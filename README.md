@@ -1,5 +1,7 @@
 # Mirage
 
+[![CI](https://github.com/NoboIshraque/cybersecurity/actions/workflows/ci.yml/badge.svg)](https://github.com/NoboIshraque/cybersecurity/actions/workflows/ci.yml)
+
 **Deception-based intrusion detection with an integrated attack simulator and scoped active defence.**
 
 Course project for *Object Oriented Design and Programming-II Laboratory (ICE-2206)*.
