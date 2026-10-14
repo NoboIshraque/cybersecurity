@@ -30,7 +30,7 @@ All seven phases **and all four stretch goals** are built. The capstone **end-to
 proves the full chain: Specter replays a honeytoken → decoy captures it → Sensor reports over the
 socket link → Console classifies it CRITICAL → records it in the hash-chained ledger → dispatches a
 scoped BLOCK. The demo is scripted in `DEMO.md`. Everything is gated by `ScopeGuard` to the lab
-range. **43 tests green**; CI runs `mvn verify` on every PR and on `master`.
+range. **48 tests green**; CI runs `mvn verify` on every PR and on `master`.
 
 ## Stretch goals — all done
 
@@ -55,7 +55,10 @@ non-GUI logic is unit-tested (`AttackerDossierTest`, `AttackerDirectoryTest`, `R
 (`console.CounterOffensive` + `MirrorCounterStrategy`): it maps the source's detected MITRE
 technique to the matching Specter campaign and launches it back at the source through the Specter
 `Attacker` — which calls `ScopeGuard.require` first, so a counter can only ever reach an in-range
-source (tested in `MirrorCounterStrategyTest`, `CounterOffensiveTest`).
+source (tested in `MirrorCounterStrategyTest`, `CounterOffensiveTest`). There is also a
+**Simultaneous counter** button: `CounterOffensive.counterAll` → `Attacker.launchConcurrent` runs
+all four counter methods at once, each on its own pool thread (a bounded set, not a flood) — the
+concurrency is proven in `CounterOffensiveTest.counterAllRunsEveryMethodAtTheSameTime`.
 
 ## Screenshots
 
@@ -101,6 +104,10 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
   own detected technique back at an in-range source via Specter, `ScopeGuard`-gated (external IPs
   refused). Wired a Counter-attack button into the dashboard responses tab; +2 test classes; updated
   CLAUDE.md's hard rule and Report §5.3 (Figure 7). 46 tests green.
+- **2026-10-14 (simultaneous counter)** — added `Attacker.launchConcurrent` and
+  `CounterOffensive.counterAll`: a Simultaneous-counter button runs all four counter methods at once,
+  each on its own thread (bounded, `ScopeGuard`-gated), showcasing multithreading. Added the
+  concurrency proof test + Figure 7 now shows the `COUNTER-ALL` line. 48 tests green.
 
 ## Links
 

@@ -39,4 +39,11 @@ class MirrorCounterStrategyTest {
         assertEquals("counter-probe", campaignFor("T1485")); // ransomware / bait
         assertEquals("counter-probe", campaignFor("T9999")); // unknown
     }
+
+    @Test
+    void fullCounterBundlesEveryMethodForASimultaneousStrike() {
+        Campaign full = strategy.fullCounter();
+        assertEquals("full-counter", full.name());
+        assertEquals(4, full.strategies().size());
+    }
 }

@@ -74,7 +74,7 @@ public final class Dashboard extends JFrame {
         this.directory = directory;
         this.counter = counter;
         this.map = new NetworkMapPanel(this::select);
-        this.detail = new AttackerDetailPanel(directory, responses, this::counterFor);
+        this.detail = new AttackerDetailPanel(directory, responses, this::counterFor, this::counterAllFor);
         buildUi();
         new Timer(2000, e -> refreshStatus()).start();
     }
@@ -89,6 +89,14 @@ public final class Dashboard extends JFrame {
             return "no technique observed for " + sourceIp + " yet";
         }
         return counter.counter(sourceIp, technique);
+    }
+
+    /** Turn several methods on the source at once, concurrently (lab range only). */
+    private String counterAllFor(String sourceIp) {
+        if (counter == null) {
+            return "counter-offensive not configured in this view";
+        }
+        return counter.counterAll(sourceIp);
     }
 
     private void buildUi() {

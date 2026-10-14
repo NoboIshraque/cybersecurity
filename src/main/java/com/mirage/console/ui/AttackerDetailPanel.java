@@ -31,6 +31,7 @@ public final class AttackerDetailPanel extends JPanel {
     private final transient AttackerDirectory directory;
     private final transient ResponseController responses;
     private final transient Function<String, String> counterFn;
+    private final transient Function<String, String> counterAllFn;
 
     private final JTextArea dossierArea = readOnlyArea();
     private final JTextArea replayArea = readOnlyArea();
@@ -41,11 +42,12 @@ public final class AttackerDetailPanel extends JPanel {
     private String currentSource;
 
     public AttackerDetailPanel(AttackerDirectory directory, ResponseController responses,
-                               Function<String, String> counterFn) {
+                               Function<String, String> counterFn, Function<String, String> counterAllFn) {
         super(new BorderLayout());
         this.directory = directory;
         this.responses = responses;
         this.counterFn = counterFn;
+        this.counterAllFn = counterAllFn;
         dossierArea.setLineWrap(true);
         dossierArea.setWrapStyleWord(true);
 
@@ -81,7 +83,8 @@ public final class AttackerDetailPanel extends JPanel {
         JPanel counter = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
         counter.setAlignmentX(LEFT_ALIGNMENT);
         counter.add(counterButton());
-        counter.add(new JLabel("mirror the attacker's own technique back (Specter, lab range only)"));
+        counter.add(counterAllButton());
+        counter.add(new JLabel("turn the attacker's own technique(s) back on them — Specter, lab range only"));
         top.add(counter);
 
         JLabel note = new JLabel("Every command — defensive or counter — is checked by ScopeGuard before it leaves.");
@@ -108,6 +111,16 @@ public final class AttackerDetailPanel extends JPanel {
         b.addActionListener(e -> {
             if (currentSource != null && counterFn != null) {
                 responseLog.append(counterFn.apply(currentSource) + "\n");
+            }
+        });
+        return b;
+    }
+
+    private JButton counterAllButton() {
+        JButton b = new JButton("Simultaneous counter");
+        b.addActionListener(e -> {
+            if (currentSource != null && counterAllFn != null) {
+                responseLog.append(counterAllFn.apply(currentSource) + "\n");
             }
         });
         return b;

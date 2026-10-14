@@ -25,7 +25,9 @@ addresses inside the configured lab CIDR and denies everything else by default.
 - "Turning it around on the attacker" is realised as trapping, slowing (tarpit), misleading
   (fake data), blocking, and — for a source inside the lab range — mirroring the attacker's own
   technique back at them via Specter (`console.CounterOffensive` + `MirrorCounterStrategy`,
-  operator-triggered only). Every one of these, the mirror included, goes through `ScopeGuard`,
+  operator-triggered only): one method, or several at once on separate threads
+  (`Attacker.launchConcurrent`, a bounded set of techniques — never an unbounded flood/DoS).
+  Every one of these, the mirror and the concurrent counter included, goes through `ScopeGuard`,
   so none can reach a host outside the lab range. The counter is a controlled in-range
   demonstration, never a hack-back against a real third party.
 

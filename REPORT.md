@@ -233,19 +233,21 @@ exactly what the intruder sent at each decoy. The **responses** tab is a manual 
 alongside the automatic active defence — the `ResponsePolicy` issues a tarpit, fabricated
 data, or a network-wide block by severity, enforced on the Sensor by its `ConnectionGate` —
 the operator can issue those same commands by hand, and can launch a **counter-attack** that
-reads the source's detected technique and turns that same method back on them, driving
-Specter's simulator at the source (`console.CounterOffensive` + `MirrorCounterStrategy`).
+reads the source's detected technique and turns that same method back on them
+(`console.CounterOffensive` + `MirrorCounterStrategy`), or a **simultaneous counter** that runs
+every counter technique at once, each on its own thread (`Attacker.launchConcurrent`), so the
+source faces several methods in parallel — a direct use of the project's multithreading.
 Every command — defensive or counter, automatic or manual — passes `ScopeGuard` first, so a
 counter can only ever reach a source inside the lab range; a real external address is refused.
 This is a controlled, in-range demonstration of "turning it around", not a hack-back.
 
-![Session replay and manual-override / counter-attack response panel](docs/screenshots/detail-replay-responses.png)
+![Session replay and the manual-override / counter-attack / simultaneous-counter response panel](docs/screenshots/detail-replay-responses.png)
 
 *Figure 7. The detail view for a selected source. Top: the session replay — the exact port
-probes and login attempts the intruder sent at each decoy. Bottom: the responses panel; here
-the detected brute-force (T1110) has been mirrored back at the source as a `mirror-brute`
-counter-attack, next to a hand-issued tarpit and block. Every command is checked by ScopeGuard
-before it leaves.*
+probes and login attempts the intruder sent at each decoy. Bottom: the responses panel; the
+detected brute-force (T1110) is mirrored back as a `mirror-brute` counter-attack, and
+`COUNTER-ALL` runs all four methods against the source at once, each on its own thread. Every
+command is checked by ScopeGuard before it leaves.*
 
 ### 5.4 Ledger verification (Figure 8)
 

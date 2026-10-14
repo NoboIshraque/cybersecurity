@@ -37,6 +37,25 @@ public final class Attacker {
         pool.submit(() -> runCampaign(campaign, target, stealthDelay));
     }
 
+    /**
+     * Launch every strategy of the campaign at once, each on its own pool thread,
+     * so the target faces several techniques simultaneously instead of one after
+     * another. ScopeGuard is still checked once, on the caller's thread, before any
+     * thread is started, so an out-of-range target is refused before anything runs.
+     */
+    public void launchConcurrent(Campaign campaign, Target target) {
+        guard.require(target.host()); // safety boundary, before any thread starts
+        for (AttackStrategy strategy : campaign.strategies()) {
+            pool.submit(() -> {
+                logger.accept("running " + strategy.name() + " against "
+                        + target.host() + ":" + target.port());
+                strategy.run(target);
+            });
+        }
+        logger.accept(campaign.strategies().size() + " strategies launched concurrently against "
+                + target.host() + ":" + target.port());
+    }
+
     private void runCampaign(Campaign campaign, Target target, Duration stealthDelay) {
         for (AttackStrategy strategy : campaign.strategies()) {
             logger.accept("running " + strategy.name() + " against "

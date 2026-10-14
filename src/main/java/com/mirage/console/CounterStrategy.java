@@ -12,5 +12,9 @@ import java.util.Optional;
  */
 public interface CounterStrategy {
 
+    /** The single campaign that mirrors one detected technique back at the source. */
     Optional<Campaign> counterFor(Classification technique);
+
+    /** Every counter technique bundled into one campaign, for a simultaneous counter. */
+    Campaign fullCounter();
 }

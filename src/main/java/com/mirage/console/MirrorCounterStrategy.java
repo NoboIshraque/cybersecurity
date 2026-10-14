@@ -35,4 +35,13 @@ public final class MirrorCounterStrategy implements CounterStrategy {
             default -> new Campaign("counter-probe", List.of(new PortScanAttack(8020, 8085)));
         });
     }
+
+    @Override
+    public Campaign fullCounter() {
+        return new Campaign("full-counter", List.of(
+                new PortScanAttack(8020, 8085),
+                new BruteForceAttack(List.of("123456", "password", "admin", "letmein", "root")),
+                new PasswordSprayAttack(List.of("admin", "root", "user", "test"), "Password123!"),
+                new HoneytokenReplayAttack("svc_backup:S3cr3tBackup!")));
+    }
 }

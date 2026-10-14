@@ -55,7 +55,26 @@ public final class CounterOffensive {
         return line;
     }
 
+    /**
+     * Turn several methods on the source at once: every counter technique runs
+     * concurrently, each on its own thread, through the same ScopeGuard check.
+     */
+    public synchronized String counterAll(String sourceIp) {
+        Campaign campaign = strategy.fullCounter();
+        String line;
+        try {
+            attacker.launchConcurrent(campaign, new Target(sourceIp, targetPort));
+            line = Instant.now() + "  COUNTER-ALL (" + campaign.strategies().size()
+                    + " methods, concurrent)  →  " + sourceIp;
+        } catch (SecurityException e) {
+            line = Instant.now() + "  REFUSED counter  →  " + sourceIp + "  (" + e.getMessage() + ")";
+        }
+        log.add(line);
+        return line;
+    }
+
     public synchronized List<String> log() {
         return List.copyOf(log);
     }
 }
+

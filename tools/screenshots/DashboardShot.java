@@ -80,12 +80,12 @@ public class DashboardShot {
             case "replay" -> SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
             case "responses" -> SwingUtilities.invokeAndWait(() -> {
                 tabs.setSelectedIndex(2);
-                AbstractButton tarpit = findButton(dash, "Tarpit");
-                if (tarpit != null) tarpit.doClick();
                 AbstractButton block = findButton(dash, "Block");
                 if (block != null) block.doClick();
                 AbstractButton ca = findButton(dash, "Counter-attack");
                 if (ca != null) ca.doClick();
+                AbstractButton caa = findButton(dash, "Simultaneous counter");
+                if (caa != null) caa.doClick();
             });
             case "broken" -> {
                 tamperHash(ledger, 2); // corrupt the 3rd entry's hash, keep its alert
