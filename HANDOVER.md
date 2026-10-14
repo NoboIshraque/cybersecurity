@@ -30,7 +30,7 @@ All seven phases **and all four stretch goals** are built. The capstone **end-to
 proves the full chain: Specter replays a honeytoken → decoy captures it → Sensor reports over the
 socket link → Console classifies it CRITICAL → records it in the hash-chained ledger → dispatches a
 scoped BLOCK. The demo is scripted in `DEMO.md`. Everything is gated by `ScopeGuard` to the lab
-range. **37 tests green**; CI runs `mvn verify` on every PR and on `master`.
+range. **43 tests green**; CI runs `mvn verify` on every PR and on `master`.
 
 ## Stretch goals — all done
 
@@ -38,15 +38,27 @@ range. **37 tests green**; CI runs `mvn verify` on every PR and on `master`.
   keystore). — PR #8
 - ✅ Per-entry digital signatures on ledger alerts, ECDSA, in addition to the hash chain. — PR #9
 - ✅ Cross-host correlation by sensor id (events tagged with their sensor; lateral-movement rule). — PR #10
-- ✅ Real screenshots of both GUIs in the report (Figures 5–7), replacing the wireframe/placeholders. — this PR
+- ✅ Full Console dashboard built — the network map, attacker dossier, session replay, manual-override
+  response panel, and red-highlighted broken ledger link — shown in the report with real screenshots
+  (Figures 5–8). — this PR
+
+## Console dashboard features (built)
+
+The dashboard (`console.ui.Dashboard`) now has: a **network map** (`NetworkMapPanel`, nodes grey→red
+by severity), the **live alert feed**, and a per-source detail panel (`AttackerDetailPanel`) with an
+**attacker dossier** (`AttackerDossier` from `AttackerSnapshot`), a **session replay** of the raw
+interactions, and a **responses / manual-override** tab (`ResponseController`, every command
+`ScopeGuard`-checked). The engine publishes immutable snapshots to an `AttackerDirectory` (no mutable
+state crosses threads). `AlertLedger.firstBrokenIndex()` drives the red broken-row highlight. New
+non-GUI logic is unit-tested (`AttackerDossierTest`, `AttackerDirectoryTest`, `ResponseControllerTest`,
+`LedgerBrokenIndexTest`).
 
 ## Screenshots
 
-Report Section 5 now shows real captures of the running build:
-`docs/screenshots/{console-dashboard,specter-console,ledger-verify}.png`. Regenerate with
-`mvn compile && tools/screenshots/capture.sh` (needs Xvfb + ImageMagick; harnesses in
-`tools/screenshots/`). While capturing, a real UI bug was fixed: the dashboard's periodic status
-refresh used to wipe the ledger-verify result after 2s — it now persists the last check.
+Report Section 5 shows real captures of the running build:
+`docs/screenshots/{console-dashboard,specter-console,detail-replay-responses,ledger-broken}.png`.
+Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + ImageMagick; harnesses in
+`tools/screenshots/`).
 
 ## Decisions log
 
@@ -69,8 +81,14 @@ refresh used to wipe the ledger-verify result after 2s — it now persists the l
   correlation + lateral-movement rule (#10) — all merged.
 - **2026-10-14 (GUI screenshots)** — captured real Dashboard + Specter screenshots headlessly
   (Xvfb + ImageMagick), demonstrated ledger tamper-detection (verified/BROKEN), rewrote Report
-  Section 5 (Figures 5–7) in both the artifact and `REPORT.md`, committed the figures and the
-  capture harnesses, and fixed the dashboard verify-status refresh bug. 37 tests green.
+  Section 5 in both the artifact and `REPORT.md`, committed the figures and the capture harnesses,
+  and fixed the dashboard verify-status refresh bug.
+- **2026-10-14 (dashboard features)** — built the GUI features Section 5 had described as future
+  work: network map, attacker dossier, session replay, manual-override response panel, and the
+  red-highlighted broken ledger link. Added `AttackerDirectory`/`AttackerSnapshot`,
+  `AttackerDossier`, `ResponseController`, `AlertLedger.firstBrokenIndex()`, `NetworkMapPanel`,
+  `AttackerDetailPanel` (+ 4 new test classes); rewrote Report Section 5 (Figures 5–8) to match.
+  43 tests green.
 
 ## Links
 

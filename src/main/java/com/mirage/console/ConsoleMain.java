@@ -51,9 +51,11 @@ public final class ConsoleMain {
         BlockingQueue<AttackEvent> events = new LinkedBlockingQueue<>();
         SensorRegistry registry = new SensorRegistry();
         ConsoleServer server = new ConsoleServer(serverSocketFactory(), events, registry);
+        AttackerDirectory directory = new AttackerDirectory();
 
         // The server is the CommandSink: active-defence responses broadcast to the Sensors.
         ResponsePolicy policy = new ResponsePolicy(guard, server);
+        ResponseController responses = new ResponseController(guard, server);
         List<DetectionRule> rules = List.of(
                 new PortScanRule(),
                 new BruteForceRule(),
@@ -62,7 +64,7 @@ public final class ConsoleMain {
                 new BaitFileRule(),
                 new LateralMovementRule());
 
-        CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence);
+        CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence, directory);
         Thread engineThread = new Thread(engine, "correlation-engine");
         engineThread.setDaemon(true);
         engineThread.start();
@@ -81,7 +83,7 @@ public final class ConsoleMain {
             System.out.println("Headless: dashboard not shown (console logging only).");
         } else {
             SwingUtilities.invokeLater(() -> {
-                Dashboard dashboard = new Dashboard(ledger, server::connectionCount);
+                Dashboard dashboard = new Dashboard(ledger, server::connectionCount, directory, responses);
                 bus.subscribe(dashboard::onAlert);
                 dashboard.setVisible(true);
             });

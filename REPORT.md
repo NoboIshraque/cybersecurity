@@ -195,19 +195,21 @@ regenerate them: `mvn compile && tools/screenshots/capture.sh`.)
 
 ### 5.1 Console dashboard (Figure 5)
 
-The dashboard centres on a **live alert feed**: one row per alert, newest at the top,
-colour-coded by severity (red CRITICAL, orange HIGH, yellow MEDIUM, green LOW) and tagged
-with its MITRE ATT&CK technique. Beneath it, a **status strip** shows the alert count, the
-number of connected Sensors, and the ledger state, next to a one-click **Verify ledger**
-control. The richer views sketched during design — a live network map and a per-source
-attacker dossier — are future work; this build concentrates on the alert feed and the
-tamper-evident ledger.
+The dashboard is a single window with four regions. A **network map** across the top shows
+one node per source that has touched a decoy; a node starts grey and turns from green through
+red as the worst alert raised against that source escalates. Down the left is the **live alert
+feed**: one row per alert, newest first, colour-coded by severity (red CRITICAL, orange HIGH,
+yellow MEDIUM, green LOW) and tagged with its MITRE ATT&CK technique. Selecting a row, or a
+map node, fills the **attacker dossier / session replay / response** panel on the right. A
+**status strip** along the bottom shows the alert count, the number of connected Sensors, and
+the ledger state, next to a one-click **Verify ledger** control.
 
 ![Console dashboard](docs/screenshots/console-dashboard.png)
 
-*Figure 5. The Console dashboard during the scripted run: six alerts from six detection
-rules, colour-coded by severity and tagged with their ATT&CK techniques, above a status
-strip reporting a verified ledger.*
+*Figure 5. The Console dashboard during the scripted run: the network map (four sources, one
+still grey with no alert raised yet), the severity-coloured alert feed, and the attacker
+dossier for the selected source (10.10.0.5) listing the services it probed and the passwords
+it tried. The status strip reports six alerts, two connected Sensors, and a verified ledger.*
 
 ### 5.2 Specter console (Figure 6)
 
@@ -222,26 +224,36 @@ outside the `ScopeGuard` range is refused before a packet leaves the console.
 (127.0.0.1:8081): target picker, campaign selector, and stealth slider above the live attack
 log.*
 
-### 5.3 Active response
+### 5.3 Session replay and active response (Figure 7)
 
-Active defence runs automatically rather than from a panel. When the correlation engine
-raises an alert, the `ResponsePolicy` picks a response by severity and — only after the
-`ScopeGuard` check passes — issues it to the originating Sensor as a Command: a *tarpit* that
-drips one byte every few seconds, *fake data* that returns a believable but worthless reply,
-or a network-wide *block*, enforced by the Sensor's `ConnectionGate`. A per-alert replay view
-and a manual-override console remain future work.
+Selecting an alert, or clicking a node on the map, opens that source's detail view. The
+**attacker dossier** lists the services it probed, the credentials and distinct passwords it
+tried, and any honeytokens or bait files it touched. The **session replay** shows, in order,
+exactly what the intruder sent at each decoy. The **responses** tab is a manual override:
+alongside the automatic active defence — the `ResponsePolicy` issues a tarpit, fabricated
+data, or a network-wide block by severity, enforced on the Sensor by its `ConnectionGate` —
+the operator can issue those same commands by hand. Every command, automatic or manual,
+passes `ScopeGuard` first, so nothing outside the lab range can ever be acted on.
 
-### 5.4 Ledger verification (Figure 7)
+![Session replay and manual-override response panel](docs/screenshots/detail-replay-responses.png)
+
+*Figure 7. The detail view for a selected source. Top: the session replay — the exact port
+probes and login attempts the intruder sent at each decoy. Bottom: the manual-override panel,
+where the operator can tarpit, feed fake data, block, or unblock the source by hand; every
+command is checked by ScopeGuard before it is sent.*
+
+### 5.4 Ledger verification (Figure 8)
 
 A one-click **Verify ledger** check walks the hash chain — each entry hashing the one before
 it, each hash signed with ECDSA — and reports the result in the status strip: *verified*
-while every link is intact, *BROKEN* the moment any stored alert is altered.
+while every link is intact, *BROKEN* the moment any stored alert is altered. When a link is
+broken, the dashboard names the offending entry and highlights its row in red.
 
-![Ledger verification before and after tampering](docs/screenshots/ledger-verify.png)
+![Ledger verification: a tampered entry highlighted in red](docs/screenshots/ledger-broken.png)
 
-*Figure 7. The status strip before and after tampering. Top: a clean run reads verified.
-Bottom: after one stored alert is altered on disk, the same check reads BROKEN — the hash
-chain and its signatures catch the edit.*
+*Figure 8. The integrity check after one stored alert was altered on disk: the status strip
+reads BROKEN (entry 2) and the tampered alert's row is highlighted in red in the feed. An
+intact chain instead reads verified and highlights nothing.*
 
 ## Conclusion
 

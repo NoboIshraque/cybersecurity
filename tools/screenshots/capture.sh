@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Capture the Mirage GUI screenshots used in REPORT.md Section 5.
 # Requires: a compiled project (mvn compile), a JDK, Xvfb/xvfb-run, and ImageMagick.
-# Writes to docs/screenshots/: console-dashboard.png, specter-console.png, ledger-verify.png.
+# Writes to docs/screenshots/: console-dashboard.png, specter-console.png,
+# detail-replay-responses.png, ledger-broken.png.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -22,10 +23,10 @@ javac -cp "$CLASSES" -d "$WORK" \
 # shoot <main-class> <args> <out.png> : run the harness on a virtual display and grab the root window
 shoot() {
   local main="$1" args="$2" out="$3"
-  xvfb-run -a -s "-screen 0 900x600x24" bash -c "
+  xvfb-run -a -s "-screen 0 1160x730x24" bash -c "
     java -Djava.awt.headless=false -cp '$CLASSES:$WORK' $main $args >/dev/null 2>&1 &
     JP=\$!
-    sleep 7
+    sleep 8
     import -display \$DISPLAY -window root '$out'
     kill \$JP 2>/dev/null
     exit 0
@@ -33,25 +34,31 @@ shoot() {
 }
 
 mkdir -p "$OUT"
-echo "capturing dashboard (verified / broken) and specter..."
-shoot DashboardShot verified "$WORK/dv.png"
-shoot DashboardShot broken   "$WORK/db.png"
-shoot SpecterShot   ""        "$WORK/sp.png"
+echo "capturing dashboard states and specter..."
+shoot DashboardShot dossier   "$WORK/dossier.png"
+shoot DashboardShot replay    "$WORK/replay.png"
+shoot DashboardShot responses "$WORK/responses.png"
+shoot DashboardShot broken    "$WORK/broken.png"
+shoot SpecterShot   ""         "$WORK/specter.png"
 
 echo "trimming + framing..."
-# Dashboard is setSize(840,540); after trimming the black Xvfb border the window is 840x540.
-convert "$WORK/dv.png" -trim +repage "$WORK/dv-win.png"
-convert "$WORK/db.png" -trim +repage "$WORK/db-win.png"
-convert "$WORK/dv-win.png" -bordercolor '#cfcfcf' -border 1 "$OUT/console-dashboard.png"
-convert "$WORK/sp.png" -trim +repage -bordercolor '#cfcfcf' -border 1 "$OUT/specter-console.png"
+for M in dossier replay responses broken; do
+  convert "$WORK/$M.png" -trim +repage "$WORK/dw-$M.png"
+done
+# Figure 5: full dashboard, dossier tab
+convert "$WORK/dw-dossier.png" -bordercolor '#cfcfcf' -border 1 "$OUT/console-dashboard.png"
+# Figure 8: full dashboard, broken ledger (red row + BROKEN)
+convert "$WORK/dw-broken.png"  -bordercolor '#cfcfcf' -border 1 "$OUT/ledger-broken.png"
+# Figure 6: Specter console
+convert "$WORK/specter.png" -trim +repage -bordercolor '#cfcfcf' -border 1 "$OUT/specter-console.png"
 
-# Ledger figure: the verified status strip stacked over the BROKEN one (bottom ~34px of the window).
-convert "$WORK/dv-win.png" -crop 840x34+0+505 +repage "$WORK/strip-v.png"
-convert "$WORK/db-win.png" -crop 840x34+0+505 +repage "$WORK/strip-b.png"
-convert \
-  \( "$WORK/strip-v.png" -bordercolor '#cfcfcf' -border 1 \) \
-  \( "$WORK/strip-b.png" -bordercolor '#cfcfcf' -border 1 \) \
-  -append "$OUT/ledger-verify.png"
+# Figure 7: the detail pane (tab bar + content) from the replay and responses states, stacked.
+# The dashboard window is setSize(1120,680); the detail pane sits at x>=572 after trimming.
+convert "$WORK/dw-replay.png"    -crop 546x170+572+136 +repage "$WORK/det-replay.png"
+convert "$WORK/dw-responses.png" -crop 546x228+572+136 +repage "$WORK/det-responses.png"
+convert "$WORK/det-replay.png"    -bordercolor '#cfcfcf' -border 1 "$WORK/a.png"
+convert "$WORK/det-responses.png" -bordercolor '#cfcfcf' -border 1 "$WORK/b.png"
+convert "$WORK/a.png" \( -size 548x14 xc:white \) "$WORK/b.png" -append "$OUT/detail-replay-responses.png"
 
 echo "done -> $OUT"
 ls -l "$OUT"

@@ -12,6 +12,7 @@ public final class AlertTableModel extends AbstractTableModel {
     private static final String[] COLUMNS = {"Time", "Source", "Classification", "ATT&CK", "Severity"};
 
     private final List<Alert> alerts = new ArrayList<>();
+    private Alert brokenAlert; // the alert whose ledger entry failed verification, if any
 
     public void addAlert(Alert alert) {
         alerts.add(0, alert); // newest first
@@ -20,6 +21,22 @@ public final class AlertTableModel extends AbstractTableModel {
 
     public Alert alertAt(int row) {
         return alerts.get(row);
+    }
+
+    public List<Alert> alerts() {
+        return List.copyOf(alerts);
+    }
+
+    /** Mark the alert whose ledger link is broken (or {@code null} to clear) and repaint. */
+    public void setBrokenAlert(Alert alert) {
+        this.brokenAlert = alert;
+        if (!alerts.isEmpty()) {
+            fireTableRowsUpdated(0, alerts.size() - 1);
+        }
+    }
+
+    public boolean isBrokenRow(int row) {
+        return brokenAlert != null && brokenAlert.equals(alerts.get(row));
     }
 
     @Override
