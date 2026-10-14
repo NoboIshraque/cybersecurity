@@ -28,6 +28,7 @@ public final class Dashboard extends JFrame {
     private final transient IntSupplier connectionCount;
     private final AlertTableModel model = new AlertTableModel();
     private final JLabel status = new JLabel();
+    private String ledgerState = "—";
 
     public Dashboard(AlertLedger ledger, IntSupplier connectionCount) {
         super("Mirage Console — live");
@@ -46,7 +47,10 @@ public final class Dashboard extends JFrame {
         add(new JScrollPane(table), BorderLayout.CENTER);
 
         JButton verify = new JButton("Verify ledger");
-        verify.addActionListener(e -> status.setText(statusText(ledger.verify() ? "verified" : "BROKEN")));
+        verify.addActionListener(e -> {
+            ledgerState = ledger.verify() ? "verified" : "BROKEN";
+            refreshStatus();
+        });
 
         JPanel south = new JPanel(new BorderLayout(8, 8));
         south.add(status, BorderLayout.CENTER);
@@ -67,10 +71,10 @@ public final class Dashboard extends JFrame {
     }
 
     private void refreshStatus() {
-        status.setText(statusText("—"));
+        status.setText(statusText());
     }
 
-    private String statusText(String ledgerState) {
+    private String statusText() {
         return "Alerts: " + model.getRowCount()
                 + "    |    Sensors connected: " + connectionCount.getAsInt()
                 + "    |    Ledger: " + ledgerState;

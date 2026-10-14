@@ -188,11 +188,60 @@ The full, compiling sources (with JUnit tests passing) are the authoritative ref
 
 ## 5. Result
 
-Two Swing applications are planned: the blue-team **Console dashboard** (network map, live
-alert feed colour-coded by severity and tagged with ATT&CK, attacker dossier, ledger status —
-see Figure 5 wireframe) and the red-team **Specter console** (target picker restricted to the
-lab range, campaign selector, stealth slider, live attack log). Screenshots will be added here
-once the interfaces are built.
+The user-facing deliverable is two Swing applications — the blue-team **Console dashboard**
+and the red-team **Specter console** — and both are implemented. The screenshots below are
+from the running build, captured on a headless display during a scripted demonstration. (To
+regenerate them: `mvn compile && tools/screenshots/capture.sh`.)
+
+### 5.1 Console dashboard (Figure 5)
+
+The dashboard centres on a **live alert feed**: one row per alert, newest at the top,
+colour-coded by severity (red CRITICAL, orange HIGH, yellow MEDIUM, green LOW) and tagged
+with its MITRE ATT&CK technique. Beneath it, a **status strip** shows the alert count, the
+number of connected Sensors, and the ledger state, next to a one-click **Verify ledger**
+control. The richer views sketched during design — a live network map and a per-source
+attacker dossier — are future work; this build concentrates on the alert feed and the
+tamper-evident ledger.
+
+![Console dashboard](docs/screenshots/console-dashboard.png)
+
+*Figure 5. The Console dashboard during the scripted run: six alerts from six detection
+rules, colour-coded by severity and tagged with their ATT&CK techniques, above a status
+strip reporting a verified ledger.*
+
+### 5.2 Specter console (Figure 6)
+
+The operator picks a target in the authorised lab range, chooses a campaign (port scan,
+brute-force, password spray, honeytoken replay, or a full campaign), sets a stealth slider,
+and presses Launch. A live log shows each simulated attacker as it runs, and any target
+outside the `ScopeGuard` range is refused before a packet leaves the console.
+
+![Specter console](docs/screenshots/specter-console.png)
+
+*Figure 6. The Specter red-team console running a full campaign against a lab target
+(127.0.0.1:8081): target picker, campaign selector, and stealth slider above the live attack
+log.*
+
+### 5.3 Active response
+
+Active defence runs automatically rather than from a panel. When the correlation engine
+raises an alert, the `ResponsePolicy` picks a response by severity and — only after the
+`ScopeGuard` check passes — issues it to the originating Sensor as a Command: a *tarpit* that
+drips one byte every few seconds, *fake data* that returns a believable but worthless reply,
+or a network-wide *block*, enforced by the Sensor's `ConnectionGate`. A per-alert replay view
+and a manual-override console remain future work.
+
+### 5.4 Ledger verification (Figure 7)
+
+A one-click **Verify ledger** check walks the hash chain — each entry hashing the one before
+it, each hash signed with ECDSA — and reports the result in the status strip: *verified*
+while every link is intact, *BROKEN* the moment any stored alert is altered.
+
+![Ledger verification before and after tampering](docs/screenshots/ledger-verify.png)
+
+*Figure 7. The status strip before and after tampering. Top: a clean run reads verified.
+Bottom: after one stored alert is altered on disk, the same check reads BROKEN — the hash
+chain and its signatures catch the edit.*
 
 ## Conclusion
 

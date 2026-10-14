@@ -1,14 +1,15 @@
 # HANDOVER — Mirage
 
-_Last updated: 2026-10-13_
+_Last updated: 2026-10-14_
 
 Start here each session, then read `CLAUDE.md` for conventions.
 
 ## How to resume in 60 seconds
 
-1. `mvn test` — confirm the build is green (30 tests).
-2. Check **Development phases** — all seven are complete.
-3. Pick a **stretch goal** below, or add real screenshots to the report.
+1. `mvn test` — confirm the build is green.
+2. Check **Development phases** — all seven are complete, and all four stretch goals are done.
+3. The system is feature-complete and documented. Next work is polish: write the student
+   **reflection** in the Conclusion, rehearse the `DEMO.md` walkthrough, and prepare slides.
 
 ## Development phases
 
@@ -21,23 +22,31 @@ Start here each session, then read `CLAUDE.md` for conventions.
 | 4 | Active defence: Console→Sensor commands, tarpit, block list | ✅ Done (PR #4) |
 | 5 | Specter red team: scan/spray/replay/brute strategies, campaigns, stealth, Specter UI | ✅ Done (PR #5) |
 | 6 | Console dashboard (Swing): live alert feed, ledger-verify, status line | ✅ Done (PR #6) |
-| 7 | Integration, testing & demo: end-to-end test, demo script, final docs | 🔨 In review (PR #7) |
+| 7 | Integration, testing & demo: end-to-end test, demo script, final docs | ✅ Done (PR #7) |
 
 ## Project status — feature-complete
 
-All seven phases are built, and the capstone **end-to-end test** proves the full chain:
-Specter replays a honeytoken → decoy captures it → Sensor reports over the socket link → Console
-classifies it CRITICAL → records it in the hash-chained ledger → dispatches a scoped BLOCK. The demo
-is scripted in `DEMO.md`. Everything is gated by `ScopeGuard` to the lab range. **30 tests green**;
-CI runs `mvn verify` on every PR and on `master`.
+All seven phases **and all four stretch goals** are built. The capstone **end-to-end test**
+proves the full chain: Specter replays a honeytoken → decoy captures it → Sensor reports over the
+socket link → Console classifies it CRITICAL → records it in the hash-chained ledger → dispatches a
+scoped BLOCK. The demo is scripted in `DEMO.md`. Everything is gated by `ScopeGuard` to the lab
+range. **37 tests green**; CI runs `mvn verify` on every PR and on `master`.
 
-## Stretch goals (optional, for a future session)
+## Stretch goals — all done
 
-- Wire real TLS: build `SSLServerSocketFactory` / `SSLSocketFactory` from the lab keystore (see
-  `certs/README.md`) and pass them to `ConsoleServer` / `SensorClient` instead of the plain defaults.
-- Per-entry digital signatures on ledger alerts (in addition to the hash chain).
-- Cross-host correlation by sensor id (carry the sensor id on each event).
-- Replace screenshot placeholders in the report with real screenshots of the two GUIs.
+- ✅ Real TLS on the Console↔Sensor link (`SSLServerSocketFactory`/`SSLSocketFactory` from the lab
+  keystore). — PR #8
+- ✅ Per-entry digital signatures on ledger alerts, ECDSA, in addition to the hash chain. — PR #9
+- ✅ Cross-host correlation by sensor id (events tagged with their sensor; lateral-movement rule). — PR #10
+- ✅ Real screenshots of both GUIs in the report (Figures 5–7), replacing the wireframe/placeholders. — this PR
+
+## Screenshots
+
+Report Section 5 now shows real captures of the running build:
+`docs/screenshots/{console-dashboard,specter-console,ledger-verify}.png`. Regenerate with
+`mvn compile && tools/screenshots/capture.sh` (needs Xvfb + ImageMagick; harnesses in
+`tools/screenshots/`). While capturing, a real UI bug was fixed: the dashboard's periodic status
+refresh used to wipe the ledger-verify result after 2s — it now persists the last check.
 
 ## Decisions log
 
@@ -54,8 +63,14 @@ CI runs `mvn verify` on every PR and on `master`.
 - **2026-10-13** — Scope + docs (report, proposal); Phase 0 bootstrap; course/instructors confirmed.
 - **2026-10-13 (Phases 1–6)** — networking+CI (#1), decoys (#2), persistence (#3), active defence (#4),
   Specter (#5), dashboard (#6) — all merged.
-- **2026-10-13 (Phase 7)** — end-to-end integration test + `DEMO.md` + final docs; 30 tests green;
-  opened PR #7. Project feature-complete.
+- **2026-10-13 (Phase 7)** — end-to-end integration test + `DEMO.md` + final docs; opened and
+  merged PR #7. Project feature-complete.
+- **2026-10-13/14 (stretch goals)** — real TLS (#8), ECDSA ledger signatures (#9), cross-host
+  correlation + lateral-movement rule (#10) — all merged.
+- **2026-10-14 (GUI screenshots)** — captured real Dashboard + Specter screenshots headlessly
+  (Xvfb + ImageMagick), demonstrated ledger tamper-detection (verified/BROKEN), rewrote Report
+  Section 5 (Figures 5–7) in both the artifact and `REPORT.md`, committed the figures and the
+  capture harnesses, and fixed the dashboard verify-status refresh bug. 37 tests green.
 
 ## Links
 
