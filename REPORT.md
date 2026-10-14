@@ -232,15 +232,20 @@ tried, and any honeytokens or bait files it touched. The **session replay** show
 exactly what the intruder sent at each decoy. The **responses** tab is a manual override:
 alongside the automatic active defence — the `ResponsePolicy` issues a tarpit, fabricated
 data, or a network-wide block by severity, enforced on the Sensor by its `ConnectionGate` —
-the operator can issue those same commands by hand. Every command, automatic or manual,
-passes `ScopeGuard` first, so nothing outside the lab range can ever be acted on.
+the operator can issue those same commands by hand, and can launch a **counter-attack** that
+reads the source's detected technique and turns that same method back on them, driving
+Specter's simulator at the source (`console.CounterOffensive` + `MirrorCounterStrategy`).
+Every command — defensive or counter, automatic or manual — passes `ScopeGuard` first, so a
+counter can only ever reach a source inside the lab range; a real external address is refused.
+This is a controlled, in-range demonstration of "turning it around", not a hack-back.
 
-![Session replay and manual-override response panel](docs/screenshots/detail-replay-responses.png)
+![Session replay and manual-override / counter-attack response panel](docs/screenshots/detail-replay-responses.png)
 
 *Figure 7. The detail view for a selected source. Top: the session replay — the exact port
-probes and login attempts the intruder sent at each decoy. Bottom: the manual-override panel,
-where the operator can tarpit, feed fake data, block, or unblock the source by hand; every
-command is checked by ScopeGuard before it is sent.*
+probes and login attempts the intruder sent at each decoy. Bottom: the responses panel; here
+the detected brute-force (T1110) has been mirrored back at the source as a `mirror-brute`
+counter-attack, next to a hand-issued tarpit and block. Every command is checked by ScopeGuard
+before it leaves.*
 
 ### 5.4 Ledger verification (Figure 8)
 

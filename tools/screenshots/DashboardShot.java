@@ -10,9 +10,12 @@ import com.mirage.console.AlertBus;
 import com.mirage.console.AlertLedger;
 import com.mirage.console.AttackerDirectory;
 import com.mirage.console.CommandSink;
+import com.mirage.console.CounterOffensive;
 import com.mirage.console.KeyPairSigner;
+import com.mirage.console.MirrorCounterStrategy;
 import com.mirage.console.ResponseController;
 import com.mirage.console.ui.Dashboard;
+import com.mirage.specter.Attacker;
 
 import javax.swing.AbstractButton;
 import javax.swing.JButton;
@@ -41,10 +44,12 @@ public class DashboardShot {
         AlertBus bus = new AlertBus();
         AttackerDirectory directory = new AttackerDirectory();
         ResponseController responses = new ResponseController(guard, CommandSink.NONE);
+        CounterOffensive counter = new CounterOffensive(
+                new Attacker(guard, line -> { }), new MirrorCounterStrategy(), 8080);
 
         seedActivity(directory);
 
-        Dashboard dash = new Dashboard(ledger, () -> 2, directory, responses);
+        Dashboard dash = new Dashboard(ledger, () -> 2, directory, responses, counter);
         bus.subscribe(dash::onAlert);
         SwingUtilities.invokeAndWait(() -> dash.setVisible(true));
 
@@ -75,10 +80,12 @@ public class DashboardShot {
             case "replay" -> SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
             case "responses" -> SwingUtilities.invokeAndWait(() -> {
                 tabs.setSelectedIndex(2);
-                AbstractButton block = findButton(dash, "Block");
-                if (block != null) block.doClick();
                 AbstractButton tarpit = findButton(dash, "Tarpit");
                 if (tarpit != null) tarpit.doClick();
+                AbstractButton block = findButton(dash, "Block");
+                if (block != null) block.doClick();
+                AbstractButton ca = findButton(dash, "Counter-attack");
+                if (ca != null) ca.doClick();
             });
             case "broken" -> {
                 tamperHash(ledger, 2); // corrupt the 3rd entry's hash, keep its alert

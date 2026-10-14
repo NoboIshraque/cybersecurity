@@ -13,6 +13,7 @@ import com.mirage.console.detection.LateralMovementRule;
 import com.mirage.console.detection.PasswordSprayRule;
 import com.mirage.console.detection.PortScanRule;
 import com.mirage.console.ui.Dashboard;
+import com.mirage.specter.Attacker;
 
 import javax.net.ServerSocketFactory;
 import javax.swing.SwingUtilities;
@@ -56,6 +57,12 @@ public final class ConsoleMain {
         // The server is the CommandSink: active-defence responses broadcast to the Sensors.
         ResponsePolicy policy = new ResponsePolicy(guard, server);
         ResponseController responses = new ResponseController(guard, server);
+
+        // Operator-triggered counter-offensive: mirror the attacker's own technique back,
+        // through the same ScopeGuard, so it can only ever reach a source inside the lab range.
+        CounterOffensive counter = new CounterOffensive(
+                new Attacker(guard, line -> System.out.println("[counter] " + line)),
+                new MirrorCounterStrategy(), 8080);
         List<DetectionRule> rules = List.of(
                 new PortScanRule(),
                 new BruteForceRule(),
@@ -83,7 +90,7 @@ public final class ConsoleMain {
             System.out.println("Headless: dashboard not shown (console logging only).");
         } else {
             SwingUtilities.invokeLater(() -> {
-                Dashboard dashboard = new Dashboard(ledger, server::connectionCount, directory, responses);
+                Dashboard dashboard = new Dashboard(ledger, server::connectionCount, directory, responses, counter);
                 bus.subscribe(dashboard::onAlert);
                 dashboard.setVisible(true);
             });

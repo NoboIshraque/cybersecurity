@@ -8,6 +8,7 @@ import com.mirage.console.AttackerDossier;
 import com.mirage.console.ResponseController;
 
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -18,6 +19,7 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * The right-hand detail view for the selected source: an attacker dossier, a
@@ -28,6 +30,7 @@ public final class AttackerDetailPanel extends JPanel {
 
     private final transient AttackerDirectory directory;
     private final transient ResponseController responses;
+    private final transient Function<String, String> counterFn;
 
     private final JTextArea dossierArea = readOnlyArea();
     private final JTextArea replayArea = readOnlyArea();
@@ -37,10 +40,12 @@ public final class AttackerDetailPanel extends JPanel {
 
     private String currentSource;
 
-    public AttackerDetailPanel(AttackerDirectory directory, ResponseController responses) {
+    public AttackerDetailPanel(AttackerDirectory directory, ResponseController responses,
+                               Function<String, String> counterFn) {
         super(new BorderLayout());
         this.directory = directory;
         this.responses = responses;
+        this.counterFn = counterFn;
         dossierArea.setLineWrap(true);
         dossierArea.setWrapStyleWord(true);
 
@@ -58,18 +63,30 @@ public final class AttackerDetailPanel extends JPanel {
         JPanel panel = new JPanel(new BorderLayout(6, 6));
         panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
-        JPanel top = new JPanel(new BorderLayout(6, 6));
-        targetLabel.setFont(targetLabel.getFont().deriveFont(Font.BOLD));
-        top.add(targetLabel, BorderLayout.NORTH);
+        JPanel top = new JPanel();
+        top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
 
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        buttons.add(commandButton("Tarpit", CommandType.TARPIT));
-        buttons.add(commandButton("Feed fake data", CommandType.FEED_FAKE));
-        buttons.add(commandButton("Block", CommandType.BLOCK));
-        buttons.add(commandButton("Unblock", CommandType.UNBLOCK));
-        top.add(buttons, BorderLayout.CENTER);
-        top.add(new JLabel("Manual override — each command is checked by ScopeGuard before it is sent."),
-                BorderLayout.SOUTH);
+        targetLabel.setFont(targetLabel.getFont().deriveFont(Font.BOLD));
+        targetLabel.setAlignmentX(LEFT_ALIGNMENT);
+        top.add(targetLabel);
+
+        JPanel defend = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        defend.setAlignmentX(LEFT_ALIGNMENT);
+        defend.add(commandButton("Tarpit", CommandType.TARPIT));
+        defend.add(commandButton("Feed fake data", CommandType.FEED_FAKE));
+        defend.add(commandButton("Block", CommandType.BLOCK));
+        defend.add(commandButton("Unblock", CommandType.UNBLOCK));
+        top.add(defend);
+
+        JPanel counter = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        counter.setAlignmentX(LEFT_ALIGNMENT);
+        counter.add(counterButton());
+        counter.add(new JLabel("mirror the attacker's own technique back (Specter, lab range only)"));
+        top.add(counter);
+
+        JLabel note = new JLabel("Every command — defensive or counter — is checked by ScopeGuard before it leaves.");
+        note.setAlignmentX(LEFT_ALIGNMENT);
+        top.add(note);
 
         panel.add(top, BorderLayout.NORTH);
         panel.add(new JScrollPane(responseLog), BorderLayout.CENTER);
@@ -81,6 +98,16 @@ public final class AttackerDetailPanel extends JPanel {
         b.addActionListener(e -> {
             if (currentSource != null) {
                 responseLog.append(responses.issue(type, currentSource) + "\n");
+            }
+        });
+        return b;
+    }
+
+    private JButton counterButton() {
+        JButton b = new JButton("Counter-attack");
+        b.addActionListener(e -> {
+            if (currentSource != null && counterFn != null) {
+                responseLog.append(counterFn.apply(currentSource) + "\n");
             }
         });
         return b;

@@ -1,10 +1,12 @@
 package com.mirage.console.ui;
 
 import com.mirage.common.Alert;
+import com.mirage.common.Classification;
 import com.mirage.common.LedgerEntry;
 import com.mirage.common.Severity;
 import com.mirage.console.AlertLedger;
 import com.mirage.console.AttackerDirectory;
+import com.mirage.console.CounterOffensive;
 import com.mirage.console.ResponseController;
 
 import javax.swing.BorderFactory;
@@ -25,6 +27,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +46,8 @@ public final class Dashboard extends JFrame {
     private final transient AlertLedger ledger;
     private final transient IntSupplier connectionCount;
     private final transient AttackerDirectory directory;
+    private final transient CounterOffensive counter;
+    private final transient Map<String, Classification> latestTechnique = new HashMap<>();
 
     private final AlertTableModel model = new AlertTableModel();
     private final JLabel status = new JLabel();
@@ -53,19 +58,37 @@ public final class Dashboard extends JFrame {
 
     public Dashboard(AlertLedger ledger, IntSupplier connectionCount) {
         this(ledger, connectionCount, new AttackerDirectory(), new ResponseController(
-                new com.mirage.common.ScopeGuard(List.of()), com.mirage.console.CommandSink.NONE));
+                new com.mirage.common.ScopeGuard(List.of()), com.mirage.console.CommandSink.NONE), null);
     }
 
     public Dashboard(AlertLedger ledger, IntSupplier connectionCount,
                      AttackerDirectory directory, ResponseController responses) {
+        this(ledger, connectionCount, directory, responses, null);
+    }
+
+    public Dashboard(AlertLedger ledger, IntSupplier connectionCount,
+                     AttackerDirectory directory, ResponseController responses, CounterOffensive counter) {
         super("Mirage Console — live");
         this.ledger = ledger;
         this.connectionCount = connectionCount;
         this.directory = directory;
+        this.counter = counter;
         this.map = new NetworkMapPanel(this::select);
-        this.detail = new AttackerDetailPanel(directory, responses);
+        this.detail = new AttackerDetailPanel(directory, responses, this::counterFor);
         buildUi();
         new Timer(2000, e -> refreshStatus()).start();
+    }
+
+    /** Turn the source's own detected technique back on it (lab range only). */
+    private String counterFor(String sourceIp) {
+        if (counter == null) {
+            return "counter-offensive not configured in this view";
+        }
+        Classification technique = latestTechnique.get(sourceIp);
+        if (technique == null) {
+            return "no technique observed for " + sourceIp + " yet";
+        }
+        return counter.counter(sourceIp, technique);
     }
 
     private void buildUi() {
@@ -91,7 +114,8 @@ public final class Dashboard extends JFrame {
         feed.setBorder(BorderFactory.createTitledBorder("Alert feed"));
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, feed, detail);
-        split.setResizeWeight(0.52);
+        split.setResizeWeight(0.5);
+        split.setDividerLocation(560);
         add(split, BorderLayout.CENTER);
 
         JButton verify = new JButton("Verify ledger");
@@ -105,6 +129,7 @@ public final class Dashboard extends JFrame {
 
         setSize(1120, 680);
         setLocationRelativeTo(null);
+        split.setDividerLocation(560); // pin the feed/detail split so the layout is deterministic
         refreshStatus();
     }
 
@@ -112,6 +137,7 @@ public final class Dashboard extends JFrame {
     public void onAlert(Alert alert) {
         SwingUtilities.invokeLater(() -> {
             model.addAlert(alert);
+            latestTechnique.put(alert.sourceIp(), alert.classification());
             rebuildMap();
             refreshStatus();
         });

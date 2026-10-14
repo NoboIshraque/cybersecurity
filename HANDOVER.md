@@ -51,7 +51,11 @@ interactions, and a **responses / manual-override** tab (`ResponseController`, e
 `ScopeGuard`-checked). The engine publishes immutable snapshots to an `AttackerDirectory` (no mutable
 state crosses threads). `AlertLedger.firstBrokenIndex()` drives the red broken-row highlight. New
 non-GUI logic is unit-tested (`AttackerDossierTest`, `AttackerDirectoryTest`, `ResponseControllerTest`,
-`LedgerBrokenIndexTest`).
+`LedgerBrokenIndexTest`). The responses tab also has a **counter-attack** button
+(`console.CounterOffensive` + `MirrorCounterStrategy`): it maps the source's detected MITRE
+technique to the matching Specter campaign and launches it back at the source through the Specter
+`Attacker` — which calls `ScopeGuard.require` first, so a counter can only ever reach an in-range
+source (tested in `MirrorCounterStrategyTest`, `CounterOffensiveTest`).
 
 ## Screenshots
 
@@ -64,7 +68,10 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
 
 - **Topic:** deception-based IDS ("Mirage"), two-sided (blue Console + red Specter).
 - **Safety:** all offence/active-defence gated by `ScopeGuard` to a lab CIDR; non-IP sources refused.
-- **"Counter-attack":** trap + slow (tarpit) + mislead + block — all wired.
+- **"Counter-attack":** trap + slow (tarpit) + mislead (fake data) + block, plus an
+  operator-triggered **counter-offensive** (`CounterOffensive` + `MirrorCounterStrategy`) that
+  mirrors the attacker's own technique back at an in-range source via Specter — all `ScopeGuard`-gated,
+  so it can never reach outside the lab. Not a hack-back.
 - **Build:** single Maven module. Deps: Jackson, H2. Java 17 (JDK 21 toolchain). GitHub Actions CI.
 - **GUIs:** Specter and the Console dashboard launch headless-safe; display logic stays in testable
   non-GUI classes.
@@ -89,6 +96,11 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
   `AttackerDossier`, `ResponseController`, `AlertLedger.firstBrokenIndex()`, `NetworkMapPanel`,
   `AttackerDetailPanel` (+ 4 new test classes); rewrote Report Section 5 (Figures 5–8) to match.
   43 tests green.
+- **2026-10-14 (counter-offensive)** — built the lab-bounded "counter-attack" (`CounterStrategy`,
+  `MirrorCounterStrategy`, `CounterOffensive`): on the operator's command it mirrors the attacker's
+  own detected technique back at an in-range source via Specter, `ScopeGuard`-gated (external IPs
+  refused). Wired a Counter-attack button into the dashboard responses tab; +2 test classes; updated
+  CLAUDE.md's hard rule and Report §5.3 (Figure 7). 46 tests green.
 
 ## Links
 
