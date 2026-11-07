@@ -5,6 +5,7 @@ import com.mirage.common.Honeytoken;
 import com.mirage.common.LabConfig;
 import com.mirage.common.ScopeGuard;
 import com.mirage.common.trace.TraceBus;
+import com.mirage.common.trace.TraceLevel;
 import com.mirage.common.LinkSecurity;
 import com.mirage.console.db.AlertDao;
 import com.mirage.console.db.Database;
@@ -198,8 +199,12 @@ public final class ConsoleMain {
 
         ScheduledExecutorService sweeper = Executors.newSingleThreadScheduledExecutor();
         sweeper.scheduleAtFixedRate(() -> {
-            for (String dead : registry.deadSensors(Duration.ofSeconds(30), Instant.now())) {
-                System.out.println("[warn] sensor silent (possible tamper): " + dead);
+            // B-11: once per silence, and only for a Sensor still connected (a closed link is
+            // reported once as "disconnected" by the server).
+            for (String silent : registry.newlySilent(Duration.ofSeconds(30), Instant.now())) {
+                System.out.println("[warn] sensor silent while connected (possible tamper): " + silent);
+                trace.line("console", "rx", null, TraceLevel.WARN,
+                        "sensor " + silent + " silent for 30 s while connected (possible tamper)");
             }
         }, 15, 15, TimeUnit.SECONDS);
 

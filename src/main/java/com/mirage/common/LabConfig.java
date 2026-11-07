@@ -43,6 +43,8 @@ public final class LabConfig {
     private final int telnetDecoyPort;
     private final int counterWatchPort;
     private final Path baitDir;
+    /** Explicit Sensor id ({@code sensor.id} / {@code --sensor-id}); null means derive one. */
+    private final String sensorId;
 
     private LabConfig(Map<String, String> v) {
         this.labCidrs = splitCidrs(v.getOrDefault("lab.cidrs", DEFAULT_CIDRS));
@@ -53,6 +55,8 @@ public final class LabConfig {
         this.telnetDecoyPort = intValue(v, "decoy.telnet.port", 8023);
         this.counterWatchPort = intValue(v, "counterwatch.port", 8080);
         this.baitDir = Path.of(v.getOrDefault("bait.dir", "bait"));
+        String id = v.get("sensor.id");
+        this.sensorId = id == null || id.isBlank() ? null : id.trim();
     }
 
     /** The built-in defaults (single-machine demo on 127.0.0.1). */
@@ -101,7 +105,8 @@ public final class LabConfig {
                 "--ftp-port", "decoy.ftp.port",
                 "--telnet-port", "decoy.telnet.port",
                 "--counterwatch-port", "counterwatch.port",
-                "--bait-dir", "bait.dir");
+                "--bait-dir", "bait.dir",
+                "--sensor-id", "sensor.id");
         Map<String, String> out = new LinkedHashMap<>();
         if (args == null) {
             return out;
@@ -166,6 +171,15 @@ public final class LabConfig {
     /** The Sensor's bait folder (default {@code bait} in the working directory). */
     public Path baitDir() {
         return baitDir;
+    }
+
+    /**
+     * This Sensor's id: {@code sensor.id} if set, else {@code sensor-<host>-<http decoy port>}
+     * (B-11). Two Sensors on one machine must use different decoy ports, so the pair is unique
+     * there, and it stays the same across restarts.
+     */
+    public String sensorId(String hostname) {
+        return sensorId != null ? sensorId : "sensor-" + hostname + "-" + httpDecoyPort;
     }
 
     /** A one-line summary for logs and the dashboard status bar. */

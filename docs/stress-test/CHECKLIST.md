@@ -46,7 +46,7 @@ are merged into one line. Fix the waves in order.
 - [x] **LOW** · [A-07](A-security.md) — H2 DB has no password and sits in the working directory.
 - [x] **LOW** · [A-08](A-security.md) — CounterWatch starts one thread per connection with no cap.
 - [x] **LOW** · [B-04](B-robustness.md) — Two CRITICAL rules fire on one intrusion: two alerts, two BLOCK broadcasts.
-- [ ] **LOW** · [B-11](B-robustness.md) — Sensor id = hostname: two Sensors on one host collide; dead-sensor warnings repeat forever.
+- [x] **LOW** · [B-11](B-robustness.md) — Sensor id = hostname: two Sensors on one host collide; dead-sensor warnings repeat forever.
 - [ ] **LOW** · [B-12](B-robustness.md) — A second Console in the same folder dies with a raw H2 stack trace.
 - [ ] **LOW** · [B-16](B-robustness.md) — The shell's thread strip never shows "done".
 - [ ] **LOW** · [B-18](B-robustness.md) — Attacker dossier is a frozen snapshot; "Port probes" is always 0 (and "Honeytokens used" stays empty).

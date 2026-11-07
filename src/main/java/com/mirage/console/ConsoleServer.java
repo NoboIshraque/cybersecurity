@@ -328,6 +328,11 @@ public final class ConsoleServer implements CommandSink {
             if (conn.sensorId != null) {
                 String gone = conn.sensorId;
                 record("sensor " + gone + " offline", () -> persistence.sensorOffline(gone));
+                if (registry.linkClosed(gone)) {
+                    // B-11: said once, here; the liveness sweep only reports connected Sensors
+                    System.out.println("[warn] sensor disconnected: " + gone);
+                    trace.line("console", "rx", null, TraceLevel.WARN, "sensor " + gone + " disconnected");
+                }
             }
         }
     }
@@ -357,6 +362,7 @@ public final class ConsoleServer implements CommandSink {
                 trace.line("console", "rx", null, TraceLevel.GOOD,
                         "sensor registered: " + message.sensorId());
                 warnIfSkewed(message.sensorId(), message.timestamp(), received);
+                registry.linkOpened(message.sensorId()); // B-11: this link counts until it closes
             }
             conn.sensorId = message.sensorId();
             registry.markSeen(message.sensorId(), received);

@@ -43,7 +43,7 @@ public final class SensorMain {
         // A bare first argument is still accepted as the console host (back-compat with DEMO.md).
         String consoleHost = (args.length > 0 && !args[0].startsWith("--")) ? args[0] : config.consoleHost();
         int consolePort = config.consolePort();
-        String sensorId = "sensor-" + InetAddress.getLocalHost().getHostName();
+        String sensorId = config.sensorId(InetAddress.getLocalHost().getHostName()); // unique per Sensor (B-11)
         DefenceState defence = new DefenceState();
 
         // A-02 / A-03: plain text only to a Console on this machine, otherwise mutual TLS pinned to

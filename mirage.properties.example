@@ -22,3 +22,7 @@ decoy.ftp.port=8021
 decoy.telnet.port=8023
 # Laptop B's passive counter-watch listener (accept-and-log only).
 counterwatch.port=8080
+
+# Optional: this Sensor's name on the dashboard. The default is sensor-<host>-<http port>,
+# which is already unique for two Sensors on one machine (they need different decoy ports).
+# sensor.id=lab-a
