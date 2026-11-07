@@ -184,7 +184,7 @@ public void require(String ip) {
 }
 ```
 
-The full, compiling sources (98 JUnit tests passing) are the authoritative reference.
+The full, compiling sources (265 JUnit tests passing) are the authoritative reference.
 
 ## 5. Result
 
@@ -342,11 +342,19 @@ and each counter technique on its own thread, all running concurrently.*
 *Figure 14. Laptop B's counter-watch: every incoming connection, its source port and the first
 line it carried, on its own thread. It is accept-and-log only.*
 
-**Verification.** Besides 98 unit tests, the whole demo is exercised by an automated GUI dry run
+**Verification.** Besides 265 unit tests, the whole demo is exercised by an automated GUI dry run
 (`tools/screenshots/LiveDemoShot.java`). It starts the real Console, Sensor and Specter, presses
-their buttons the way the presenters would, and checks 27 outcomes: every campaign, every
-operator action, auto-response on and off, a counter reaching the counter-watch, and an
-out-of-range target being refused. Figures 9–14 come from that run.
+their buttons the way the presenters would, and checks 28 outcomes: every campaign, every
+operator action (including fake data letting the attacker "in" to worthless files), auto-response
+on and off, a counter reaching the counter-watch, and an out-of-range target being refused.
+Figures 9–14 come from that run.
+
+**Stress test.** Two independent reviews then tested the build for security and robustness:
+floods, idle and malformed connections, lost links, skewed clocks, restarts, and mistyped
+settings. Every finding was fixed, each with a test that failed before the fix
+(`docs/stress-test/CHECKLIST.md`). Among them: the Sensor link uses mutual TLS between machines
+and fails closed; the ledger's signing key and hash chain survive restarts; the detection rules
+count within time windows; and a Sensor that stops reading can no longer stall the Console.
 
 ## Conclusion
 
