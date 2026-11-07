@@ -96,9 +96,21 @@ public final class ConsoleMain {
                     + KeyPairSigner.PASSWORD_ENV + " to lock it.");
         }
 
-        Database database = new Database("jdbc:h2:file:./data/mirage");
+        // A-07: the database file is encrypted when MIRAGE_DB_PASSWORD is set.
+        String dbPassword = System.getenv(Database.PASSWORD_ENV);
+        Database database;
+        try {
+            database = Database.openFile(Path.of("data"), dbPassword);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Refusing to start: " + e.getMessage(), e);
+        }
         Persistence persistence = new H2Persistence(database, signer.keyId());
-        System.out.println("Persistence ready (H2 at ./data/mirage).");
+        boolean dbLocked = dbPassword != null && !dbPassword.isEmpty();
+        System.out.println("Persistence ready (H2 at ./data/mirage" + (dbLocked ? ", encrypted)." : ")."));
+        if (!dbLocked) {
+            System.out.println("[warn] ./data/mirage is not encrypted: set " + Database.PASSWORD_ENV
+                    + " to encrypt a new database (the ledger chain check still catches edits).");
+        }
 
         // B-30: continue the stored chain instead of starting a new one, and check it now.
         AlertDao alertDao = new AlertDao(database);

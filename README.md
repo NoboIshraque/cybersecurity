@@ -59,6 +59,19 @@ copy `mirage.properties.example` to `mirage.properties` and follow
 [`docs/TWO-LAPTOP-SETUP.md`](docs/TWO-LAPTOP-SETUP.md). [`DEMO.md`](DEMO.md) is the
 who-clicks-what demo script.
 
+The Console keeps its data in `./data` (git-ignored): the H2 database and the ledger's signing
+key. Two optional environment variables protect them; set them before the first start, since
+each one applies to files it creates:
+
+| Variable | Effect |
+| --- | --- |
+| `MIRAGE_LEDGER_PASSWORD` | encrypts the ledger signing key `data/ledger-key.pem` |
+| `MIRAGE_DB_PASSWORD` | encrypts the database file `data/mirage.mv.db` (AES) |
+| `MIRAGE_TLS_PASSWORD` | the keystore password for the Sensor link between two laptops ([`certs/README.md`](certs/README.md)) |
+
+Without them the Console prints a warning and runs as before; the ledger's hash chain still
+shows any edit to stored alerts.
+
 Requires JDK 17+ (built and tested on JDK 21). Laptop B needs only Java, not Maven.
 
 ## Project layout

@@ -43,7 +43,7 @@ are merged into one line. Fix the waves in order.
 ## Wave 3 — polish and hygiene
 
 - [x] **LOW** · [A-05](A-security.md) — Bait watcher has no integrity baseline and misses changes made while the Sensor was down.
-- [ ] **LOW** · [A-07](A-security.md) — H2 DB has no password and sits in the working directory.
+- [x] **LOW** · [A-07](A-security.md) — H2 DB has no password and sits in the working directory.
 - [ ] **LOW** · [A-08](A-security.md) — CounterWatch starts one thread per connection with no cap.
 - [ ] **LOW** · [B-04](B-robustness.md) — Two CRITICAL rules fire on one intrusion: two alerts, two BLOCK broadcasts.
 - [ ] **LOW** · [B-11](B-robustness.md) — Sensor id = hostname: two Sensors on one host collide; dead-sensor warnings repeat forever.
