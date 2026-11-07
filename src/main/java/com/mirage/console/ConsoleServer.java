@@ -97,6 +97,23 @@ public final class ConsoleServer implements CommandSink {
         return this;
     }
 
+    private volatile Persistence persistence = Persistence.NONE;
+
+    /** Record Sensors in the database as they heartbeat and disconnect (B-30). */
+    public ConsoleServer setPersistence(Persistence persistence) {
+        this.persistence = persistence == null ? Persistence.NONE : persistence;
+        return this;
+    }
+
+    /** A database problem must never cost a Sensor its link (B-01). */
+    private void record(String what, Runnable write) {
+        try {
+            write.run();
+        } catch (RuntimeException e) {
+            trace.line("console", "rx", null, TraceLevel.WARN, "could not record " + what + ": " + e.getMessage());
+        }
+    }
+
     private volatile java.net.InetAddress bindAddress;
 
     /** Listen only on this address ({@code null}: every interface). Call before {@link #start}. */
@@ -220,6 +237,10 @@ public final class ConsoleServer implements CommandSink {
             connections.remove(conn);
             conn.closeQuietly();
             trace.line("console", "rx", null, TraceLevel.WARN, "sensor link closed (" + peer + ")");
+            if (conn.sensorId != null) {
+                String gone = conn.sensorId;
+                record("sensor " + gone + " offline", () -> persistence.sensorOffline(gone));
+            }
         }
     }
 
@@ -233,6 +254,9 @@ public final class ConsoleServer implements CommandSink {
             conn.sensorId = message.sensorId();
             registry.markSeen(message.sensorId(),
                     message.timestamp() != null ? message.timestamp() : Instant.now());
+            String sensorId = message.sensorId();
+            String ip = conn.socket.getInetAddress().getHostAddress();
+            record("sensor " + sensorId, () -> persistence.sensorSeen(sensorId, ip, Instant.now()));
         } else if (message.type() == MessageType.EVENT && message.event() != null) {
             Optional<String> problem = EventValidator.problem(message.event());
             if (problem.isPresent()) {

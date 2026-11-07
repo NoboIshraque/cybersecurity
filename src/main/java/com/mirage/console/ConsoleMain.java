@@ -6,6 +6,7 @@ import com.mirage.common.LabConfig;
 import com.mirage.common.ScopeGuard;
 import com.mirage.common.trace.TraceBus;
 import com.mirage.common.LinkSecurity;
+import com.mirage.console.db.AlertDao;
 import com.mirage.console.db.Database;
 import com.mirage.console.detection.BaitFileRule;
 import com.mirage.console.detection.BruteForceRule;
@@ -22,6 +23,7 @@ import com.mirage.specter.Attacker;
 import javax.swing.SwingUtilities;
 import java.awt.GraphicsEnvironment;
 import java.net.BindException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -78,16 +80,49 @@ public final class ConsoleMain {
                         + "  (on the attacker laptop set console.host=" + ip + ")"),
                 () -> System.out.println("No LAN address inside the lab range " + config.labCidrs()
                         + "; single-machine demo on 127.0.0.1 (set lab.cidrs to your network for two laptops)."));
-        AlertLedger ledger = new AlertLedger(new KeyPairSigner());
+        // A-06: the ledger key survives restarts (data/ledger-key.pem), locked when a password is set.
+        String ledgerPassword = System.getenv(KeyPairSigner.PASSWORD_ENV);
+        KeyPairSigner signer;
+        try {
+            signer = KeyPairSigner.loadOrCreate(Path.of("data"), ledgerPassword);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Refusing to start: " + e.getMessage(), e);
+        }
+        boolean locked = ledgerPassword != null && !ledgerPassword.isEmpty();
+        System.out.println("Ledger key " + signer.keyId() + " (public key: data/" + KeyPairSigner.PUBLIC_KEY_FILE + ")"
+                + (locked ? ", locked with " + KeyPairSigner.PASSWORD_ENV + "." : "."));
+        if (!locked) {
+            System.out.println("[warn] data/" + KeyPairSigner.KEY_FILE + " is not password-protected: set "
+                    + KeyPairSigner.PASSWORD_ENV + " to lock it.");
+        }
+
+        Database database = new Database("jdbc:h2:file:./data/mirage");
+        Persistence persistence = new H2Persistence(database, signer.keyId());
+        System.out.println("Persistence ready (H2 at ./data/mirage).");
+
+        // B-30: continue the stored chain instead of starting a new one, and check it now.
+        AlertDao alertDao = new AlertDao(database);
+        List<com.mirage.common.LedgerEntry> stored = alertDao.loadChain();
+        AlertLedger ledger = new AlertLedger(signer, stored);
+        int broken = ledger.firstBrokenIndex();
+        int legacy = alertDao.legacyCount();
+        System.out.println("Ledger: " + stored.size() + " stored alert(s) loaded, chain "
+                + (broken < 0 ? "intact." : "BROKEN at entry #" + broken + " (changed since it was written)."));
+        if (broken >= 0) {
+            System.out.println("[warn] the stored ledger fails verification at entry #" + broken
+                    + "; the dashboard marks it in red.");
+        }
+        if (legacy > 0) {
+            System.out.println("Ledger: " + legacy + " older alert row(s) from before the key was saved are kept "
+                    + "in the database but can't be verified, so they are not part of the chain.");
+        }
         AlertBus bus = new AlertBus();
         bus.subscribe(alert -> System.out.println("[alert] " + alert.canonical()));
 
-        Database database = new Database("jdbc:h2:file:./data/mirage");
-        Persistence persistence = new H2Persistence(database);
-        System.out.println("Persistence ready (H2 at ./data/mirage).");
-
         HoneytokenStore honeytokens = new HoneytokenStore();
-        honeytokens.plant(new Honeytoken("ht-1", "svc_backup:S3cr3tBackup!", "config/backup.cfg"));
+        Honeytoken backupToken = new Honeytoken("ht-1", "svc_backup:S3cr3tBackup!", "config/backup.cfg");
+        honeytokens.plant(backupToken);
+        persistence.honeytokenPlanted(backupToken);
 
         // The live process shells subscribe to this bus; nothing is printed until one attaches.
         TraceBus trace = new TraceBus();
@@ -97,11 +132,14 @@ public final class ConsoleMain {
         ConsoleServer server = new ConsoleServer(link.serverFactory(), events, registry)
                 .setBindAddress(link.bindAddress());
         server.setTrace(trace);
+        server.setPersistence(persistence); // sensor table (B-30)
         AttackerDirectory directory = new AttackerDirectory();
 
-        // The server is the CommandSink: active-defence responses broadcast to the Sensors.
-        ResponsePolicy policy = new ResponsePolicy(guard, server);
-        ResponseController responses = new ResponseController(guard, server);
+        // The server is the CommandSink: active-defence responses broadcast to the Sensors,
+        // and each one is recorded in the block_rule table (B-30).
+        CommandSink commands = CommandSink.recorded(server, persistence);
+        ResponsePolicy policy = new ResponsePolicy(guard, commands);
+        ResponseController responses = new ResponseController(guard, commands);
         responses.setTrace(trace);
 
         // Operator-triggered counter-offensive: mirror the attacker's own technique back,

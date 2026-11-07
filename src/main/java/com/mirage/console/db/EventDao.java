@@ -18,12 +18,16 @@ public final class EventDao {
     }
 
     public synchronized void save(AttackEvent event) {
-        String sql = "INSERT INTO attack_event(src_ip, ts, action, payload) VALUES (?, ?, ?, ?)";
+        // B-30: also the decoy type, and the reporting Sensor's row (null until it has heartbeated)
+        String sql = "INSERT INTO attack_event(sensor_id, src_ip, ts, action, payload, decoy_type) "
+                + "VALUES ((SELECT MIN(id) FROM sensor WHERE hostname = ?), ?, ?, ?, ?, ?)";
         try (PreparedStatement ps = db.connection().prepareStatement(sql)) {
-            ps.setString(1, event.sourceIp());
-            ps.setTimestamp(2, Timestamp.from(event.timestamp()));
-            ps.setString(3, event.action().name());
-            ps.setString(4, event.payload());
+            ps.setString(1, event.sensorId());
+            ps.setString(2, event.sourceIp());
+            ps.setTimestamp(3, Timestamp.from(event.timestamp()));
+            ps.setString(4, event.action().name());
+            ps.setString(5, event.payload());
+            ps.setString(6, event.decoyType());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("failed to save event", e);

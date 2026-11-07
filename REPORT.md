@@ -154,9 +154,9 @@ approves the target → responses are sent to the Sensors (tarpit / feed fakes /
 
 ### 3.6 Database Design (Figure 4 — ER)
 
-Embedded H2 via a DAO layer. Tables: `sensor`, `decoy`, `attack_event`, `attacker_profile`,
-`alert` (hash-chained, with `prev_hash`/`hash`), `honeytoken`, `block_rule`. See
-[`db/schema.sql`](db/schema.sql).
+Embedded H2 via a DAO layer. Tables: `sensor`, `attack_event`, `attacker_profile`,
+`alert` (hash-chained, with `prev_hash`/`hash`, signed by a key kept in `data/` and continued
+across restarts), `honeytoken`, `block_rule`. See [`db/schema.sql`](db/schema.sql).
 
 ## 4. Implementation
 

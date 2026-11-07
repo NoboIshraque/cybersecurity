@@ -31,6 +31,19 @@ public final class AlertLedger {
         this.signer = signer;
     }
 
+    /**
+     * Continue a stored chain (B-30): {@code stored} is loaded as it is, and the next entry links
+     * to its last hash. {@link #verify()} and {@link #firstBrokenIndex()} cover the stored entries
+     * too, so an edit made to the database between runs shows up at start-up.
+     */
+    public AlertLedger(LedgerSigner signer, List<LedgerEntry> stored) {
+        this(signer);
+        chain.addAll(stored);
+        if (!stored.isEmpty()) {
+            lastHash = stored.get(stored.size() - 1).hash();
+        }
+    }
+
     public synchronized LedgerEntry append(Alert alert) {
         String hash = sha256(lastHash + alert.canonical());
         String signature = signer.sign(hash);

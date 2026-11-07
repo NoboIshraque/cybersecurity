@@ -350,14 +350,12 @@ sequenceDiagram
     </figure>
 
     <h3 id="database"><span class="num">3.6</span>Database Design (Figure 4)</h3>
-    <p>Embedded H2 via a DAO layer. Tables: <code>sensor</code>, <code>decoy</code>, <code>attack_event</code>, <code>attacker_profile</code>, <code>alert</code> (hash-chained, with <code>prev_hash</code>/<code>hash</code>), <code>honeytoken</code>, <code>block_rule</code>. The schema is in <code>db/schema.sql</code>.</p>
+    <p>Embedded H2 via a DAO layer. Tables: <code>sensor</code>, <code>attack_event</code>, <code>attacker_profile</code>, <code>alert</code> (hash-chained, with <code>prev_hash</code>/<code>hash</code>, signed by a key kept in <code>data/</code> and continued across restarts), <code>honeytoken</code>, <code>block_rule</code>. The schema is in <code>db/schema.sql</code>.</p>
     <figure>
       <div class="diagram">
 <pre class="mermaid">
 erDiagram
-  SENSOR ||--o{ DECOY : hosts
   SENSOR ||--o{ ATTACK_EVENT : reports
-  DECOY ||--o{ ATTACK_EVENT : "touched in"
   ATTACKER_PROFILE ||..o{ ATTACK_EVENT : "src_ip"
   ATTACKER_PROFILE ||..o{ ALERT : "src_ip"
   ATTACKER_PROFILE ||..o{ BLOCK_RULE : "src_ip"
@@ -370,21 +368,14 @@ erDiagram
     VARCHAR status
     TIMESTAMP last_heartbeat
   }
-  DECOY {
-    BIGINT id PK
-    BIGINT sensor_id FK
-    VARCHAR type
-    INT port
-    VARCHAR status
-  }
   ATTACK_EVENT {
     BIGINT id PK
     BIGINT sensor_id FK
-    BIGINT decoy_id FK
     VARCHAR src_ip
     TIMESTAMP ts
     VARCHAR action
     CLOB payload
+    VARCHAR decoy_type
   }
   ATTACKER_PROFILE {
     VARCHAR src_ip PK
@@ -403,6 +394,8 @@ erDiagram
     CHAR prev_hash
     CHAR hash
     VARCHAR signature
+    VARCHAR key_id
+    VARCHAR alert_ts
   }
   HONEYTOKEN {
     BIGINT id PK

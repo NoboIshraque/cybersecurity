@@ -181,6 +181,7 @@ public final class CorrelationEngine implements Runnable {
                         + "  prev=" + shortHash(entry.prevHash())
                         + (entry.signature() == null || entry.signature().isEmpty() ? "" : "  signed (ECDSA)"));
         store("alert", () -> persistence.saveAlert(entry), ip);
+        store("profile", () -> persistence.profileAlerted(profile, alert), ip); // attacker_profile (B-30)
         bus.publish(alert);
 
         if (!autoResponse.isEnabled()) {
