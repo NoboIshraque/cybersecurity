@@ -8,7 +8,6 @@ import javax.net.SocketFactory;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,16 +63,17 @@ public final class SensorMain {
                 + ", ftp:" + config.ftpDecoyPort() + ", telnet:" + config.telnetDecoyPort()
                 + " (defence-gated).");
 
-        Path baitDir = Path.of("bait");
+        // Reports what changed while the Sensor was down, plants missing lures, then watches (B-29, A-05).
+        Path baitDir = config.baitDir();
         BaitFileWatcher bait = new BaitFileWatcher(baitDir, sink);
         try {
-            Files.createDirectories(baitDir);
             bait.start();
         } catch (IOException e) {
             decoys.forEach(Decoy::stop);
             throw e;
         }
-        System.out.println("Watching bait files in " + baitDir.toAbsolutePath() + ".");
+        System.out.println("Watching bait files in " + baitDir.toAbsolutePath()
+                + " (subfolders included; SHA-256 baseline in " + baitDir.getFileName() + ".sha256).");
 
         System.out.println("Reporting to Console at " + consoleHost + ":" + consolePort + " as " + sensorId
                 + " (reconnects automatically).");

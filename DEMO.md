@@ -111,7 +111,10 @@ specter`, or `java -cp target/classes com.mirage.console.ConsoleMain` and friend
 `mvnw compile`). In this mode the source shown everywhere is `127.0.0.1`.
 
 **Bait file (either mode):** on Laptop A, edit or delete any file inside the `bait/` folder next
-to the jar. A CRITICAL *Bait file tampered (possible ransomware)* alert (T1485) appears.
+to the jar. The Sensor plants three lures there on start (`passwords.csv`, `vpn.key`,
+`config/backup.cfg`, the last one holding the honeytoken), so try `bait/config/backup.cfg`. A
+CRITICAL *Bait file tampered (possible ransomware)* alert (T1485) appears. A change made while
+the defender was closed is reported at its next start, marked *while the Sensor was down*.
 
 ## Safety
 

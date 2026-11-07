@@ -20,8 +20,9 @@ Thumbs.db
 certs/*.jks
 certs/*.p12
 
-# Runtime bait-file directory
+# Runtime bait-file directory and its integrity baseline
 bait/
+bait.sha256
 
 # H2 database files
 data/

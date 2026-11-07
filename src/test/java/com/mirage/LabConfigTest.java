@@ -59,6 +59,14 @@ class LabConfigTest {
         assertThrows(IllegalArgumentException.class, publicRange::scopeGuard);
     }
 
+    /** A-05: the bait folder is a setting, not a hard-coded path relative to wherever Java started. */
+    @Test
+    void baitDirIsConfigurable() {
+        assertEquals(Path.of("bait"), LabConfig.defaults().baitDir());
+        assertEquals(Path.of("D:/lab/lures"), LabConfig.load(null, new String[]{"--bait-dir=D:/lab/lures"}).baitDir());
+        assertEquals(Path.of("lures"), LabConfig.from(Map.of("bait.dir", "lures")).baitDir());
+    }
+
     /** B-22: {@code .properties} has no inline comments, so "value   # note" must not leak the note. */
     @Test
     void inlineHashCommentsInThePropertiesFileAreStripped(@TempDir Path dir) throws IOException {

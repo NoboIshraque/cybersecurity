@@ -42,6 +42,7 @@ public final class LabConfig {
     private final int ftpDecoyPort;
     private final int telnetDecoyPort;
     private final int counterWatchPort;
+    private final Path baitDir;
 
     private LabConfig(Map<String, String> v) {
         this.labCidrs = splitCidrs(v.getOrDefault("lab.cidrs", DEFAULT_CIDRS));
@@ -51,6 +52,7 @@ public final class LabConfig {
         this.ftpDecoyPort = intValue(v, "decoy.ftp.port", 8021);
         this.telnetDecoyPort = intValue(v, "decoy.telnet.port", 8023);
         this.counterWatchPort = intValue(v, "counterwatch.port", 8080);
+        this.baitDir = Path.of(v.getOrDefault("bait.dir", "bait"));
     }
 
     /** The built-in defaults (single-machine demo on 127.0.0.1). */
@@ -98,7 +100,8 @@ public final class LabConfig {
                 "--http-port", "decoy.http.port",
                 "--ftp-port", "decoy.ftp.port",
                 "--telnet-port", "decoy.telnet.port",
-                "--counterwatch-port", "counterwatch.port");
+                "--counterwatch-port", "counterwatch.port",
+                "--bait-dir", "bait.dir");
         Map<String, String> out = new LinkedHashMap<>();
         if (args == null) {
             return out;
@@ -158,6 +161,11 @@ public final class LabConfig {
 
     public int counterWatchPort() {
         return counterWatchPort;
+    }
+
+    /** The Sensor's bait folder (default {@code bait} in the working directory). */
+    public Path baitDir() {
+        return baitDir;
     }
 
     /** A one-line summary for logs and the dashboard status bar. */
