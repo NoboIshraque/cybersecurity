@@ -96,19 +96,19 @@ New patterns used (and existing ones extended):
 - [x] Sensor and Specter read console host / target host / ports from the config.
 - [x] Tests: `LabConfigTest` (5) + `ScopeGuardTest` lab-range cases (4). **57 tests green.**
 
-### Phase 2 — Trace plumbing (no UI yet)
-- [ ] `common.trace`: `TraceEvent` record (time, thread, stage, text, level), `TraceSink`, `TraceBus`,
-      with a no-op default.
-- [ ] Console emits traces from `ConsoleServer` (rx thread, raw JSON line), `CorrelationEngine`
-      (each rule: miss / match), `AlertLedger` (index, hash prefix, signature), persistence,
-      `ResponsePolicy`/`ResponseController` (ScopeGuard check, broadcast), and `CounterOffensive`
-      (per-thread start/finish).
-- [ ] Wire protocol: Sensor sends **`ACK`** after applying a command, so the Console can show
-      "sensor-X: BLOCK applied". Adds `MessageType.ACK` and a codec test.
-- [ ] Specter: `AttackTrace` callback. Each existing strategy reports what already happens
-      (connect result, decoy reply line) and reads the reply with a socket timeout, so a
-      **blocked** connection (closed straight away) or a **tarpitted** one (stalled) shows up honestly.
-- [ ] Tests: `TraceBusTest`, strategy-against-local-decoy tests for ok / blocked / tarpit outcomes.
+### Phase 2 — Trace plumbing (no UI yet) ✅
+- [x] `common.trace`: `TraceEvent` (time, channel, thread, stage, subject, level, text), `TraceLevel`,
+      `TraceSink` (no-op `NONE`), `TraceBus` (Observer, isolates a broken listener).
+- [x] Console emits traces from `ConsoleServer` (rx thread named per peer, event/heartbeat/ACK/dispatch),
+      `CorrelationEngine` (dequeue, each rule miss/match, ledger index+hash+signature, response),
+      `ResponseController` and `CounterOffensive` (operator ops on the `op` channel). Wired through
+      `ConsoleMain` to a `TraceBus` (no subscriber yet → silent until Phase 6).
+- [x] Wire protocol: Sensor sends **`ACK`** after applying a command (`MessageType.ACK`, `note` field);
+      Console traces "sensor-X confirms: BLOCK … applied".
+- [x] Specter: `AttackTrace` callback. `AttackStrategy.run(Target, AttackTrace)`; each strategy reports
+      every step and reads the reply via `ProbeReply` (ACCEPTED / REJECTED / DROPPED=block /
+      STALLED=tarpit), so outcomes are honest.
+- [x] Tests: `TraceBusTest` (3), `AckCodecTest` (2), `StrategyOutcomeTest` (allow/block/tarpit). **65 green.**
 
 ### Phase 3 — Shell window component
 - [ ] `ui.shell.ShellModel` (no GUI, testable): thread-safe paced queue, thread → colour map,
@@ -185,3 +185,4 @@ New patterns used (and existing ones extended):
 | 2026-11-07 | Plan | Map written, decisions agreed. Waiting for "go". |
 | 2026-11-07 | 0 | Branch `feature/live-shells`; Maven Wrapper 3.3.2 → Maven 3.9.9; 48 tests green. |
 | 2026-11-07 | 1 | `LabConfig` + `ScopeGuard.requireLabRange` (private/loopback, ≥/16); entry points wired. 57 tests green. |
+| 2026-11-07 | 2 | `common.trace` (TraceBus) + ACK on the wire; Console & Specter emit honest step traces. 65 tests green. |
