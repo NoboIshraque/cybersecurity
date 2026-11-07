@@ -79,13 +79,16 @@ class DetectionScaleTest {
             profile.add(event(ip, decoy, Action.CONNECT, "").withSensor("sensor-a"));
         }
         profile.add(event(ip, "ftp", Action.CONNECT, "").withSensor("sensor-b"));
-        for (String user : List.of("alice", "bob", "carol", "dave")) { // + the token = 5 logins
+        for (String user : List.of("alice", "bob", "carol", "dave")) { // a spray
             profile.add(event(ip, "ftp", Action.LOGIN_ATTEMPT, user + ":Winter2026!"));
+        }
+        for (int i = 0; i < 5; i++) { // a brute force: 5 passwords on one account (B-28)
+            profile.add(event(ip, "ftp", Action.LOGIN_ATTEMPT, "root:guess" + i));
         }
         profile.add(event(ip, "http-login", Action.LOGIN_ATTEMPT, TOKEN));
         profile.add(event(ip, "http-login", Action.DECOY_ACCESS, TOKEN));
         profile.add(event(ip, "bait-file", Action.FILE_CHANGE, "ENTRY_MODIFY vpn.key"));
-        int early = 11;
+        int early = 16;
         for (int i = 0; i < NOISE; i++) {
             profile.add(event(ip, "telnet", Action.CONNECT, ""));
         }

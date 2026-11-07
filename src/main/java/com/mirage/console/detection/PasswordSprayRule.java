@@ -16,9 +16,9 @@ public final class PasswordSprayRule implements DetectionRule {
 
     @Override
     public Optional<Classification> classify(AttackerProfile profile) {
-        // The profile tracks users-per-password as logins arrive ("user:pass", split at the
-        // first ':'; a login with no payload or no ':' is ignored), so this is O(1) (B-02).
-        return profile.mostUsersForOnePassword() >= DISTINCT_USERS
+        // The profile tracks accounts-per-password as logins arrive ("user:pass", split at the
+        // first ':'), within a 10-minute window (B-28), so this is O(1) (B-02).
+        return profile.recentAccountsOnOnePassword() >= DISTINCT_USERS
                 ? Optional.of(new Classification("Password spraying", "T1110.003", Severity.HIGH))
                 : Optional.empty();
     }

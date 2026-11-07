@@ -41,7 +41,10 @@ public final class Campaigns {
     }
 
     private static AttackStrategy brute() {
-        return new BruteForceAttack(List.of("123456", "password", "admin", "letmein", "root"));
+        // 8 guesses against a detection threshold of 5 (B-28): one lost or stalled attempt
+        // still leaves enough for the Console to see a brute force.
+        return new BruteForceAttack(List.of("123456", "password", "admin", "letmein", "root",
+                "qwerty", "welcome", "changeme"));
     }
 
     private static AttackStrategy spray() {

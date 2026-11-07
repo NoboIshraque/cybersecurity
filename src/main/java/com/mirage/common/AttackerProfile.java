@@ -36,6 +36,14 @@ public final class AttackerProfile {
     private final Set<String> credentials = new HashSet<>();
     private final Map<String, Set<String>> usersByPassword = new HashMap<>();
     private int mostUsersForOnePassword;
+    // B-28: the same signals, counted within the DetectionWindows. Each holds its peak: the most
+    // ever seen inside one window, so a finding, once made, does not flap as the window slides.
+    private final Map<String, WindowedDistinct> passwordsByUser = new HashMap<>();
+    private final Map<String, WindowedDistinct> usersByPasswordRecent = new HashMap<>();
+    private final WindowedDistinct servicesRecent = new WindowedDistinct(DetectionWindows.PORT_SCAN);
+    private int recentPasswordsOnOneAccount;
+    private int recentAccountsOnOnePassword;
+    private int recentServices;
     private long eventCount;
     private Instant firstSeen;
     private Instant lastSeen;
@@ -59,9 +67,13 @@ public final class AttackerProfile {
         if (action == null) {
             return;
         }
+        // The window clock: this event's time (or the latest seen, if it has none / is late).
+        Instant now = lastSeen != null ? lastSeen : Instant.now();
+        Instant when = at != null ? at : now;
         counts.merge(action, 1L, Long::sum);
         if ((action == Action.CONNECT || action == Action.PORT_PROBE) && event.decoyType() != null) {
             probedServices.add(event.decoyType());
+            recentServices = Math.max(recentServices, servicesRecent.add(event.decoyType(), when, now));
         }
         if (event.sensorId() != null && !event.sensorId().isBlank()) {
             sensors.add(event.sensorId());
@@ -75,7 +87,30 @@ public final class AttackerProfile {
                 users.add(event.payload().substring(0, colon));
                 mostUsersForOnePassword = Math.max(mostUsersForOnePassword, users.size());
             }
+            String user = colon >= 0 ? event.payload().substring(0, colon) : event.payload();
+            String password = colon >= 0 ? event.payload().substring(colon + 1) : "";
+            recentPasswordsOnOneAccount = Math.max(recentPasswordsOnOneAccount, passwordsByUser
+                    .computeIfAbsent(user, k -> new WindowedDistinct(DetectionWindows.BRUTE_FORCE))
+                    .add(password, when, now));
+            recentAccountsOnOnePassword = Math.max(recentAccountsOnOnePassword, usersByPasswordRecent
+                    .computeIfAbsent(password, k -> new WindowedDistinct(DetectionWindows.PASSWORD_SPRAY))
+                    .add(user, when, now));
         }
+    }
+
+    /** Most distinct passwords tried against one account within {@link DetectionWindows#BRUTE_FORCE} (B-28). */
+    public int recentPasswordsOnOneAccount() {
+        return recentPasswordsOnOneAccount;
+    }
+
+    /** Most distinct accounts tried with one password within {@link DetectionWindows#PASSWORD_SPRAY} (B-28). */
+    public int recentAccountsOnOnePassword() {
+        return recentAccountsOnOnePassword;
+    }
+
+    /** Most distinct decoy services touched within {@link DetectionWindows#PORT_SCAN} (B-28). */
+    public int recentServices() {
+        return recentServices;
     }
 
     public String sourceIp() {
