@@ -54,9 +54,14 @@ Copy `mirage.properties.example` to `mirage.properties` and set two values. **Th
 works on both laptops.**
 
 ```properties
-lab.cidrs=192.168.0.0/24,127.0.0.1/32     # your network's range (+ loopback for local tests)
-console.host=192.168.0.107                # Laptop A's IP; Specter on Laptop B targets it
+# Your network's range (+ loopback for local tests)
+lab.cidrs=192.168.0.0/24,127.0.0.1/32
+# Laptop A's IP; Specter on Laptop B targets it
+console.host=192.168.0.107
 ```
+
+Comments go on their own line starting with `#`: Java `.properties` files have no end-of-line
+comments.
 
 Keep the ports at their defaults unless one is already in use (then change it in *both* copies).
 The lab range must be private or loopback and `/16` or narrower. Anything else makes every

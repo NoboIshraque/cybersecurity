@@ -15,7 +15,7 @@ are merged into one line. Fix the waves in order.
 
 ## Wave 1 — safety boundary and demo-breakers (fix before the next rehearsal)
 
-- [ ] **HIGH** · [B-22](B-robustness.md) — The `mirage.properties` snippet in `docs/TWO-LAPTOP-SETUP.md` uses inline `#` comments, which Java keeps as part of the value, so every role refuses to start. *Move comments to their own lines; reject or trim values with ` #` in `LabConfig`.*
+- [x] **HIGH** · [B-22](B-robustness.md) — The `mirage.properties` snippet in `docs/TWO-LAPTOP-SETUP.md` uses inline `#` comments, which Java keeps as part of the value, so every role refuses to start. *Move comments to their own lines; reject or trim values with ` #` in `LabConfig`.*
 - [ ] **HIGH** · [B-01](B-robustness.md) — One bad event (null field, H2 "value too long") kills the correlation-engine thread for good, silently. *Catch per event, log it, keep consuming; validate events at the server.*
 - [ ] **HIGH** · [B-05](B-robustness.md) + [B-13](B-robustness.md) — The Sensor never reconnects, and one unparsable line or unknown JSON field makes the Console drop it. *Reconnect loop with backoff; skip bad lines instead of closing; ignore unknown JSON fields.*
 - [ ] **HIGH** · [B-06](B-robustness.md) + [B-07](B-robustness.md) + [A-04](A-security.md) — Decoys have no read timeout, and tarpits hold workers forever: 12 idle or tarpitted connections freeze a decoy for every source. *`setSoTimeout`; cap tarpit time and connections per source; separate tarpit pool.*

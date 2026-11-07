@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 /**
  * One place for the settings a two-laptop demo needs: the lab CIDR range (the
@@ -76,7 +77,7 @@ public final class LabConfig {
                 throw new UncheckedIOException("could not read " + propertiesFile, e);
             }
             for (String name : props.stringPropertyNames()) {
-                values.put(name, props.getProperty(name).trim());
+                values.put(name, stripInlineComment(props.getProperty(name)));
             }
         }
         values.putAll(parseArgs(args));
@@ -215,6 +216,17 @@ public final class LabConfig {
         }
         return out;
     }
+
+    /**
+     * {@code .properties} files have no inline comments: Java keeps {@code "1.2.3.4   # note"}
+     * as the whole value. People write them anyway (and none of our values contain {@code #}),
+     * so drop a whitespace-preceded {@code #...} tail and trim.
+     */
+    static String stripInlineComment(String raw) {
+        return INLINE_COMMENT.matcher(raw).replaceFirst("").trim();
+    }
+
+    private static final Pattern INLINE_COMMENT = Pattern.compile("\\s+#.*$");
 
     private static List<String> splitCidrs(String raw) {
         List<String> out = new ArrayList<>();

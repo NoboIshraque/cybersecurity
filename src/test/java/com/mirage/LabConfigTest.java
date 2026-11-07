@@ -2,9 +2,15 @@ package com.mirage;
 
 import com.mirage.common.LabConfig;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -51,6 +57,42 @@ class LabConfigTest {
     void unsafeConfiguredRangeIsRefusedWhenBuildingGuard() {
         LabConfig publicRange = LabConfig.from(Map.of("lab.cidrs", "8.8.8.0/24"));
         assertThrows(IllegalArgumentException.class, publicRange::scopeGuard);
+    }
+
+    /** B-22: {@code .properties} has no inline comments, so "value   # note" must not leak the note. */
+    @Test
+    void inlineHashCommentsInThePropertiesFileAreStripped(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("mirage.properties");
+        Files.writeString(file, String.join("\n",
+                "lab.cidrs=192.168.0.0/24,127.0.0.1/32     # your network's range",
+                "console.host=192.168.0.107                # Laptop A's IP",
+                "console.port=9443\t# tab before the comment",
+                ""));
+        LabConfig cfg = LabConfig.load(file, new String[0]);
+        assertEquals(List.of("192.168.0.0/24", "127.0.0.1/32"), cfg.labCidrs());
+        assertEquals("192.168.0.107", cfg.consoleHost());
+        assertEquals(9443, cfg.consolePort());
+        assertDoesNotThrow(cfg::scopeGuard);
+    }
+
+    /** B-22: the snippet users copy from the two-laptop guide must load as-is. */
+    @Test
+    void twoLaptopGuideSnippetLoadsCleanly(@TempDir Path dir) throws IOException {
+        String doc = Files.readString(Path.of("docs", "TWO-LAPTOP-SETUP.md"));
+        Matcher m = Pattern.compile("```properties\\R(.*?)```", Pattern.DOTALL).matcher(doc);
+        assertTrue(m.find(), "the guide has a ```properties block");
+        String snippet = m.group(1);
+        for (String line : snippet.split("\\R")) {
+            String t = line.strip();
+            if (!t.isEmpty() && !t.startsWith("#")) {
+                assertFalse(t.contains("#"), "inline comment in the guide's snippet: " + line);
+            }
+        }
+        Path file = dir.resolve("mirage.properties");
+        Files.writeString(file, snippet);
+        LabConfig cfg = LabConfig.load(file, new String[0]);
+        assertEquals("192.168.0.107", cfg.consoleHost());
+        assertDoesNotThrow(cfg::scopeGuard);
     }
 
     @Test
