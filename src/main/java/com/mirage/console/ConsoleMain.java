@@ -102,7 +102,7 @@ public final class ConsoleMain {
         Attacker counterAttacker = new Attacker(guard, line -> System.out.println("[counter] " + line));
         counterAttacker.setTrace(trace, "op");
         CounterOffensive counter = new CounterOffensive(
-                counterAttacker, new MirrorCounterStrategy(), config.counterWatchPort());
+                counterAttacker, new MirrorCounterStrategy(config.counterWatchPort()), config.counterWatchPort());
         counter.setTrace(trace);
         List<DetectionRule> rules = List.of(
                 new PortScanRule(),

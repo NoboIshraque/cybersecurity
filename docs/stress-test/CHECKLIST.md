@@ -23,7 +23,7 @@ are merged into one line. Fix the waves in order.
 - [x] **MEDIUM** · [B-24](B-robustness.md) — Flaky test (2/7 runs) that is also a real race: a blocked probe is sometimes reported as "connection failed" instead of "blocked". *Treat write/connect resets as DROPPED; make the test deterministic.*
 - [x] **MEDIUM** · [B-10](B-robustness.md) + [B-31](B-robustness.md) — `defender` starts its Sensor against whatever already holds the Console port, and keeps running with a "connected" Sensor that has no decoys when a decoy port is taken. *Fail the whole role if the Console or any decoy can't bind.*
 - [x] **MEDIUM** · [B-29](B-robustness.md) — No bait files are planted, so DEMO's "edit a file in `bait/`" step has nothing to edit. *Plant sample bait files at Sensor start (and fix A-05 alongside).*
-- [ ] **MEDIUM** · [B-21](B-robustness.md) — Recon and mirror scans are hard-coded to ports 8020–8085, ignoring the configured ports; on one laptop Specter's own scan trips its own counter-watch. *Derive scan ports from `LabConfig`; skip the local counter-watch port.*
+- [x] **MEDIUM** · [B-21](B-robustness.md) — Recon and mirror scans are hard-coded to ports 8020–8085, ignoring the configured ports; on one laptop Specter's own scan trips its own counter-watch. *Derive scan ports from `LabConfig`; skip the local counter-watch port.*
 
 ## Wave 2 — trust, integrity and correctness
 

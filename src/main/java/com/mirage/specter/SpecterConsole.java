@@ -26,7 +26,6 @@ import java.awt.FlowLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.time.Duration;
-import java.util.List;
 
 /**
  * The red-team control panel. Pick a target in the lab range, choose a campaign,
@@ -39,11 +38,10 @@ import java.util.List;
  */
 public final class SpecterConsole extends JFrame {
 
-    private static final String[] CAMPAIGNS = {
-            "Recon scan", "Brute force", "Password spray", "Honeytoken replay", "Full campaign"
-    };
+    private static final String[] CAMPAIGNS = Campaigns.CHOICES;
 
     private final transient ScopeGuard guard;
+    private final transient LabConfig config;
     private final JTextField hostField;
     private final JTextField portField;
     private final JComboBox<String> campaignBox = new JComboBox<>(CAMPAIGNS);
@@ -58,6 +56,7 @@ public final class SpecterConsole extends JFrame {
     public SpecterConsole(ScopeGuard guard, LabConfig config) {
         super("Specter — attack simulator (lab range only)");
         this.guard = guard;
+        this.config = config;
         this.hostField = new JTextField(config.consoleHost(), 12);
         this.portField = new JTextField(Integer.toString(config.httpDecoyPort()), 6);
         buildUi();
@@ -165,20 +164,7 @@ public final class SpecterConsole extends JFrame {
     }
 
     private Campaign buildCampaign(String choice, int port) {
-        return switch (choice) {
-            case "Recon scan" -> new Campaign("recon", List.of(new PortScanAttack(8020, 8085)));
-            case "Brute force" -> new Campaign("brute", List.of(
-                    new BruteForceAttack(List.of("123456", "password", "admin", "letmein", "root"))));
-            case "Password spray" -> new Campaign("spray", List.of(
-                    new PasswordSprayAttack(List.of("admin", "root", "user", "test"), "Password123!")));
-            case "Honeytoken replay" -> new Campaign("honeytoken", List.of(
-                    new HoneytokenReplayAttack("svc_backup:S3cr3tBackup!")));
-            default -> new Campaign("full", List.of(
-                    new PortScanAttack(8020, 8085),
-                    new BruteForceAttack(List.of("123456", "password", "admin", "letmein", "root")),
-                    new PasswordSprayAttack(List.of("admin", "root", "user", "test"), "Password123!"),
-                    new HoneytokenReplayAttack("svc_backup:S3cr3tBackup!")));
-        };
+        return Campaigns.forChoice(choice, config); // scan ports come from the config (B-21)
     }
 
     private void log(String message) {
