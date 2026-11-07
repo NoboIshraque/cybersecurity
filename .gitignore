@@ -14,9 +14,13 @@ target/
 .DS_Store
 Thumbs.db
 
-# Lab TLS material — never commit keystores
+# Lab TLS material and private keys — never commit them (NoSecretsCommittedTest checks, A-09)
 *.jks
 *.p12
+*.pfx
+*.pem
+*.key
+*.keystore
 certs/*.jks
 certs/*.p12
 
