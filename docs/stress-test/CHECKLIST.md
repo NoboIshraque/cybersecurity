@@ -51,7 +51,7 @@ are merged into one line. Fix the waves in order.
 - [x] **LOW** · [B-16](B-robustness.md) — The shell's thread strip never shows "done".
 - [x] **LOW** · [B-18](B-robustness.md) — Attacker dossier is a frozen snapshot; "Port probes" is always 0 (and "Honeytokens used" stays empty).
 - [x] **LOW** · [B-23](B-robustness.md) — Smaller docs-vs-code contradictions.
-- [ ] **LOW** · [B-25](B-robustness.md) — `PersistenceDaoTest` isn't isolated (named in-memory H2 keeps rows).
+- [x] **LOW** · [B-25](B-robustness.md) — `PersistenceDaoTest` isn't isolated (named in-memory H2 keeps rows).
 - [ ] **LOW** · [B-32](B-robustness.md) — Mistyped flags are silently ignored; ports aren't range-checked.
 - [ ] **LOW** · [B-33](B-robustness.md) — Smaller concurrency/robustness notes from code reading (SUSPECTED).
 - [ ] **INFO** · [A-09](A-security.md) — No secrets committed; add a CI guard to keep it that way.
