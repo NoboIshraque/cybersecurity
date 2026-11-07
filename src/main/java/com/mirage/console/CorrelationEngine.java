@@ -37,6 +37,7 @@ public final class CorrelationEngine implements Runnable {
     private final AttackerDirectory directory;
     private final Map<String, AttackerProfile> profiles = new ConcurrentHashMap<>();
     private volatile TraceSink trace = TraceSink.NONE;
+    private volatile AutoResponse autoResponse = new AutoResponse(true);
 
     public CorrelationEngine(BlockingQueue<AttackEvent> events, List<DetectionRule> rules,
                              AlertLedger ledger, AlertBus bus, ResponsePolicy policy,
@@ -59,6 +60,11 @@ public final class CorrelationEngine implements Runnable {
     /** Narrate each pipeline step to the shells (default: none). */
     public void setTrace(TraceSink trace) {
         this.trace = trace == null ? TraceSink.NONE : trace;
+    }
+
+    /** Share the automatic-response on/off switch with the dashboard (default: on). */
+    public void setAutoResponse(AutoResponse autoResponse) {
+        this.autoResponse = autoResponse == null ? new AutoResponse(true) : autoResponse;
     }
 
     @Override
@@ -110,12 +116,13 @@ public final class CorrelationEngine implements Runnable {
         persistence.saveAlert(entry);
         bus.publish(alert);
 
+        if (!autoResponse.isEnabled()) {
+            trace.line("console", "response", ip, TraceLevel.WARN,
+                    "auto-response OFF — alert recorded, waiting for the operator");
+            return;
+        }
         try {
             List<ResponseAction> actions = policy.actionsFor(ip, classification);
-            if (actions.isEmpty()) {
-                trace.line("console", "response", ip, TraceLevel.WARN,
-                        "auto-response off: waiting for the operator");
-            }
             for (ResponseAction action : actions) {
                 trace.line("console", "response", ip, TraceLevel.WARN,
                         "auto-response: " + action.describe() + "  (ScopeGuard ok)");
