@@ -35,8 +35,8 @@ range. **48 tests green**; CI runs `mvn verify` on every PR and on `master`.
 ## Stretch goals — all done
 
 - ✅ Real TLS on the Console↔Sensor link (`SSLServerSocketFactory`/`SSLSocketFactory` from the lab
-  keystore). — PR #8
-- ✅ Per-entry digital signatures on ledger alerts, ECDSA, in addition to the hash chain. — PR #9
+  keystore). — PR #9
+- ✅ Per-entry digital signatures on ledger alerts, ECDSA, in addition to the hash chain. — PR #8
 - ✅ Cross-host correlation by sensor id (events tagged with their sensor; lateral-movement rule). — PR #10
 - ✅ Full Console dashboard built — the network map, attacker dossier, session replay, manual-override
   response panel, and red-highlighted broken ledger link — shown in the report with real screenshots
@@ -87,7 +87,7 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
   Specter (#5), dashboard (#6) — all merged.
 - **2026-10-13 (Phase 7)** — end-to-end integration test + `DEMO.md` + final docs; opened and
   merged PR #7. Project feature-complete.
-- **2026-10-13/14 (stretch goals)** — real TLS (#8), ECDSA ledger signatures (#9), cross-host
+- **2026-10-13/14 (stretch goals)** — ECDSA ledger signatures (#8), real TLS (#9), cross-host
   correlation + lateral-movement rule (#10) — all merged.
 - **2026-10-14 (GUI screenshots)** — captured real Dashboard + Specter screenshots headlessly
   (Xvfb + ImageMagick), demonstrated ledger tamper-detection (verified/BROKEN), rewrote Report
