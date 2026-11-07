@@ -332,19 +332,37 @@ public final class ConsoleServer implements CommandSink {
         }
     }
 
+    /** A Sensor clock this far off this Console's is worth a warning. */
+    static final Duration SKEW_WARNING = Duration.ofSeconds(10);
+
+    private void warnIfSkewed(String sensorId, Instant sensorTime, Instant received) {
+        if (sensorTime == null) {
+            return;
+        }
+        Duration skew = Duration.between(received, sensorTime);
+        if (skew.abs().compareTo(SKEW_WARNING) > 0) {
+            trace.line("console", "rx", null, TraceLevel.WARN, "sensor " + sensorId + "'s clock is "
+                    + skew.abs().toSeconds() + " s " + (skew.isNegative() ? "slow" : "fast")
+                    + ": the event times it reports are off by that much (liveness uses this Console's clock)");
+        }
+    }
+
     private void route(Connection conn, SensorMessage message) {
         if (message.type() == MessageType.HEARTBEAT && message.sensorId() != null) {
+            // B-14: liveness runs on this Console's clock. The Sensor's own timestamp is only
+            // compared once, to point out a skewed laptop clock.
+            Instant received = Instant.now();
             if (conn.sensorId == null) {
                 Thread.currentThread().setName("rx-" + message.sensorId());
                 trace.line("console", "rx", null, TraceLevel.GOOD,
                         "sensor registered: " + message.sensorId());
+                warnIfSkewed(message.sensorId(), message.timestamp(), received);
             }
             conn.sensorId = message.sensorId();
-            registry.markSeen(message.sensorId(),
-                    message.timestamp() != null ? message.timestamp() : Instant.now());
+            registry.markSeen(message.sensorId(), received);
             String sensorId = message.sensorId();
             String ip = conn.socket.getInetAddress().getHostAddress();
-            record("sensor " + sensorId, () -> persistence.sensorSeen(sensorId, ip, Instant.now()));
+            record("sensor " + sensorId, () -> persistence.sensorSeen(sensorId, ip, received));
         } else if (message.type() == MessageType.EVENT && message.event() != null) {
             Optional<String> problem = EventValidator.problem(message.event());
             if (problem.isPresent()) {
