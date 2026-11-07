@@ -52,4 +52,15 @@ class LabConfigTest {
         LabConfig publicRange = LabConfig.from(Map.of("lab.cidrs", "8.8.8.0/24"));
         assertThrows(IllegalArgumentException.class, publicRange::scopeGuard);
     }
+
+    @Test
+    void lanIpPrefersTheAddressInsideTheLabRange() {
+        // e.g. a VirtualBox host-only adapter listed before the Wi-Fi adapter
+        List<String> candidates = List.of("192.168.56.1", "192.168.0.107");
+        var guard = LabConfig.from(Map.of("lab.cidrs", "192.168.0.0/24")).scopeGuard();
+        assertEquals("192.168.0.107", LabConfig.pickLanIp(candidates, guard::isAuthorised).orElseThrow());
+        assertEquals("192.168.56.1", LabConfig.pickLanIp(candidates, ip -> false).orElseThrow(),
+                "falls back to the first address when none is in range");
+        assertTrue(LabConfig.pickLanIp(List.of(), ip -> true).isEmpty());
+    }
 }

@@ -1,6 +1,6 @@
 # BUILD LOG — Live shells & two-laptop demo
 
-_Created: 2026-11-07 · Status: **IN PROGRESS — Phases 0–6 done (91 tests green); next is Phase 7**_
+_Created: 2026-11-07 · Status: **IN PROGRESS — Phases 0–7 done (93 tests green); next is Phase 8**_
 
 This is the map for the next piece of work and its running log. Each phase gets ticked off,
 and the **Progress log** at the bottom gets a line as each one lands.
@@ -13,12 +13,10 @@ and the **Progress log** at the bottom gets a line as each one lands.
    ```bash
    ./mvnw -B test        # on Windows PowerShell: .\mvnw.cmd -B test
    ```
-   First wrapper run downloads Maven 3.9.9 to `~/.m2/wrapper`. **Current baseline: 91 tests green.**
-3. **What's done:** Phases 0–6 complete (Console threat popups, operation shells, auto-response
-   checkbox, pipeline shell). See the per-phase checkboxes below and the Progress log at the bottom.
+   First wrapper run downloads Maven 3.9.9 to `~/.m2/wrapper`. **Current baseline: 93 tests green.**
+3. **What's done:** Phases 0–7 complete (Console threat popups, operation shells, auto-response
+   checkbox, pipeline shell; runnable `target/mirage.jar` + `Launcher` + run scripts + setup doc). See the per-phase checkboxes below and the Progress log at the bottom.
 4. **What's next (in order):**
-   - **Phase 7** — `maven-shade-plugin` fat jar, a `com.mirage.Launcher` (`defender`/`attacker`/…),
-     `run-defender`/`run-attacker` scripts, a sample `mirage.properties`, and `docs/TWO-LAPTOP-SETUP.md`.
    - **Phase 8** — `./mvnw verify`, a localhost GUI dry-run, fresh screenshots into `docs/screenshots/`.
    - **Phase 9** — update `DEMO.md`, `HANDOVER.md`, `README.md`, `CLAUDE.md`, `REPORT.md` §5.5; push
      the branch and open a **draft PR** to `master`.
@@ -196,13 +194,26 @@ New patterns used (and existing ones extended):
       Simultaneous counter clicked on the popup): popup COMPROMISED → op shell shows dispatch + ACK →
       NEUTRALISED; counter shell splits per thread.
 
-### Phase 7 — Packaging for two laptops
-- [ ] Runnable fat jar via `maven-shade-plugin` → `target/mirage.jar`.
-- [ ] `com.mirage.Launcher`: `defender` (Console + Sensor) | `attacker` (Specter + CounterWatch) |
-      `console` | `sensor` | `specter`.
-- [ ] Scripts: `run-defender.bat/.sh`, `run-attacker.bat/.sh`, and a sample `mirage.properties`.
-- [ ] `docs/TWO-LAPTOP-SETUP.md`: checklist (same network, Java 17+ on Laptop B, copy the jar,
-      find IPs, set the lab range) plus the **firewall commands for you to run** on each laptop.
+### Phase 7 — Packaging for two laptops ✅
+- [x] Runnable fat jar via `maven-shade-plugin` 3.6.0 → `target/mirage.jar` (~5 MB, `mvnw package`;
+      Multi-Release manifest, services + Apache LICENSE/NOTICE merged, signatures stripped).
+- [x] `com.mirage.Launcher` (jar Main-Class): `defender` (Console on a thread, waits for its port,
+      then the Sensor; the Sensor is forced to report to `127.0.0.1`) | `attacker` / `specter`
+      (Specter + CounterWatch) | `console` | `sensor` | `help`. An unsafe range stops the defender
+      before the Sensor starts.
+- [x] Scripts: `run-defender.bat/.sh`, `run-attacker.bat/.sh` (find `mirage.jar` next to them or in
+      `target/`, check Java, `cd` to their folder so `mirage.properties` is read). `.gitattributes`
+      keeps `.bat` CRLF / `.sh` LF. Sample `mirage.properties.example` (one file serves both
+      laptops); a local `mirage.properties` is git-ignored.
+- [x] Console's LAN address now **prefers an address inside the lab range**
+      (`LabConfig.primaryLanIp(guard::isAuthorised)`), so a VirtualBox/VPN adapter is skipped.
+- [x] `docs/TWO-LAPTOP-SETUP.md`: checklist, network choice, IPs, build/copy, properties, the
+      **firewall commands for you to run** (scoped to the lab range + Private profile, plus the Java
+      block-rule check and removal), start-up checks, rehearsal table, troubleshooting.
+- [x] Tests: `LauncherTest` (1), `LabConfigTest` +1 (LAN-IP preference). **93 tests green.**
+      Verified from a bare folder (jar + script + properties): `run-defender.bat` → Console +
+      Sensor up, decoy :8081 reachable; `attacker` → Specter + counter-watch :8080 listening;
+      `--lab-cidr 8.8.8.0/24` refused.
 
 ### Phase 8 — Verification
 - [ ] `mvnw verify` green (old 48 + new tests).
@@ -242,3 +253,4 @@ New patterns used (and existing ones extended):
 | 2026-11-07 | 6 (pt1) | `AutoResponse` toggle logic wired into the engine (off = record-only). 81 tests green. |
 | 2026-11-07 | docs | Handoff: resume section added for continuing from another account. Phases 6 pt2–9 remain. |
 | 2026-11-07 | 6 (pt2–3) | ThreatPopup + ThreatTracker, OperationShells (op threads, split counters), TraceBacklog replay, auto-response checkbox (GUI default OFF), pipeline shell, LAN address in status bar. GUI smoke run passed. 91 tests green. |
+| 2026-11-07 | 7 | Shaded `target/mirage.jar`, `Launcher` roles, run scripts, `mirage.properties.example`, lab-range-aware LAN IP, `docs/TWO-LAPTOP-SETUP.md`. 93 tests green. |

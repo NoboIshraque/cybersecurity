@@ -47,7 +47,9 @@ public final class ConsoleMain {
             System.err.println("Refusing to start: " + e.getMessage());
             return;
         }
-        LabConfig.primaryLanIp().ifPresentOrElse(
+        // Prefer the address inside the lab range (skips VirtualBox / VPN adapters).
+        java.util.Optional<String> lanIp = LabConfig.primaryLanIp(guard::isAuthorised);
+        lanIp.ifPresentOrElse(
                 ip -> System.out.println("This host's LAN address: " + ip
                         + "  (point the attacker laptop at " + ip + ":" + config.consolePort() + ")"),
                 () -> System.out.println("No LAN address detected; single-machine demo on 127.0.0.1."));
@@ -116,7 +118,7 @@ public final class ConsoleMain {
             }
         }, 15, 15, TimeUnit.SECONDS);
 
-        String consoleAddress = LabConfig.primaryLanIp().orElse("127.0.0.1") + ":" + port;
+        String consoleAddress = lanIp.orElse("127.0.0.1") + ":" + port;
         if (headless) {
             System.out.println("Headless: dashboard not shown (console logging only).");
         } else {

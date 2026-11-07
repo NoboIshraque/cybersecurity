@@ -1,0 +1,24 @@
+# Mirage two-laptop demo settings.
+#
+# Copy this file to "mirage.properties" next to mirage.jar on BOTH laptops (the same file works
+# on both). Command-line flags (--lab-cidr, --console-host, ...) override anything here.
+# Without a mirage.properties, everything runs on one machine over 127.0.0.1.
+
+# The lab range: the ONLY addresses Specter may attack and the Console may respond to.
+# ScopeGuard refuses to start unless every range is private or loopback
+# (10/8, 172.16/12, 192.168/16, 127/8) and /16 or narrower.
+# Use your hotspot / home network's subnet; keep 127.0.0.1/32 for local tests.
+lab.cidrs=192.168.0.0/24,127.0.0.1/32
+
+# Laptop A's (the defender's) IP on that network. The defender prints it at start-up
+# ("This host's LAN address: ..."). Specter on Laptop B targets this address.
+# (The defender's own Sensor always reports to 127.0.0.1, so this does not affect it.)
+console.host=192.168.0.107
+
+# Ports. Keep them the same on both laptops.
+console.port=8443
+decoy.http.port=8081
+decoy.ftp.port=8021
+decoy.telnet.port=8023
+# Laptop B's passive counter-watch listener (accept-and-log only).
+counterwatch.port=8080

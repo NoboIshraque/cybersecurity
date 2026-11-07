@@ -1,3 +1,7 @@
 # Maven wrapper: keep shell script LF, treat jar as binary
 mvnw text eol=lf
 *.jar binary
+
+# Run scripts: Windows batch files need CRLF, shell scripts need LF
+*.bat text eol=crlf
+*.sh text eol=lf

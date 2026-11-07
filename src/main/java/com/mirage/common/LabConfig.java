@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Predicate;
 
 /**
  * One place for the settings a two-laptop demo needs: the lab CIDR range (the
@@ -170,6 +171,30 @@ public final class LabConfig {
      * laptop should target. Returns empty if only loopback is available.
      */
     public static Optional<String> primaryLanIp() {
+        return primaryLanIp(ip -> true);
+    }
+
+    /**
+     * Like {@link #primaryLanIp()}, but prefers an address that {@code preferred} accepts — the
+     * Console passes its ScopeGuard, so a machine with a VirtualBox/VPN adapter still reports the
+     * address on the lab network rather than the first adapter it happens to find.
+     */
+    public static Optional<String> primaryLanIp(Predicate<String> preferred) {
+        return pickLanIp(siteLocalIpv4s(), preferred);
+    }
+
+    /** The first candidate {@code preferred} accepts, else the first candidate. */
+    public static Optional<String> pickLanIp(List<String> candidates, Predicate<String> preferred) {
+        for (String ip : candidates) {
+            if (preferred.test(ip)) {
+                return Optional.of(ip);
+            }
+        }
+        return candidates.stream().findFirst();
+    }
+
+    private static List<String> siteLocalIpv4s() {
+        List<String> out = new ArrayList<>();
         try {
             Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces();
             while (ifaces.hasMoreElements()) {
@@ -181,14 +206,14 @@ public final class LabConfig {
                 while (addrs.hasMoreElements()) {
                     InetAddress addr = addrs.nextElement();
                     if (addr.isSiteLocalAddress() && addr.getAddress().length == 4) {
-                        return Optional.of(addr.getHostAddress());
+                        out.add(addr.getHostAddress());
                     }
                 }
             }
         } catch (Exception e) {
-            // fall through to empty
+            // fall through with what was found
         }
-        return Optional.empty();
+        return out;
     }
 
     private static List<String> splitCidrs(String raw) {

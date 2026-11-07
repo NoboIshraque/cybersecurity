@@ -27,3 +27,6 @@ bait/
 data/
 *.mv.db
 *.trace.db
+
+# Local demo settings (copy mirage.properties.example)
+mirage.properties
