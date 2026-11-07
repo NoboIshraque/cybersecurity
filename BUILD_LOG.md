@@ -79,14 +79,12 @@ New patterns used (and existing ones extended):
 
 ## Phases
 
-### Phase 0 — Branch & toolchain
-- [ ] Create branch `feature/live-shells`; commit this file.
-- [ ] Maven isn't installed on this laptop. Add the **Maven Wrapper** (`mvnw`, `mvnw.cmd`,
-      `.mvn/wrapper/maven-wrapper.properties`). Its first run downloads `apache-maven-3.9.9-bin.zip`
-      (about 9 MB) from `repo.maven.apache.org`, then Maven fetches the project's dependencies from
-      Maven Central into `~/.m2`. **Saying "go" approves these downloads.** (Alternative: you install
-      Maven yourself and I skip the wrapper.)
-- [ ] `mvnw test`: confirm the existing 48 tests are green before changing anything.
+### Phase 0 — Branch & toolchain ✅
+- [x] Create branch `feature/live-shells`; commit this file.
+- [x] Added the **Maven Wrapper** 3.3.2 (`mvnw`, `mvnw.cmd`, `.mvn/wrapper/{maven-wrapper.jar,
+      maven-wrapper.properties}`) → Maven 3.9.9. Official files from Apache's repo; jar committed so a
+      checkout never has to fetch it.
+- [x] `mvnw test`: all **48 tests green** via the wrapper (~18 s).
 
 ### Phase 1 — Configurable lab range & two-laptop networking
 - [ ] `common.LabConfig`: reads `mirage.properties` and CLI flags (`--lab-cidr`, `--console-host`, ports).
@@ -183,3 +181,4 @@ New patterns used (and existing ones extended):
 | Date | Phase | Note |
 | --- | --- | --- |
 | 2026-11-07 | Plan | Map written, decisions agreed. Waiting for "go". |
+| 2026-11-07 | 0 | Branch `feature/live-shells`; Maven Wrapper 3.3.2 → Maven 3.9.9; 48 tests green. |

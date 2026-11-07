@@ -2,6 +2,7 @@ package com.mirage.console;
 
 import com.mirage.common.AttackEvent;
 import com.mirage.common.Honeytoken;
+import com.mirage.common.LabConfig;
 import com.mirage.common.ScopeGuard;
 import com.mirage.common.TlsFactories;
 import com.mirage.console.db.Database;
@@ -31,13 +32,22 @@ import java.util.concurrent.TimeUnit;
 /** Entry point for the blue-team Console. Wires the pipeline, persistence, server and dashboard. */
 public final class ConsoleMain {
 
-    private static final int PORT = 8443;
-
     public static void main(String[] args) throws Exception {
         System.out.println("Mirage Console starting...");
 
-        // 127.0.0.1 is allowed so the system can be demonstrated on one machine.
-        ScopeGuard guard = new ScopeGuard(List.of("10.10.0.0/24", "127.0.0.1/32"));
+        LabConfig config = LabConfig.load(args);
+        System.out.println("Config: " + config.summary());
+        ScopeGuard guard;
+        try {
+            guard = config.scopeGuard(); // validates the lab range (private/loopback, /16..32)
+        } catch (IllegalArgumentException e) {
+            System.err.println("Refusing to start: " + e.getMessage());
+            return;
+        }
+        LabConfig.primaryLanIp().ifPresentOrElse(
+                ip -> System.out.println("This host's LAN address: " + ip
+                        + "  (point the attacker laptop at " + ip + ":" + config.consolePort() + ")"),
+                () -> System.out.println("No LAN address detected; single-machine demo on 127.0.0.1."));
         AlertLedger ledger = new AlertLedger(new KeyPairSigner());
         AlertBus bus = new AlertBus();
         bus.subscribe(alert -> System.out.println("[alert] " + alert.canonical()));
@@ -62,7 +72,7 @@ public final class ConsoleMain {
         // through the same ScopeGuard, so it can only ever reach a source inside the lab range.
         CounterOffensive counter = new CounterOffensive(
                 new Attacker(guard, line -> System.out.println("[counter] " + line)),
-                new MirrorCounterStrategy(), 8080);
+                new MirrorCounterStrategy(), config.counterWatchPort());
         List<DetectionRule> rules = List.of(
                 new PortScanRule(),
                 new BruteForceRule(),
@@ -76,7 +86,7 @@ public final class ConsoleMain {
         engineThread.setDaemon(true);
         engineThread.start();
 
-        int port = server.start(PORT);
+        int port = server.start(config.consolePort());
         System.out.println("Console listening for Sensors on port " + port + ".");
 
         ScheduledExecutorService sweeper = Executors.newSingleThreadScheduledExecutor();

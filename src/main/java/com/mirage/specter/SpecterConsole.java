@@ -1,5 +1,6 @@
 package com.mirage.specter;
 
+import com.mirage.common.LabConfig;
 import com.mirage.common.ScopeGuard;
 
 import javax.swing.BorderFactory;
@@ -32,15 +33,21 @@ public final class SpecterConsole extends JFrame {
     };
 
     private final transient Attacker attacker;
-    private final JTextField hostField = new JTextField("127.0.0.1", 12);
-    private final JTextField portField = new JTextField("8081", 6);
+    private final JTextField hostField;
+    private final JTextField portField;
     private final JComboBox<String> campaignBox = new JComboBox<>(CAMPAIGNS);
     private final JSlider stealthSlider = new JSlider(0, 5000, 0);
     private final JTextArea logArea = new JTextArea(18, 60);
 
     public SpecterConsole(ScopeGuard guard) {
+        this(guard, LabConfig.defaults());
+    }
+
+    public SpecterConsole(ScopeGuard guard, LabConfig config) {
         super("Specter — attack simulator (lab range only)");
         this.attacker = new Attacker(guard, this::log);
+        this.hostField = new JTextField(config.consoleHost(), 12);
+        this.portField = new JTextField(Integer.toString(config.httpDecoyPort()), 6);
         buildUi();
     }
 

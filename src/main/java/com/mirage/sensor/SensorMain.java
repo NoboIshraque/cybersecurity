@@ -1,6 +1,7 @@
 package com.mirage.sensor;
 
 import com.mirage.common.AttackEvent;
+import com.mirage.common.LabConfig;
 import com.mirage.common.TlsFactories;
 
 import javax.net.SocketFactory;
@@ -16,23 +17,24 @@ import java.util.function.Consumer;
 /** Entry point for a Sensor host: runs the decoys and bait files, reports to the Console. */
 public final class SensorMain {
 
-    private static final int CONSOLE_PORT = 8443;
-
     public static void main(String[] args) throws Exception {
         System.out.println("Mirage Sensor starting...");
 
-        String consoleHost = args.length > 0 ? args[0] : "127.0.0.1";
+        LabConfig config = LabConfig.load(args);
+        // A bare first argument is still accepted as the console host (back-compat with DEMO.md).
+        String consoleHost = (args.length > 0 && !args[0].startsWith("--")) ? args[0] : config.consoleHost();
+        int consolePort = config.consolePort();
         String sensorId = "sensor-" + InetAddress.getLocalHost().getHostName();
         DefenceState defence = new DefenceState();
 
         SensorClient client = null;
         try {
-            client = new SensorClient(sensorId, socketFactory(), consoleHost, CONSOLE_PORT);
+            client = new SensorClient(sensorId, socketFactory(), consoleHost, consolePort);
             client.startReceiving(defence::apply); // active-defence commands from the Console
-            System.out.println("Connected to Console at " + consoleHost + ":" + CONSOLE_PORT
+            System.out.println("Connected to Console at " + consoleHost + ":" + consolePort
                     + " as " + sensorId);
         } catch (IOException e) {
-            System.out.println("Could not reach Console at " + consoleHost + ":" + CONSOLE_PORT
+            System.out.println("Could not reach Console at " + consoleHost + ":" + consolePort
                     + " (" + e.getMessage() + "). Running decoys locally without reporting.");
         }
         final SensorClient reporter = client;
@@ -49,10 +51,12 @@ public final class SensorMain {
             }
         };
 
-        new FakeHttpLoginDecoy(8081).start(sink, defence);
-        new FakeFtpDecoy(8021).start(sink, defence);
-        new FakeTelnetDecoy(8023).start(sink, defence);
-        System.out.println("Decoys listening: http-login:8081, ftp:8021, telnet:8023 (defence-gated).");
+        new FakeHttpLoginDecoy(config.httpDecoyPort()).start(sink, defence);
+        new FakeFtpDecoy(config.ftpDecoyPort()).start(sink, defence);
+        new FakeTelnetDecoy(config.telnetDecoyPort()).start(sink, defence);
+        System.out.println("Decoys listening: http-login:" + config.httpDecoyPort()
+                + ", ftp:" + config.ftpDecoyPort() + ", telnet:" + config.telnetDecoyPort()
+                + " (defence-gated).");
 
         Path baitDir = Path.of("bait");
         Files.createDirectories(baitDir);
