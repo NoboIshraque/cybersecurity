@@ -64,7 +64,8 @@ public final class ShellWindow extends JPanel {
     private final JScrollPane streamScroll;
     private final JScrollPane splitScroll;
     private final Timer timer;
-    private int lastLaneCount = -1;
+    /** The lanes (thread + state) the strip shows now; rebuilt when any of them changes (B-16). */
+    private List<ShellModel.Lane> shownLanes = List.of();
 
     public ShellWindow(ShellTheme theme, Predicate<TraceEvent> filter) {
         super(new BorderLayout(0, 0));
@@ -217,12 +218,12 @@ public final class ShellWindow extends JPanel {
 
     private void refreshStrip() {
         List<ShellModel.Lane> lanes = model.lanes();
-        if (lanes.size() == lastLaneCount) {
-            // repaint states without rebuilding when the lane set is unchanged
+        if (lanes.equals(shownLanes)) {
+            // same threads in the same states: nothing to rebuild
             strip.repaint();
             return;
         }
-        lastLaneCount = lanes.size();
+        shownLanes = lanes;
         strip.removeAll();
         JLabel title = new JLabel("threads:");
         title.setForeground(theme.foreground);
@@ -284,6 +285,17 @@ public final class ShellWindow extends JPanel {
             case BANNER -> theme.bannerFg;
             case INFO -> theme.info;
         };
+    }
+
+    /** The thread strip's lane labels as shown (for tests and the dry run). Call on the EDT. */
+    public List<String> stripLabels() {
+        List<String> out = new java.util.ArrayList<>();
+        for (java.awt.Component c : strip.getComponents()) {
+            if (c instanceof JLabel label && label.getText().startsWith("●")) {
+                out.add(label.getText());
+            }
+        }
+        return out;
     }
 
     private static String stateMark(ShellModel.State state) {
