@@ -35,15 +35,25 @@ This is what keeps the project lawful and submittable. Keep it that way.
 
 ## Build, test, run
 
+**Maven is not installed on the demo laptop — use the committed Maven Wrapper** (`./mvnw`, or
+`mvnw.cmd` on Windows). The first run downloads Maven 3.9.9 into `~/.m2/wrapper`.
+
 ```bash
-mvn test        # compile + run unit tests (keep these green)
-mvn compile     # compile only
+./mvnw test     # compile + run unit tests (keep these green)   — Windows: .\mvnw.cmd test
+./mvnw compile  # compile only
 java -cp target/classes com.mirage.console.ConsoleMain
 java -cp target/classes com.mirage.sensor.SensorMain
 java -cp target/classes com.mirage.specter.SpecterMain
 ```
 
+Entry points accept `--console-host`, `--lab-cidr`, `--console-port`, `--http-port`, … (see
+`com.mirage.common.LabConfig`) or a `mirage.properties` in the working dir; defaults keep the
+single-machine demo on `127.0.0.1`. If `mvn` is on PATH it also works.
+
 JDK 17+ (built on JDK 21), Maven 3.9+. Language level is `maven.compiler.release=17`.
+
+> **In-progress feature:** branch `feature/live-shells` adds live process shells and a two-laptop
+> demo. See `BUILD_LOG.md` ("▶ RESUME HERE") for status and the next steps.
 
 ## Design patterns in use (keep extending these, don't bypass them)
 

@@ -1,15 +1,36 @@
 # HANDOVER — Mirage
 
-_Last updated: 2026-10-14_
+_Last updated: 2026-11-07_
 
 Start here each session, then read `CLAUDE.md` for conventions.
 
-## How to resume in 60 seconds
+## ⚡ ACTIVE WORK — live process shells & two-laptop demo (branch `feature/live-shells`)
 
-1. `mvn test` — confirm the build is green.
+A new feature is **in progress** on the branch `feature/live-shells` (not merged; `master` is still
+the feature-complete state below). The full plan and running log is **`BUILD_LOG.md`** — read its
+"▶ RESUME HERE" section first.
+
+- **Build/test:** Maven is **not installed** on the demo laptop — use the committed wrapper:
+  `./mvnw -B test` (PowerShell: `.\mvnw.cmd -B test`). First run fetches Maven 3.9.9 into `~/.m2`.
+- **Baseline right now: 81 tests green.** Phases 0–5 done; Phase 6 part 1 (the `AutoResponse`
+  toggle) done.
+- **Next:** Phase 6 parts 2–3 (Console `ThreatPopup` + operator operation shells + the auto-response
+  checkbox + attach shell windows to the `TraceBus` in `ConsoleMain`), then Phase 7 (fat jar +
+  `Launcher` + run scripts + `docs/TWO-LAPTOP-SETUP.md`), Phase 8 (verify + screenshots), Phase 9
+  (docs + draft PR). Exact next steps and class names are in `BUILD_LOG.md`.
+- **What it adds:** terminal-style "process shells" on both sides that stream each step live (and
+  split into one pane per thread for concurrent runs), a decoy that lets a trap credential "in" to a
+  fake page, an operator-gated (manual-by-default) response flow, a counter-watch listener on the
+  attacker laptop, and a one-jar launcher so the two sides can run on two laptops over a private LAN.
+- **Safety unchanged:** everything still routes through `ScopeGuard`; the configurable lab range is
+  additionally forced to be private/loopback and ≤ /16 by `ScopeGuard.requireLabRange`.
+
+## How to resume the ORIGINAL (merged) project in 60 seconds
+
+1. `./mvnw test` — confirm the build is green (use the wrapper; `mvn` is not installed).
 2. Check **Development phases** — all seven are complete, and all four stretch goals are done.
-3. The system is feature-complete and documented. Next work is polish: write the student
-   **reflection** in the Conclusion, rehearse the `DEMO.md` walkthrough, and prepare slides.
+3. On `master`, the system is feature-complete and documented. The live-shells feature above is the
+   active in-progress branch.
 
 ## Development phases
 

@@ -1,9 +1,38 @@
 # BUILD LOG — Live shells & two-laptop demo
 
-_Created: 2026-11-07 · Status: **PLANNED — waiting for "go"**_
+_Created: 2026-11-07 · Status: **IN PROGRESS — Phases 0–5 done, Phase 6 part 1 done (81 tests green)**_
 
 This is the map for the next piece of work and its running log. Each phase gets ticked off,
 and the **Progress log** at the bottom gets a line as each one lands.
+
+## ▶ RESUME HERE (continuing from another account / session)
+
+1. **Branch:** `feature/live-shells` (not pushed, not merged; `master` untouched). `git log --oneline`
+   shows one commit per phase. Check out that branch first.
+2. **Build/test — Maven is NOT installed on this machine; use the committed wrapper:**
+   ```bash
+   ./mvnw -B test        # on Windows PowerShell: .\mvnw.cmd -B test
+   ```
+   First wrapper run downloads Maven 3.9.9 to `~/.m2/wrapper`. **Current baseline: 81 tests green.**
+3. **What's done:** Phases 0–5 complete, Phase 6 **part 1** (the `AutoResponse` switch) complete.
+   See the per-phase checkboxes below and the Progress log at the bottom.
+4. **What's next (in order):**
+   - **Phase 6 parts 2–3** — the Console GUI pieces: `ThreatPopup` (escalating banner + pipeline
+     shell per source), operator **operation shells** off the existing `AttackerDetailPanel` buttons,
+     the **auto-response checkbox** in the dashboard (flips the shared `AutoResponse`, default OFF),
+     and attaching shell windows as `TraceBus` subscribers in `ConsoleMain`. The trace plumbing
+     (Phase 2) and the shell component (Phase 3) already exist — this is wiring + two new Swing views.
+   - **Phase 7** — `maven-shade-plugin` fat jar, a `com.mirage.Launcher` (`defender`/`attacker`/…),
+     `run-defender`/`run-attacker` scripts, a sample `mirage.properties`, and `docs/TWO-LAPTOP-SETUP.md`.
+   - **Phase 8** — `./mvnw verify`, a localhost GUI dry-run, fresh screenshots into `docs/screenshots/`.
+   - **Phase 9** — update `DEMO.md`, `HANDOVER.md`, `README.md`, `CLAUDE.md`, `REPORT.md` §5.5; push
+     the branch and open a **draft PR** to `master`.
+5. **Key facts for the next session:** every Console trace line is already emitted on a `TraceBus`
+   (channels `console` for the pipeline, `op` for operator actions); Specter emits on channel `attack`
+   and `watch`. Shell UI lives in `com.mirage.ui.shell` (`ShellWindow`, `ShellModel`, `ShellTheme`).
+   Lab range + ports come from `com.mirage.common.LabConfig` (`--flags` / `mirage.properties`), and
+   `ScopeGuard.requireLabRange` refuses a public/over-wide range. Keep the safety rule intact.
+6. **Decisions already made with the user** are in the Decisions table just below — honour them.
 
 ## Goal
 
@@ -140,15 +169,25 @@ New patterns used (and existing ones extended):
       lines (peer, port, thread). Accept-and-log only, never writes back. Shown in its own window.
 - [x] Test: `CounterWatchTest`. **78 tests green.**
 
-### Phase 6 — Console side
+### Phase 6 — Console side  (part 1 ✅, parts 2–3 ⏳)
+- [x] **Auto-response toggle** logic: `console.AutoResponse` (shared thread-safe switch).
+      `CorrelationEngine.setAutoResponse(..)`; when off it records + publishes the alert but skips the
+      automatic `ResponsePolicy` dispatch. Engine default stays ON; `ConsoleMain`/dashboard will
+      default it OFF. Tested in `AutoResponseSwitchTest` (3).
 - [ ] `ThreatPopup`: one per attacker source, escalating banner (`PROBE DETECTED` → `UNDER ATTACK` →
-      `COMPROMISED` → `NEUTRALISED` after a block/ACK), with a live pipeline shell beneath.
+      `COMPROMISED` → `NEUTRALISED` after a block/ACK), with a live pipeline shell (channel `console`,
+      filtered to that source) beneath. Open it from `Dashboard.onAlert` the first time a source
+      appears; escalate its banner from the alert severity, and to NEUTRALISED on an `ack`-stage trace.
 - [ ] Operator buttons (Tarpit / Feed fake / Block / Counter / Simultaneous counter) open an
-      operation shell: ScopeGuard check → dispatch thread → Sensor ACK. The simultaneous counter
-      splits into four panes, one per pool thread.
-- [ ] **Auto-response toggle** on the dashboard (default **off** = manual). `CorrelationEngine` still
-      records every alert; only the automatic `ResponsePolicy` dispatch is gated.
-- [ ] Tests: `AutoResponseSwitchTest`, and the engine still raises alerts while auto is off.
+      operation shell (channel `op`, `ShellTheme.console()`): ScopeGuard check → dispatch → Sensor ACK.
+      The simultaneous counter → `shell.enableSplit()` (one pane per counter thread). The buttons
+      already exist in `AttackerDetailPanel`; wire each to also open/feed an op shell.
+- [ ] **Auto-response toggle** in the dashboard UI (a `JCheckBox`, default OFF) flips the shared
+      `AutoResponse`. Wire `engine.setAutoResponse(switch)` and pass the switch into `Dashboard`.
+- [ ] Wire a `TraceBus` subscriber set in `ConsoleMain`: the bus already exists and is fed
+      (Phase 2); Phase 6 attaches the shell windows as subscribers. Add the LAN address to the
+      dashboard status bar (deferred from Phase 1).
+- [x] Tests: `AutoResponseSwitchTest`; engine still raises alerts while auto is off. **81 tests green.**
 
 ### Phase 7 — Packaging for two laptops
 - [ ] Runnable fat jar via `maven-shade-plugin` → `target/mirage.jar`.
@@ -193,3 +232,5 @@ New patterns used (and existing ones extended):
 | 2026-11-07 | 3 | `ui.shell` ShellModel + ShellWindow (themes, strip, banners, split view, speed). 72 tests green. |
 | 2026-11-07 | 4 | Pooled decoys; trap-credential grant → DECOY_ACCESS + DecoyAccessRule (CRITICAL). 77 tests green. |
 | 2026-11-07 | 5 | Specter per-launch shells + banners + split concurrent view; CounterWatch listener. 78 tests green. |
+| 2026-11-07 | 6 (pt1) | `AutoResponse` toggle logic wired into the engine (off = record-only). 81 tests green. |
+| 2026-11-07 | docs | Handoff: resume section added for continuing from another account. Phases 6 pt2–9 remain. |
