@@ -84,22 +84,39 @@ public final class CorrelationEngine implements Runnable {
     public void run() {
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                process(events.take());
+                processSafely(events.take());
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
+    /**
+     * One bad event must not end the only consumer thread (B-01): if handling it throws,
+     * report it to stderr and the console shell, drop that event and keep consuming.
+     */
+    private void processSafely(AttackEvent event) {
+        try {
+            process(event);
+        } catch (RuntimeException e) {
+            String ip = event == null ? null : event.sourceIp();
+            System.err.println("[engine] dropped event " + event + ": " + e);
+            trace.line("console", "engine", ip, TraceLevel.BAD,
+                    "event dropped, engine keeps running: " + e.getClass().getSimpleName()
+                            + (e.getMessage() == null ? "" : " — " + e.getMessage()));
+        }
+    }
+
     /** Package-visible so tests can drive a single event without starting a thread. */
     void process(AttackEvent event) {
-        persistence.saveEvent(event);
+        boolean stored = store("event", () -> persistence.saveEvent(event), event.sourceIp());
         AttackerProfile profile = profiles.computeIfAbsent(event.sourceIp(), AttackerProfile::new);
         profile.add(event);
         directory.update(profile); // publish an immutable snapshot for the dashboard
         trace.line("console", "engine", event.sourceIp(), TraceLevel.INFO,
                 "dequeued " + event.decoyType() + " " + event.action() + " from " + event.sourceIp()
-                        + "  (profile: " + profile.events().size() + " events, saved to H2)");
+                        + "  (profile: " + profile.events().size() + " events"
+                        + (stored ? ", saved to H2)" : ", NOT saved to H2)"));
 
         applyResets();
         Map<String, Severity> raised = alerted.computeIfAbsent(event.sourceIp(), ip -> new HashMap<>());
@@ -163,7 +180,7 @@ public final class CorrelationEngine implements Runnable {
                 "#" + (ledger.size() - 1) + "  sha256=" + shortHash(entry.hash())
                         + "  prev=" + shortHash(entry.prevHash())
                         + (entry.signature() == null || entry.signature().isEmpty() ? "" : "  signed (ECDSA)"));
-        persistence.saveAlert(entry);
+        store("alert", () -> persistence.saveAlert(entry), ip);
         bus.publish(alert);
 
         if (!autoResponse.isEnabled()) {
@@ -184,6 +201,24 @@ public final class CorrelationEngine implements Runnable {
             trace.line("console", "response", ip, TraceLevel.INFO,
                     "no network response: " + e.getMessage());
             System.out.println("[info] no network response for " + ip + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Run one database write. A storage failure (H2 "value too long", disk full, a locked
+     * file) is reported but does not stop detection: the in-memory profile and the ledger
+     * still have the record. Returns whether the write succeeded.
+     */
+    private boolean store(String what, Runnable write, String ip) {
+        try {
+            write.run();
+            return true;
+        } catch (RuntimeException e) {
+            System.err.println("[engine] could not save " + what + " for " + ip + ": " + e);
+            trace.line("console", "engine", ip, TraceLevel.WARN,
+                    what + " not saved to H2 (" + e.getClass().getSimpleName()
+                            + (e.getMessage() == null ? "" : ": " + e.getMessage()) + ") — detection continues");
+            return false;
         }
     }
 

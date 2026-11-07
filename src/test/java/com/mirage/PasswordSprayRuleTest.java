@@ -28,6 +28,18 @@ class PasswordSprayRuleTest {
         assertEquals("T1110.003", result.get().attackTechnique());
     }
 
+    /** B-01: a LOGIN_ATTEMPT with no payload used to throw an NPE inside the engine thread. */
+    @Test
+    void loginWithoutPayloadIsIgnoredNotFatal() {
+        AttackerProfile profile = new AttackerProfile("10.10.0.7");
+        profile.add(login(null));
+        for (String user : List.of("alice", "bob", "carol")) {
+            profile.add(login(user + ":Winter2026!"));
+        }
+        var result = assertDoesNotThrow(() -> new PasswordSprayRule().classify(profile));
+        assertTrue(result.isPresent(), "the valid attempts still count");
+    }
+
     @Test
     void ignoresDistinctPasswords() {
         AttackerProfile profile = new AttackerProfile("10.10.0.6");

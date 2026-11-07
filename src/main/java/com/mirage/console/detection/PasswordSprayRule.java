@@ -24,7 +24,7 @@ public final class PasswordSprayRule implements DetectionRule {
     public Optional<Classification> classify(AttackerProfile profile) {
         Map<String, Set<String>> usersByPassword = new HashMap<>();
         for (AttackEvent e : profile.events()) {
-            if (e.action() != Action.LOGIN_ATTEMPT) {
+            if (e.action() != Action.LOGIN_ATTEMPT || e.payload() == null) {
                 continue;
             }
             int colon = e.payload().indexOf(':');

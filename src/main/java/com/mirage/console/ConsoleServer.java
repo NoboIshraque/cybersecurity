@@ -17,6 +17,7 @@ import java.io.Writer;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -143,7 +144,15 @@ public final class ConsoleServer implements CommandSink {
             conn.sensorId = message.sensorId();
             registry.markSeen(message.sensorId(), message.timestamp());
         } else if (message.type() == MessageType.EVENT && message.event() != null) {
-            AttackEvent event = message.event().withSensor(conn.sensorId);
+            Optional<String> problem = EventValidator.problem(message.event());
+            if (problem.isPresent()) {
+                trace.line("console", "rx", null, TraceLevel.BAD,
+                        "EVENT refused (" + problem.get() + ") from "
+                                + (conn.sensorId != null ? conn.sensorId
+                                        : conn.socket.getInetAddress().getHostAddress()));
+                return;
+            }
+            AttackEvent event = EventValidator.normalise(message.event()).withSensor(conn.sensorId);
             trace.line("console", "rx", event.sourceIp(), TraceLevel.INFO,
                     "EVENT " + event.sourceIp() + " -> " + event.decoyType() + " " + event.action()
                             + (event.payload() == null || event.payload().isEmpty() ? "" : "  [" + event.payload() + "]")
