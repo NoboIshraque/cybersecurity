@@ -1,56 +1,46 @@
 # HANDOVER — Mirage
 
-_Last updated: 2026-11-07 (handover for the stress-test fixes)_
+_Last updated: 2026-11-08 (stress-test fixes complete)_
 
 Start here each session, then read `CLAUDE.md` for conventions.
 
-## ▶ RESUME HERE — fix the stress-test checklist (next account starts here)
+## ▶ RESUME HERE — stress-test fixes done; rehearse, then merge
 
-The live-shells feature is built (below). A two-agent stress test then reviewed it, and the
-**next job is fixing what it found**, on the same branch, `feature/live-shells` (draft PR #12 to
-`master`, link at the bottom).
+Every line of [`docs/stress-test/CHECKLIST.md`](docs/stress-test/CHECKLIST.md) is ticked (waves
+1–3, 2026-11-07/08), each with a test that failed before its fix, on `feature/live-shells` (draft
+PR #12 to `master`, link at the bottom), all pushed. One commit per checklist line (or tightly
+related group); the commit messages explain each fix and its design choices.
 
-1. **Check out and confirm the baseline:** `git checkout feature/live-shells && git pull`, then
-   `.\mvnw.cmd -B test` (PowerShell) or `./mvnw -B test`. Expect **98 tests green**. Maven is not
-   installed; always use the wrapper.
-2. **Work from [`docs/stress-test/CHECKLIST.md`](docs/stress-test/CHECKLIST.md).** It is the
-   ordered work list (wave 1 → 2 → 3). Each line links to the full entry in
-   [`A-security.md`](docs/stress-test/A-security.md) or
-   [`B-robustness.md`](docs/stress-test/B-robustness.md) with *where / problem / evidence / fix*.
-   The user edited both files on 2026-11-07 (some findings removed, A items renumbered A-01 to
-   A-09); the checklist is the agreed scope. Don't re-add removed items unless the user asks.
-3. **Start with wave 1**, in this order:
-   - B-22: the `mirage.properties` snippet in `docs/TWO-LAPTOP-SETUP.md` has inline `#`
-     comments that Java keeps in the value, so every role refuses to start.
-   - B-01: one bad event kills the correlation-engine thread silently.
-   - B-05 + B-13: the Sensor never reconnects; one bad line drops the link.
-   - B-06 + B-07 + A-04: decoy read timeouts and tarpit starvation.
-   - B-08 + A-01: unbounded `readLine` and the unbounded thread pool.
-   - B-24: a flaky test that is also a real race.
-   - B-10 + B-31: `defender` start-up when a port is already taken.
-   - B-29: no bait files are planted.
-   - B-21: scan ports are hard-coded.
-4. **Rules for each fix:**
-   - Write a JUnit test that fails before the fix and passes after; the B entries say how each
-     issue was reproduced.
-   - Tick the checklist line (`- [x]`) in the same commit.
-   - One commit per checklist line, or per tightly related group.
-   - Keep `ScopeGuard` and the CLAUDE.md safety rule intact.
-5. **After fixes that touch the UI or the demo flow**, run the GUI dry run
-   (`tools/screenshots/LiveDemoShot.java`, 27 checks; how-to in `tools/screenshots/README.md`) and
-   regenerate the `docs/screenshots/live-*.png` figures if they change.
-6. **Then** update `DEMO.md` / `docs/TWO-LAPTOP-SETUP.md` / `REPORT.md` where behaviour changed,
-   do the real two-laptop rehearsal (user), mark PR #12 ready, and merge.
+- **Baseline:** `.\mvnw.cmd -B test` (PowerShell) or `./mvnw -B test`: **265 tests green**. Maven is
+  not installed; always use the wrapper.
+- **GUI dry run:** `tools/screenshots/LiveDemoShot.java`, now **28 checks** (B-09 added "Specter
+  after fake data: ACCESS GRANTED"), all pass; `docs/screenshots/live-*.png` were regenerated from
+  the final code. How-to: `tools/screenshots/README.md`.
+- **What changed for the demo** (DEMO.md is up to date):
+  - "Feed fake data" is a real response now (B-09): a fed source is let in to fake files; it
+    replaces the tarpit (latest wins), and HIGH auto-response feeds fake data.
+  - Unblock gives a real clean slate (B-03); one honeytoken break-in is one alert and one BLOCK
+    (B-04); the demo campaign records 4 alerts, not 5.
+  - Rules count within time windows (B-28): brute force = 5 passwords on one account in 60 s,
+    spray = one password on 3 accounts in 10 min, scan = 2 services in 60 s. Specter's brute force
+    sends 8.
+  - Sensor ids are `sensor-<host>-<http port>` (B-11), settable with `--sensor-id`.
+  - Unknown flags and impossible ports are refused (B-32); `--lab-cidrs` also works.
+  - Optional `MIRAGE_DB_PASSWORD` encrypts the database (A-07); see the README table.
+- **Left to do (user):**
+  1. The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`; firewall commands run as admin).
+  2. Then mark PR #12 ready and merge.
+  3. `CLAUDE.md` still says the dry run has "27 checks", "built on JDK 21" and "Current work:
+     stress-test fixes"; it is the owner's file, so it was left as is (28 checks; CI tests on
+     JDK 17; the fixes are done).
+- **Not covered by either review** (unchanged): a dependency CVE scan, IPv6, and the real
+  two-laptop network.
 
 **Things to know when continuing from another account:**
-- The formatted report artifact (link at the bottom) was published from the *previous* account
-  and can't be edited from a new one. Its source is `docs/report.html` (figures from
-  `docs/screenshots/`): edit that file and **publish it as a new artifact** from the new account,
-  passing the ten `screenshots/*.png` files, then update the link here and at the top of
-  `REPORT.md`. Its four Mermaid diagrams (Figures 1–4) were never seen rendered; check them on
-  the published page.
-- The stress tests left scratch harnesses only outside the repo (nothing to clean up). They ran
-  on 127.0.0.1 with separate ports; no leftover processes.
+- The formatted report's source is `docs/report.html` (figures from `docs/screenshots/`). If the
+  report artifact (link at the bottom) can't be edited from the account you are on, publish it as
+  a new artifact, passing the `screenshots/*.png` files, then update the link here and at the top
+  of `REPORT.md`.
 
 ## ⚡ LIVE SHELLS & TWO-LAPTOP DEMO — built, in draft PR (branch `feature/live-shells`)
 
@@ -59,13 +49,13 @@ All phases (0–9) of the live-shells feature are done on `feature/live-shells`,
 The phase-by-phase log is **`BUILD_LOG.md`**.
 
 - **Build/test:** Maven is **not installed** on the demo laptop. Use the committed wrapper:
-  `./mvnw -B test` (PowerShell: `.\mvnw.cmd -B test`). **98 tests green.**
+  `./mvnw -B test` (PowerShell: `.\mvnw.cmd -B test`). **265 tests green.**
 - **Run:** `.\mvnw.cmd -DskipTests package` → `target/mirage.jar`; `run-defender.bat` (Laptop A:
   Console + Sensor) and `run-attacker.bat` (Laptop B: Specter + counter-watch). Set-up:
   `docs/TWO-LAPTOP-SETUP.md`. Script: `DEMO.md`.
-- **GUI dry run:** `tools/screenshots/LiveDemoShot.java` clicks through the whole demo (27 checks,
+- **GUI dry run:** `tools/screenshots/LiveDemoShot.java` clicks through the whole demo (28 checks,
   all pass) and regenerates `docs/screenshots/live-*.png`. How-to: `tools/screenshots/README.md`.
-- **Still to do:** fix the stress-test checklist (see RESUME HERE above), then the user's real
+- **Still to do:** the stress-test checklist is done; next is the user's real
   two-laptop rehearsal (firewall commands are in the setup doc, to run as admin); then mark the PR
   ready and merge.
 - **Report artifact:** a fresh formatted report with all 14 figures (Figures 1–4 redrawn as

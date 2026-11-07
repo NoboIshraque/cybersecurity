@@ -27,11 +27,11 @@ simulator, **Specter**, drives the whole demo — restricted to the lab's own ad
 
 ## Status
 
-Feature-complete and **all tests green** (98). The live-shells release adds terminal-style
+Feature-complete and **all tests green** (265). The live-shells release adds terminal-style
 process shells on both sides, an escalating threat popup with operator-driven responses, and
 a one-jar launcher for a two-laptop demo. A stress test then produced a fix list,
-[`docs/stress-test/CHECKLIST.md`](docs/stress-test/CHECKLIST.md), which is being worked through. See
-[`HANDOVER.md`](HANDOVER.md) for where to pick up.
+[`docs/stress-test/CHECKLIST.md`](docs/stress-test/CHECKLIST.md); every item on it is fixed, each
+with a test. See [`HANDOVER.md`](HANDOVER.md) for where to pick up.
 
 ## Architecture (in one line)
 
