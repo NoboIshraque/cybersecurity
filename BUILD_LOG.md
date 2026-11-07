@@ -7,9 +7,11 @@ and the **Progress log** at the bottom gets a line as each one lands.
 
 ## ▶ RESUME HERE (continuing from another account / session)
 
-> **All phases are done.** What remains is the user's real two-laptop rehearsal
-> (`docs/TWO-LAPTOP-SETUP.md`), then marking the draft PR ready and merging it. The list
-> below is kept as the record of how the work was resumed.
+> **All phases are done.** The next job is fixing the stress-test findings in
+> [`docs/stress-test/CHECKLIST.md`](docs/stress-test/CHECKLIST.md). Start from the
+> **RESUME HERE** section at the top of `HANDOVER.md`. After that comes the user's real
+> two-laptop rehearsal, then marking the draft PR ready and merging it. The list below is kept
+> as the record of how the live-shells work was resumed.
 
 1. **Branch:** `feature/live-shells` (not pushed, not merged; `master` untouched). `git log --oneline`
    shows one commit per phase. Check out that branch first.
@@ -296,3 +298,4 @@ New patterns used (and existing ones extended):
 | 2026-11-07 | 8 | `mvnw verify` 93 green; `LiveDemoShot` dry run 25/25 PASS; 13 `live-*.png` figures; lab-range-only LAN address. Findings logged (alert flood, counter "blocked" label). |
 | 2026-11-07 | 8 (fixes) | Alerts once per (source, rule), re-raised on escalation or after Unblock; block = TCP reset vs silent close = `NO REPLY`. 98 tests green; dry run 27/27; figures refreshed. |
 | 2026-11-07 | 9 | DEMO.md two-laptop script, README/CLAUDE/HANDOVER, REPORT §5.5 (Figs 9–14); branch pushed, draft PR opened. |
+| 2026-11-07 | stress test | Fresh report artifact (`docs/report.html`). Two-agent stress test → `docs/stress-test/` (A-security, B-robustness, CHECKLIST). User trimmed/renumbered the A items. Next: fix the checklist, starting with wave 1. |

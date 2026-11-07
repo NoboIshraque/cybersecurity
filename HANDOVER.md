@@ -1,8 +1,56 @@
 # HANDOVER — Mirage
 
-_Last updated: 2026-11-07_
+_Last updated: 2026-11-07 (handover for the stress-test fixes)_
 
 Start here each session, then read `CLAUDE.md` for conventions.
+
+## ▶ RESUME HERE — fix the stress-test checklist (next account starts here)
+
+The live-shells feature is built (below). A two-agent stress test then reviewed it, and the
+**next job is fixing what it found**, on the same branch, `feature/live-shells` (draft PR #12 to
+`master`, link at the bottom).
+
+1. **Check out and confirm the baseline:** `git checkout feature/live-shells && git pull`, then
+   `.\mvnw.cmd -B test` (PowerShell) or `./mvnw -B test`. Expect **98 tests green**. Maven is not
+   installed; always use the wrapper.
+2. **Work from [`docs/stress-test/CHECKLIST.md`](docs/stress-test/CHECKLIST.md).** It is the
+   ordered work list (wave 1 → 2 → 3). Each line links to the full entry in
+   [`A-security.md`](docs/stress-test/A-security.md) or
+   [`B-robustness.md`](docs/stress-test/B-robustness.md) with *where / problem / evidence / fix*.
+   The user edited both files on 2026-11-07 (some findings removed, A items renumbered A-01 to
+   A-09); the checklist is the agreed scope. Don't re-add removed items unless the user asks.
+3. **Start with wave 1**, in this order:
+   - B-22: the `mirage.properties` snippet in `docs/TWO-LAPTOP-SETUP.md` has inline `#`
+     comments that Java keeps in the value, so every role refuses to start.
+   - B-01: one bad event kills the correlation-engine thread silently.
+   - B-05 + B-13: the Sensor never reconnects; one bad line drops the link.
+   - B-06 + B-07 + A-04: decoy read timeouts and tarpit starvation.
+   - B-08 + A-01: unbounded `readLine` and the unbounded thread pool.
+   - B-24: a flaky test that is also a real race.
+   - B-10 + B-31: `defender` start-up when a port is already taken.
+   - B-29: no bait files are planted.
+   - B-21: scan ports are hard-coded.
+4. **Rules for each fix:**
+   - Write a JUnit test that fails before the fix and passes after; the B entries say how each
+     issue was reproduced.
+   - Tick the checklist line (`- [x]`) in the same commit.
+   - One commit per checklist line, or per tightly related group.
+   - Keep `ScopeGuard` and the CLAUDE.md safety rule intact.
+5. **After fixes that touch the UI or the demo flow**, run the GUI dry run
+   (`tools/screenshots/LiveDemoShot.java`, 27 checks; how-to in `tools/screenshots/README.md`) and
+   regenerate the `docs/screenshots/live-*.png` figures if they change.
+6. **Then** update `DEMO.md` / `docs/TWO-LAPTOP-SETUP.md` / `REPORT.md` where behaviour changed,
+   do the real two-laptop rehearsal (user), mark PR #12 ready, and merge.
+
+**Things to know when continuing from another account:**
+- The formatted report artifact (link at the bottom) was published from the *previous* account
+  and can't be edited from a new one. Its source is `docs/report.html` (figures from
+  `docs/screenshots/`): edit that file and **publish it as a new artifact** from the new account,
+  passing the ten `screenshots/*.png` files, then update the link here and at the top of
+  `REPORT.md`. Its four Mermaid diagrams (Figures 1–4) were never seen rendered; check them on
+  the published page.
+- The stress tests left scratch harnesses only outside the repo (nothing to clean up). They ran
+  on 127.0.0.1 with separate ports; no leftover processes.
 
 ## ⚡ LIVE SHELLS & TWO-LAPTOP DEMO — built, in draft PR (branch `feature/live-shells`)
 
@@ -17,12 +65,13 @@ The phase-by-phase log is **`BUILD_LOG.md`**.
   `docs/TWO-LAPTOP-SETUP.md`. Script: `DEMO.md`.
 - **GUI dry run:** `tools/screenshots/LiveDemoShot.java` clicks through the whole demo (27 checks,
   all pass) and regenerates `docs/screenshots/live-*.png`. How-to: `tools/screenshots/README.md`.
-- **Still to do (user):** the real two-laptop rehearsal (firewall commands are in the setup doc
-  for you to run as admin); then mark the PR ready and merge.
+- **Still to do:** fix the stress-test checklist (see RESUME HERE above), then the user's real
+  two-laptop rehearsal (firewall commands are in the setup doc, to run as admin); then mark the PR
+  ready and merge.
 - **Report artifact:** a fresh formatted report with all 14 figures (Figures 1–4 redrawn as
   diagrams, 5–14 screenshots) was published from this account: link below. Its source is
-  `docs/report.html` (figures from `docs/screenshots/`), so any account can republish it. The old
-  artifact belongs to the previous account.
+  `docs/report.html` (figures from `docs/screenshots/`), so any account can republish it (see
+  RESUME HERE above for how).
 - **What it adds:** terminal-style "process shells" on both sides that stream each step live (and
   split into one pane per thread for concurrent runs), a decoy that lets a trap credential "in" to a
   fake page, an operator-gated (manual-by-default) response flow, a counter-watch listener on the
@@ -148,10 +197,19 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
   `OperationShells`, auto-response switch, pipeline shell; fat jar + `Launcher` + run scripts +
   two-laptop guide; automated GUI dry run (27/27) + 13 figures; alert de-duplication and the
   reset-vs-silent-close fix; DEMO/README/CLAUDE/REPORT §5.5 updated; draft PR opened. 98 tests green.
+- **2026-11-07 (report + stress test)** — published a fresh formatted report (`docs/report.html`,
+  14 figures; Figures 1–4 redrawn as diagrams). Ran two parallel stress-test agents (security;
+  robustness) → `docs/stress-test/A-security.md`, `B-robustness.md` and the ordered fix list
+  `CHECKLIST.md`. The user then trimmed the security findings and renumbered them (A-01 to A-09);
+  references were reconciled. No source changes yet; fixing is the next job, from another account.
 
 ## Links
 
+- **Draft PR (live shells + stress-test fixes):** https://github.com/NoboIshraque/cybersecurity/pull/12
+- **Stress-test fix list:** `docs/stress-test/CHECKLIST.md`
 - **Proposal (submission):** https://claude.ai/code/artifact/d5969a4d-9277-473a-8c66-4d32e04716df
-- **Report (detailed, current):** https://claude.ai/artifact/7Hf6qAtuzF3i9TdU72jJgg (source `docs/report.html`)
-- Report (original, previous account): https://claude.ai/code/artifact/f578aa80-d25b-4514-8adf-f03f27562c3b
+  (first account; can't be edited from another account; source `PROPOSAL.md`)
+- **Report (detailed, current):** https://claude.ai/artifact/7Hf6qAtuzF3i9TdU72jJgg (published from
+  the second account; source `docs/report.html`, republish from a new account as a new artifact)
+- Report (original, first account): https://claude.ai/code/artifact/f578aa80-d25b-4514-8adf-f03f27562c3b
 - In-repo copies: `PROPOSAL.md` (proposal), `REPORT.md` (report), `DEMO.md` (demo script)

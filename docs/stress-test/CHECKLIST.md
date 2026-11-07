@@ -7,6 +7,8 @@ Branch `feature/live-shells` @ `22f951e`, tested 2026-11-07. Two reviews ran in 
   [`B-robustness.md`](B-robustness.md) (33 items; 32 reproduced or measured).
 
 This file is the work list. Tick an item when its fix is merged **with a test that proves it**.
+How to resume, and the rules for each fix: the **RESUME HERE** section of
+[`HANDOVER.md`](../../HANDOVER.md).
 Each line links to the full entry (where, problem, evidence, suggested fix). Items that overlap
 are merged into one line. Fix the waves in order.
 
@@ -16,18 +18,18 @@ are merged into one line. Fix the waves in order.
 - [ ] **HIGH** · [B-22](B-robustness.md) — The `mirage.properties` snippet in `docs/TWO-LAPTOP-SETUP.md` uses inline `#` comments, which Java keeps as part of the value, so every role refuses to start. *Move comments to their own lines; reject or trim values with ` #` in `LabConfig`.*
 - [ ] **HIGH** · [B-01](B-robustness.md) — One bad event (null field, H2 "value too long") kills the correlation-engine thread for good, silently. *Catch per event, log it, keep consuming; validate events at the server.*
 - [ ] **HIGH** · [B-05](B-robustness.md) + [B-13](B-robustness.md) — The Sensor never reconnects, and one unparsable line or unknown JSON field makes the Console drop it. *Reconnect loop with backoff; skip bad lines instead of closing; ignore unknown JSON fields.*
-- [ ] **HIGH** · [B-06](B-robustness.md) + [B-07](B-robustness.md) + [A-08](A-security.md) — Decoys have no read timeout, and tarpits hold workers forever: 12 idle or tarpitted connections freeze a decoy for every source. *`setSoTimeout`; cap tarpit time and connections per source; separate tarpit pool.*
-- [ ] **HIGH** · [B-08](B-robustness.md) + [A-05](A-security.md) — Unbounded `readLine` (decoy headers, Console and Sensor wire) can exhaust memory; the Console starts one unbounded thread per connection. *Bounded line reader, fixed pools, connection caps.*
+- [ ] **HIGH** · [B-06](B-robustness.md) + [B-07](B-robustness.md) + [A-04](A-security.md) — Decoys have no read timeout, and tarpits hold workers forever: 12 idle or tarpitted connections freeze a decoy for every source. *`setSoTimeout`; cap tarpit time and connections per source; separate tarpit pool.*
+- [ ] **HIGH** · [B-08](B-robustness.md) + [A-01](A-security.md) — Unbounded `readLine` (decoy headers, Console and Sensor wire) can exhaust memory; the Console starts one unbounded thread per connection. *Bounded line reader, fixed pools, connection caps.*
 - [ ] **MEDIUM** · [B-24](B-robustness.md) — Flaky test (2/7 runs) that is also a real race: a blocked probe is sometimes reported as "connection failed" instead of "blocked". *Treat write/connect resets as DROPPED; make the test deterministic.*
 - [ ] **MEDIUM** · [B-10](B-robustness.md) + [B-31](B-robustness.md) — `defender` starts its Sensor against whatever already holds the Console port, and keeps running with a "connected" Sensor that has no decoys when a decoy port is taken. *Fail the whole role if the Console or any decoy can't bind.*
-- [ ] **MEDIUM** · [B-29](B-robustness.md) — No bait files are planted, so DEMO's "edit a file in `bait/`" step has nothing to edit. *Plant sample bait files at Sensor start (and fix A-09 alongside).*
+- [ ] **MEDIUM** · [B-29](B-robustness.md) — No bait files are planted, so DEMO's "edit a file in `bait/`" step has nothing to edit. *Plant sample bait files at Sensor start (and fix A-05 alongside).*
 - [ ] **MEDIUM** · [B-21](B-robustness.md) — Recon and mirror scans are hard-coded to ports 8020–8085, ignoring the configured ports; on one laptop Specter's own scan trips its own counter-watch. *Derive scan ports from `LabConfig`; skip the local counter-watch port.*
 
 ## Wave 2 — trust, integrity and correctness
 
 - [ ] **HIGH** · [B-02](B-robustness.md) — Detection is O(n²) per source (every event rescans and copies the whole history): a 12k-event flood delayed another source's CRITICAL alert from about 0.12 s to 10 s. *Incremental rule state or a sliding window; cap per-profile history.*
-- [ ] **MEDIUM** · [A-06](A-security.md) + [A-07](A-security.md) — TLS is optional, server-only, falls back to plaintext on a keystore error, and defaults to `changeit`; a Sensor obeys any host on the Console address. *TLS on by default in the scripts, fail closed, no default password, pinned lab CA.*
-- [ ] **MEDIUM** · [A-10](A-security.md) + [B-30](B-robustness.md) — Ledger signing key regenerated each start and never saved; the persisted chain restarts at genesis; 5 schema tables are never written. *Persist the key, continue the chain from the DB, verify on start-up; trim or populate the unused tables.*
+- [ ] **MEDIUM** · [A-02](A-security.md) + [A-03](A-security.md) — TLS is optional, server-only, falls back to plaintext on a keystore error, and defaults to `changeit`; a Sensor obeys any host on the Console address. *TLS on by default in the scripts, fail closed, no default password, pinned lab CA.*
+- [ ] **MEDIUM** · [A-06](A-security.md) + [B-30](B-robustness.md) — Ledger signing key regenerated each start and never saved; the persisted chain restarts at genesis; 5 schema tables are never written. *Persist the key, continue the chain from the DB, verify on start-up; trim or populate the unused tables.*
 - [ ] **MEDIUM** · [B-15](B-robustness.md) — A Sensor that stops reading blocks `broadcast` forever, stalling the engine, the operator buttons and every other Sensor. *Per-connection send queue with a timeout; drop slow peers.*
 - [ ] **MEDIUM** · [B-14](B-robustness.md) — Liveness uses the Sensor's own clock, so a skewed laptop gets false "possible tamper" warnings. *Use the Console's receive time.*
 - [ ] **MEDIUM** · [B-19](B-robustness.md) — `ProbeReply` treats any "200"/"230" anywhere in the line as ACCESS GRANTED. *Parse the status code at the start of the line.*
@@ -40,9 +42,9 @@ are merged into one line. Fix the waves in order.
 
 ## Wave 3 — polish and hygiene
 
-- [ ] **LOW** · [A-09](A-security.md) — Bait watcher has no integrity baseline and misses changes made while the Sensor was down.
-- [ ] **LOW** · [A-11](A-security.md) — H2 DB has no password and sits in the working directory.
-- [ ] **LOW** · [A-13](A-security.md) — CounterWatch starts one thread per connection with no cap.
+- [ ] **LOW** · [A-05](A-security.md) — Bait watcher has no integrity baseline and misses changes made while the Sensor was down.
+- [ ] **LOW** · [A-07](A-security.md) — H2 DB has no password and sits in the working directory.
+- [ ] **LOW** · [A-08](A-security.md) — CounterWatch starts one thread per connection with no cap.
 - [ ] **LOW** · [B-04](B-robustness.md) — Two CRITICAL rules fire on one intrusion: two alerts, two BLOCK broadcasts.
 - [ ] **LOW** · [B-11](B-robustness.md) — Sensor id = hostname: two Sensors on one host collide; dead-sensor warnings repeat forever.
 - [ ] **LOW** · [B-12](B-robustness.md) — A second Console in the same folder dies with a raw H2 stack trace.
@@ -52,7 +54,7 @@ are merged into one line. Fix the waves in order.
 - [ ] **LOW** · [B-25](B-robustness.md) — `PersistenceDaoTest` isn't isolated (named in-memory H2 keeps rows).
 - [ ] **LOW** · [B-32](B-robustness.md) — Mistyped flags are silently ignored; ports aren't range-checked.
 - [ ] **LOW** · [B-33](B-robustness.md) — Smaller concurrency/robustness notes from code reading (SUSPECTED).
-- [ ] **INFO** · [A-14](A-security.md) — No secrets committed; add a CI guard to keep it that way.
+- [ ] **INFO** · [A-09](A-security.md) — No secrets committed; add a CI guard to keep it that way.
 - [ ] **INFO** · [B-27](B-robustness.md) — The shaded jar runs every role correctly (no action needed).
 
 - Not covered by either review: a dependency CVE scan, IPv6, and the real two-laptop network

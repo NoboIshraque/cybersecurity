@@ -29,7 +29,7 @@ concurrency are covered separately in the B checklist).
 
 - [ ] **A-02 · MEDIUM · SUSPECTED** — TLS is optional, server-only, and defaults to the password `changeit`
   - Where: `ConsoleMain.java:143-158`, `SensorMain.java:90-104`, `TlsFactories.java`.
-  - Problem: with no `-Dmirage.keystore`, the link is plain TCP, which is the default in every script and in the two-laptop guide. With TLS, only the server is authenticated (see A-04). A keystore that fails to load silently falls back to plain sockets. Keystore and truststore passwords default to `changeit`.
+  - Problem: with no `-Dmirage.keystore`, the link is plain TCP, which is the default in every script and in the two-laptop guide. With TLS, only the server is authenticated. A keystore that fails to load silently falls back to plain sockets. Keystore and truststore passwords default to `changeit`.
   - Fix: make the two-laptop scripts use TLS by default; fail closed (refuse to start) when a configured keystore cannot load, instead of falling back to plaintext; drop the `changeit` default and read the password from an env var or prompt; document generating the lab CA in the setup guide.
 
 - [ ] **A-03 · MEDIUM · SUSPECTED** — A Sensor obeys commands from whatever host it connected to
@@ -51,36 +51,36 @@ concurrency are covered separately in the B checklist).
 
 ## 3. Ledger and persistence
 
-- [ ] **A-6 · MEDIUM · SUSPECTED** — The ledger signing key is new on every start and never stored, so stored signatures cannot be verified later
+- [ ] **A-06 · MEDIUM · SUSPECTED** — The ledger signing key is new on every start and never stored, so stored signatures cannot be verified later
   - Where: `console/KeyPairSigner.java:24-33`, `ConsoleMain.java:61`, `console/AlertLedger.java:36-56`.
   - Problem: each Console run generates a fresh ECDSA key pair in memory, and the public key is not persisted or published. Alerts written to H2 by an earlier run carry signatures nobody can check, and the hash chain is unkeyed SHA-256, so someone who can edit the H2 file can rewrite the chain consistently. The "tamper-evident" claim holds only within one run.
   - Fix: persist the key pair in a password-protected PKCS12 keystore (or at least export the public key with a key ID stored in each row); verify the stored chain at start-up; add a `verify` for rows loaded from H2.
 
-- [ ] **A-7 · LOW · SUSPECTED** — The H2 database has no password and lives in the working directory
+- [ ] **A-07 · LOW · SUSPECTED** — The H2 database has no password and lives in the working directory
   - Where: `console/db/Database.java:17`, `ConsoleMain.java:63` (`jdbc:h2:file:./data/mirage`).
-  - Problem: anyone with local file access can open or alter the alert and event history; combined with A-10, an edited history goes undetected. (Inserts use `PreparedStatement`; no SQL injection was found in the DAOs.)
-  - Fix: set a DB user and password (from config or env), keep the DB in a per-user data directory, and rely on the A-10 verification to detect edits.
+  - Problem: anyone with local file access can open or alter the alert and event history; combined with A-06, an edited history goes undetected. (Inserts use `PreparedStatement`; no SQL injection was found in the DAOs.)
+  - Fix: set a DB user and password (from config or env), keep the DB in a per-user data directory, and rely on the A-06 verification to detect edits.
 
 
 ## 4. Attacker-side counter-watch
 
-- [ ] **A-8 · LOW · SUSPECTED** — CounterWatch spawns a thread per connection with no cap
+- [ ] **A-08 · LOW · SUSPECTED** — CounterWatch spawns a thread per connection with no cap
   - Where: `specter/CounterWatch.java:28` (`newCachedThreadPool`), `observe()`.
   - Problem: the listener is reachable by anyone on the LAN; each connection costs a thread for up to the 400 ms drain, with no limit on concurrent connections or log volume, so a burst can flood the shell and the thread table on Laptop B.
   - Fix: a fixed-size pool plus a per-source connection cap and rate-limited logging.
 
 ## 5. Repo and config hygiene
 
-- [ ] **A-9 · INFO · VERIFIED** — No keys or keystores are committed
+- [ ] **A-09 · INFO · VERIFIED** — No keys or keystores are committed
   - Where: `certs/` (README only), `.gitignore` (`*.jks`, `*.p12`, `data/`, `mirage.properties`).
-  - Problem: none found. The only secret-like value is the `changeit` default in code (A-06).
+  - Problem: none found. The only secret-like value is the `changeit` default in code (A-02).
   - Fix: keep it this way; add a CI check that fails on committed `*.jks`, `*.p12` or `*.pem` files.
 
 ## Summary
 
 | Severity | Count | Items |
 | --- | --- | --- |
-| MEDIUM | 5 | A-05, A-06, A-07, A-08, A-10 |
-| LOW | 3 | A-09, A-11, A-13 |
-| INFO | 1 | A-14 |
+| MEDIUM | 5 | A-01, A-02, A-03, A-04, A-06 |
+| LOW | 3 | A-05, A-07, A-08 |
+| INFO | 1 | A-09 |
 

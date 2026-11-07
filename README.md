@@ -29,7 +29,9 @@ simulator, **Specter**, drives the whole demo — restricted to the lab's own ad
 
 Feature-complete and **all tests green** (98). The live-shells release adds terminal-style
 process shells on both sides, an escalating threat popup with operator-driven responses, and
-a one-jar launcher for a two-laptop demo. See [`HANDOVER.md`](HANDOVER.md) for where to pick up.
+a one-jar launcher for a two-laptop demo. A stress test then produced a fix list,
+[`docs/stress-test/CHECKLIST.md`](docs/stress-test/CHECKLIST.md), which is being worked through. See
+[`HANDOVER.md`](HANDOVER.md) for where to pick up.
 
 ## Architecture (in one line)
 

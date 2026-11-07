@@ -70,6 +70,10 @@ JDK 17+ (built on JDK 21), Maven 3.9+. Language level is `maven.compiler.release
 
 > **Live shells & two-laptop demo** were built on branch `feature/live-shells` (draft PR to
 > `master`); the phase-by-phase log is `BUILD_LOG.md`.
+>
+> **Current work: stress-test fixes.** The ordered work list is `docs/stress-test/CHECKLIST.md`
+> (details in `A-security.md` / `B-robustness.md`); how to resume is at the top of `HANDOVER.md`.
+> Every fix needs a test that fails before and passes after, and ticks its checklist line.
 
 ## Design patterns in use (keep extending these, don't bypass them)
 
@@ -112,7 +116,8 @@ JDK 17+ (built on JDK 21), Maven 3.9+. Language level is `maven.compiler.release
 
 ## Pointers
 
-- Live status + next steps: `HANDOVER.md`
+- Live status + next steps: `HANDOVER.md` (start at "RESUME HERE")
+- Stress-test fix list: `docs/stress-test/CHECKLIST.md`
 - Proposal: `PROPOSAL.md`; full report: `REPORT.md` (formatted master with figures: `docs/report.html`,
   published as the artifact linked in `HANDOVER.md`; republish it after editing)
 - DB schema: `db/schema.sql`
