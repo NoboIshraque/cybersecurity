@@ -19,9 +19,10 @@ The phase-by-phase log is **`BUILD_LOG.md`**.
   all pass) and regenerates `docs/screenshots/live-*.png`. How-to: `tools/screenshots/README.md`.
 - **Still to do (user):** the real two-laptop rehearsal (firewall commands are in the setup doc
   for you to run as admin); then mark the PR ready and merge.
-- **Report artifact:** the formatted report artifact (link below) belongs to the account this
-  project was handed over from and cannot be edited from the current one. `REPORT.md` has the
-  new §5.5 (Figures 9–14); copy it into the artifact from that account, or publish a fresh one.
+- **Report artifact:** a fresh formatted report with all 14 figures (Figures 1–4 redrawn as
+  diagrams, 5–14 screenshots) was published from this account: link below. Its source is
+  `docs/report.html` (figures from `docs/screenshots/`), so any account can republish it. The old
+  artifact belongs to the previous account.
 - **What it adds:** terminal-style "process shells" on both sides that stream each step live (and
   split into one pane per thread for concurrent runs), a decoy that lets a trap credential "in" to a
   fake page, an operator-gated (manual-by-default) response flow, a counter-watch listener on the
@@ -151,5 +152,6 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
 ## Links
 
 - **Proposal (submission):** https://claude.ai/code/artifact/d5969a4d-9277-473a-8c66-4d32e04716df
-- **Report (detailed):** https://claude.ai/code/artifact/f578aa80-d25b-4514-8adf-f03f27562c3b
+- **Report (detailed, current):** https://claude.ai/artifact/7Hf6qAtuzF3i9TdU72jJgg (source `docs/report.html`)
+- Report (original, previous account): https://claude.ai/code/artifact/f578aa80-d25b-4514-8adf-f03f27562c3b
 - In-repo copies: `PROPOSAL.md` (proposal), `REPORT.md` (report), `DEMO.md` (demo script)

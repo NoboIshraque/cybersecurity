@@ -264,9 +264,9 @@ New patterns used (and existing ones extended):
       layout), `CLAUDE.md` (jar roles, the lab-range safety check, TraceBus/ShellModel patterns,
       how to add shell lines / operator actions, alert de-duplication, the GUI dry run).
 - [x] `REPORT.md`: new §5.5 "Live process shells and the two-host demo" with Figures 9–14, and
-      the design-pattern table extended. **Report artifact not republished:** it belongs to the
-      account the project was handed over from and can't be read or edited from this one (see
-      HANDOVER).
+      the design-pattern table extended. The old report artifact belongs to the previous account,
+      so a **fresh report artifact** was published (all 14 figures; Figures 1–4 redrawn as
+      diagrams) from `docs/report.html`: https://claude.ai/artifact/7Hf6qAtuzF3i9TdU72jJgg
 - [x] Pushed `feature/live-shells` and opened the **draft PR** to `master`.
 
 ## What you'll need on demo day

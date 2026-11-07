@@ -11,8 +11,8 @@
 
 **Submission date:** 14 October 2026
 
-> The formatted master of this report, with all five rendered figures, lives here:
-> https://claude.ai/code/artifact/f578aa80-d25b-4514-8adf-f03f27562c3b
+> The formatted master of this report, with all fourteen figures, lives here:
+> https://claude.ai/artifact/7Hf6qAtuzF3i9TdU72jJgg (source: [`docs/report.html`](docs/report.html)).
 > This Markdown copy is kept in the repo for version control.
 
 ## Abstract
@@ -111,7 +111,7 @@ hashing, detection rules, scope guard) is covered by JUnit tests.
 
 ## 3. Design
 
-Figures are in the formatted proposal (link at the top).
+Figures 1–4 are drawn in the formatted report (link at the top).
 
 ### 3.1 System Architecture (Figure 1)
 
@@ -162,7 +162,7 @@ Embedded H2 via a DAO layer. Tables: `sensor`, `decoy`, `attack_event`, `attacke
 
 The foundational code is in this repo under `src/main/java/com/mirage/`. Key pieces:
 
-- **TLS thread-pool Console server** → to be added as `console.ConsoleServer` (see `HANDOVER.md`).
+- **TLS thread-pool Console server** → `console/ConsoleServer.java` (TLS when a keystore is configured; one receive thread per Sensor).
 - **Decoy hierarchy (Template Method)** → `sensor/Decoy.java`, `sensor/FakeHttpLoginDecoy.java`.
 - **Detection rules (Strategy)** → `console/detection/` (`BruteForceRule`, `PortScanRule`,
   `HoneytokenUseRule`).
@@ -184,7 +184,7 @@ public void require(String ip) {
 }
 ```
 
-The full, compiling sources (with JUnit tests passing) are the authoritative reference.
+The full, compiling sources (98 JUnit tests passing) are the authoritative reference.
 
 ## 5. Result
 

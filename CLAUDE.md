@@ -75,7 +75,7 @@ JDK 17+ (built on JDK 21), Maven 3.9+. Language level is `maven.compiler.release
 
 | Pattern | Where |
 | --- | --- |
-| Template Method | `sensor.Decoy` fixes the loop; subclasses implement `respond()` |
+| Template Method | `sensor.Decoy` fixes the loop (accept, gate, serve on a pool); subclasses implement `interact()` |
 | Strategy | `console.detection.DetectionRule`, `specter.AttackStrategy`, `console.ResponsePolicy` |
 | Command | `console.response.ResponseAction` and its implementations |
 | Observer | `console.AlertBus` notifies the dashboard; `common.trace.TraceBus` carries trace lines to the shells (`TraceBacklog` replays what a late shell missed) |
@@ -83,7 +83,7 @@ JDK 17+ (built on JDK 21), Maven 3.9+. Language level is `maven.compiler.release
 
 ## How to extend (the common tasks)
 
-- **New decoy** → subclass `sensor.Decoy`, implement `respond()`, register it in `SensorMain`.
+- **New decoy** → subclass `sensor.Decoy`, implement `interact()`, register it in `SensorMain`.
 - **New detection rule** → implement `console.detection.DetectionRule`, add it to the rules
   list in `ConsoleMain`, and add a unit test.
 - **New response** → implement `console.response.ResponseAction`, wire it into `ResponsePolicy`.
@@ -113,6 +113,6 @@ JDK 17+ (built on JDK 21), Maven 3.9+. Language level is `maven.compiler.release
 ## Pointers
 
 - Live status + next steps: `HANDOVER.md`
-- Proposal: `PROPOSAL.md`; full report: `REPORT.md` (formatted master with figures: the Claude artifact link in
-  `HANDOVER.md`)
+- Proposal: `PROPOSAL.md`; full report: `REPORT.md` (formatted master with figures: `docs/report.html`,
+  published as the artifact linked in `HANDOVER.md`; republish it after editing)
 - DB schema: `db/schema.sql`
