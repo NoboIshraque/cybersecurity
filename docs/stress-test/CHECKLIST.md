@@ -2,22 +2,17 @@
 
 Branch `feature/live-shells` @ `22f951e`, tested 2026-11-07. Two reviews ran in parallel:
 
-- **A — security and safety** → [`A-security.md`](A-security.md) (14 items; A-01–A-03 reproduced, the
-  rest from code review because agent A was stopped early).
+- **A — security and safety** → [`A-security.md`](A-security.md) 
 - **B — correctness, concurrency, robustness, performance, docs/build** →
   [`B-robustness.md`](B-robustness.md) (33 items; 32 reproduced or measured).
 
 This file is the work list. Tick an item when its fix is merged **with a test that proves it**.
 Each line links to the full entry (where, problem, evidence, suggested fix). Items that overlap
-are merged into one line. Fix the waves in order: wave 1 contains everything that breaks the
-safety rule or the demo.
+are merged into one line. Fix the waves in order.
 
-**Totals:** 47 findings (14 A + 33 B) merged into 39 fix lines: 1 CRITICAL · 7 HIGH · 17 MEDIUM · 12 LOW · 2 INFO.
 
 ## Wave 1 — safety boundary and demo-breakers (fix before the next rehearsal)
 
-- [ ] **CRITICAL** · [A-01](A-security.md) — ScopeGuard checks a loosely parsed string (`10.10.0.261`, `+10.10.0.5`, `127.0.0.1.` …) but the socket resolves the raw string as a host name, so a "checked" target can go anywhere. *Strict IPv4 parsing; carry the parsed `InetAddress` in `Target`; deny-cases in `ScopeGuardTest`.*
-- [ ] **MEDIUM** · [A-02](A-security.md) + [A-03](A-security.md) — `new ScopeGuard(...)` doesn't validate (`/0`, `/33` allow everything); the /16 cap is per CIDR, not total; loose CIDR text is accepted. *Validate in the constructor; total-size cap; strict CIDR parser.*
 - [ ] **HIGH** · [B-22](B-robustness.md) — The `mirage.properties` snippet in `docs/TWO-LAPTOP-SETUP.md` uses inline `#` comments, which Java keeps as part of the value, so every role refuses to start. *Move comments to their own lines; reject or trim values with ` #` in `LabConfig`.*
 - [ ] **HIGH** · [B-01](B-robustness.md) — One bad event (null field, H2 "value too long") kills the correlation-engine thread for good, silently. *Catch per event, log it, keep consuming; validate events at the server.*
 - [ ] **HIGH** · [B-05](B-robustness.md) + [B-13](B-robustness.md) — The Sensor never reconnects, and one unparsable line or unknown JSON field makes the Console drop it. *Reconnect loop with backoff; skip bad lines instead of closing; ignore unknown JSON fields.*
@@ -30,11 +25,9 @@ safety rule or the demo.
 
 ## Wave 2 — trust, integrity and correctness
 
-- [ ] **HIGH** · [A-04](A-security.md) — Sensors aren't authenticated: any LAN client can inject events, impersonate a sensor, or forge ACKs (popup shows NEUTRALISED with nothing blocked). *Mutual TLS or an enrolment token; accept ACKs only for commands actually sent; validate `sourceIp`.*
 - [ ] **HIGH** · [B-02](B-robustness.md) — Detection is O(n²) per source (every event rescans and copies the whole history): a 12k-event flood delayed another source's CRITICAL alert from about 0.12 s to 10 s. *Incremental rule state or a sliding window; cap per-profile history.*
 - [ ] **MEDIUM** · [A-06](A-security.md) + [A-07](A-security.md) — TLS is optional, server-only, falls back to plaintext on a keystore error, and defaults to `changeit`; a Sensor obeys any host on the Console address. *TLS on by default in the scripts, fail closed, no default password, pinned lab CA.*
 - [ ] **MEDIUM** · [A-10](A-security.md) + [B-30](B-robustness.md) — Ledger signing key regenerated each start and never saved; the persisted chain restarts at genesis; 5 schema tables are never written. *Persist the key, continue the chain from the DB, verify on start-up; trim or populate the unused tables.*
-- [ ] **MEDIUM** · [A-12](A-security.md) — An event's source string reaches Swing labels that render `<html>` (including remote image loads that bypass ScopeGuard). *`html.disable` on renderers that show untrusted text; reject non-IP sources.*
 - [ ] **MEDIUM** · [B-15](B-robustness.md) — A Sensor that stops reading blocks `broadcast` forever, stalling the engine, the operator buttons and every other Sensor. *Per-connection send queue with a timeout; drop slow peers.*
 - [ ] **MEDIUM** · [B-14](B-robustness.md) — Liveness uses the Sensor's own clock, so a skewed laptop gets false "possible tamper" warnings. *Use the Console's receive time.*
 - [ ] **MEDIUM** · [B-19](B-robustness.md) — `ProbeReply` treats any "200"/"230" anywhere in the line as ACCESS GRANTED. *Parse the status code at the start of the line.*
@@ -62,14 +55,5 @@ safety rule or the demo.
 - [ ] **INFO** · [A-14](A-security.md) — No secrets committed; add a CI guard to keep it that way.
 - [ ] **INFO** · [B-27](B-robustness.md) — The shaded jar runs every role correctly (no action needed).
 
-## Notes
-
-- Reproduced vs suspected: every B item except B-33 was reproduced or measured; A-01–A-03 were
-  reproduced; A-04–A-14 come from code review and need a test that shows each issue before and
-  after the fix.
-- Checked by hand in the source before merging: A-01 (`ScopeGuard.toLong` masks octets with
-  `& 0xFF`), B-01 (`CorrelationEngine.run` catches only `InterruptedException`), B-05 (one
-  `SensorClient`, no retry), B-09 (`FEED_FAKE` handled as a tarpit), B-19
-  (`contains("200")`), B-22 (inline `#` comments in the setup doc).
 - Not covered by either review: a dependency CVE scan, IPv6, and the real two-laptop network
   (both reviews ran on 127.0.0.1 only).
