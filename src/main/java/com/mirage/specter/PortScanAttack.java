@@ -32,6 +32,7 @@ public final class PortScanAttack implements AttackStrategy {
         }
         trace.line(open > 0 ? TraceLevel.GOOD : TraceLevel.WARN,
                 "scan complete: " + open + " open port(s) in " + startPort + "-" + endPort);
+        trace.line(TraceLevel.BANNER, "SCAN COMPLETE — " + open + " OPEN");
     }
 
     @Override

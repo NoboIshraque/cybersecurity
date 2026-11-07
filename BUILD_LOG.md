@@ -121,14 +121,15 @@ New patterns used (and existing ones extended):
 - [x] Tests: `ShellModelTest` (7) — order, batch pacing, colour stability+cycling, lanes, done-state,
       concurrency, banners. **72 tests green.**
 
-### Phase 4 — Decoy deception (the fake "inside")
-- [ ] `Decoy`: serve each connection on a bounded pool (keeps the template loop), so a tarpitted
-      client no longer stalls everyone else and concurrent runs really run in parallel.
-- [ ] `FakeHttpLoginDecoy`: honeytoken or weak decoy password → `200 OK` plus a canned fake admin page.
-      Everything else → `401` as today. Blocked/tarpit behaviour is unchanged.
-- [ ] New event `Action.DECOY_ACCESS` + rule `DecoyAccessRule` → CRITICAL
-      "Intruder inside decoy (honeypot session)". Registered in `ConsoleMain`.
-- [ ] Tests: `DecoyAccessRuleTest`, decoy concurrency test, updated `FtpDecoyTest`/`BlockedDecoyTest`.
+### Phase 4 — Decoy deception (the fake "inside") ✅
+- [x] `Decoy`: each connection served on a bounded 12-thread pool (template loop unchanged); a
+      tarpitted client no longer stalls the others; `stop()` shuts the pool and closes the socket.
+- [x] `FakeHttpLoginDecoy`: trap credentials (default = the honeytoken) → `200 OK` + canned fake
+      admin page; everything else → `401`. Blocked/tarpit behaviour unchanged.
+- [x] `Action.DECOY_ACCESS` + `DecoyAccessRule` → CRITICAL "Intruder inside decoy (honeypot
+      session)", registered in `ConsoleMain`. Nothing real exposed — the page is fixed text.
+- [x] Tests: `DecoyAccessRuleTest` (2), `DecoyDeceptionTest` (grant/deny/parallel, 3); existing
+      `FtpDecoyTest`/`BlockedDecoyTest` green on the pooled decoy. **77 tests green.**
 
 ### Phase 5 — Specter side
 - [ ] Launch opens a `ShellWindow` per campaign, fed by `AttackTrace`.
@@ -189,3 +190,4 @@ New patterns used (and existing ones extended):
 | 2026-11-07 | 1 | `LabConfig` + `ScopeGuard.requireLabRange` (private/loopback, ≥/16); entry points wired. 57 tests green. |
 | 2026-11-07 | 2 | `common.trace` (TraceBus) + ACK on the wire; Console & Specter emit honest step traces. 65 tests green. |
 | 2026-11-07 | 3 | `ui.shell` ShellModel + ShellWindow (themes, strip, banners, split view, speed). 72 tests green. |
+| 2026-11-07 | 4 | Pooled decoys; trap-credential grant → DECOY_ACCESS + DecoyAccessRule (CRITICAL). 77 tests green. |

@@ -28,17 +28,21 @@ public final class BruteForceAttack implements AttackStrategy {
     public void run(Target target, AttackTrace trace) {
         trace.line(TraceLevel.COMMAND, "hydra -l " + username + " -P passwords.txt "
                 + target.host() + ":" + target.port() + " http-get");
+        ProbeReply.Outcome last = ProbeReply.Outcome.REJECTED;
         for (String password : passwords) {
-            ProbeReply.Outcome outcome = attempt(target, username, password, trace);
-            if (outcome == ProbeReply.Outcome.ACCEPTED) {
+            last = attempt(target, username, password, trace);
+            if (last == ProbeReply.Outcome.ACCEPTED) {
                 trace.line(TraceLevel.GOOD, "valid credential found: " + username + ":" + password);
-                return;
+                break;
             }
-            if (outcome == ProbeReply.Outcome.DROPPED || outcome == ProbeReply.Outcome.STALLED) {
-                return; // blocked or tarpitted — no point hammering further
+            if (last == ProbeReply.Outcome.DROPPED || last == ProbeReply.Outcome.STALLED) {
+                break; // blocked or tarpitted — no point hammering further
             }
         }
-        trace.line(TraceLevel.WARN, "password list exhausted, no valid credential");
+        if (last == ProbeReply.Outcome.REJECTED) {
+            trace.line(TraceLevel.WARN, "password list exhausted, no valid credential");
+        }
+        trace.line(TraceLevel.BANNER, bannerFor(last));
     }
 
     private ProbeReply.Outcome attempt(Target target, String user, String pass, AttackTrace trace) {
@@ -72,6 +76,16 @@ public final class BruteForceAttack implements AttackStrategy {
             case REJECTED -> reply.firstLine.isEmpty() ? "rejected" : reply.firstLine;
             case DROPPED -> "connection dropped (blocked)";
             case STALLED -> "no reply (tarpit)";
+        };
+    }
+
+    /** The end-of-run banner text for an outcome, shared by the credential strategies. */
+    static String bannerFor(ProbeReply.Outcome outcome) {
+        return switch (outcome) {
+            case ACCEPTED -> "ACCESS GRANTED";
+            case REJECTED -> "NO ACCESS";
+            case DROPPED -> "CONNECTION BLOCKED";
+            case STALLED -> "CONNECTION STALLED";
         };
     }
 

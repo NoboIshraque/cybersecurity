@@ -297,6 +297,14 @@ public final class ShellWindow extends JPanel {
         return " ".repeat(left) + s;
     }
 
+    /** Start in split-threads view (used for a concurrent launch). */
+    public void enableSplit() {
+        if (!splitToggle.isSelected()) {
+            splitToggle.setSelected(true);
+            switchView();
+        }
+    }
+
     /** Exposed for the owning window / screenshots. */
     public ShellModel model() {
         return model;

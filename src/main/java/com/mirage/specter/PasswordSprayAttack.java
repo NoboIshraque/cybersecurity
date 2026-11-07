@@ -24,17 +24,21 @@ public final class PasswordSprayAttack implements AttackStrategy {
     public void run(Target target, AttackTrace trace) {
         trace.line(TraceLevel.COMMAND, "spray --pass '" + password + "' --users "
                 + String.join(",", usernames) + "  " + target.host() + ":" + target.port());
+        ProbeReply.Outcome last = ProbeReply.Outcome.REJECTED;
         for (String user : usernames) {
-            ProbeReply.Outcome outcome = attempt(target, user, password, trace);
-            if (outcome == ProbeReply.Outcome.ACCEPTED) {
+            last = attempt(target, user, password, trace);
+            if (last == ProbeReply.Outcome.ACCEPTED) {
                 trace.line(TraceLevel.GOOD, "valid credential found: " + user + ":" + password);
-                return;
+                break;
             }
-            if (outcome == ProbeReply.Outcome.DROPPED || outcome == ProbeReply.Outcome.STALLED) {
-                return;
+            if (last == ProbeReply.Outcome.DROPPED || last == ProbeReply.Outcome.STALLED) {
+                break;
             }
         }
-        trace.line(TraceLevel.WARN, "spray complete, no account accepted the password");
+        if (last == ProbeReply.Outcome.REJECTED) {
+            trace.line(TraceLevel.WARN, "spray complete, no account accepted the password");
+        }
+        trace.line(TraceLevel.BANNER, BruteForceAttack.bannerFor(last));
     }
 
     private ProbeReply.Outcome attempt(Target target, String user, String pass, AttackTrace trace) {

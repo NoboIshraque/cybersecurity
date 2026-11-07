@@ -32,8 +32,10 @@ public final class HoneytokenReplayAttack implements AttackStrategy {
             ProbeReply reply = ProbeReply.read(socket, 1500);
             trace.line(BruteForceAttack.levelFor(reply.outcome),
                     "replay -> " + BruteForceAttack.describe(reply));
+            trace.line(TraceLevel.BANNER, BruteForceAttack.bannerFor(reply.outcome));
         } catch (IOException e) {
             trace.line(TraceLevel.BAD, "replay -> connection failed");
+            trace.line(TraceLevel.BANNER, "CONNECTION BLOCKED");
         }
     }
 

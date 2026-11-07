@@ -2,11 +2,16 @@ package com.mirage.specter;
 
 import com.mirage.common.LabConfig;
 import com.mirage.common.ScopeGuard;
+import com.mirage.common.trace.TraceBus;
+import com.mirage.common.trace.TraceLevel;
+import com.mirage.ui.shell.ShellTheme;
+import com.mirage.ui.shell.ShellWindow;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -18,13 +23,19 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.time.Duration;
 import java.util.List;
 
 /**
  * The red-team control panel. Pick a target in the lab range, choose a campaign,
- * set the stealth delay, and launch. Every launch goes through {@link Attacker},
- * which refuses any target outside the authorised range.
+ * set the stealth delay, and launch. Every launch opens its own terminal-style
+ * shell popup that streams each step as it happens and ends with a banner
+ * (SCAN COMPLETE / ACCESS GRANTED / CONNECTION BLOCKED / CONNECTION STALLED /
+ * REFUSED). "All at once" launches every technique concurrently and the shell
+ * shows one pane per thread. Every launch goes through {@link Attacker}, which
+ * refuses any target outside the authorised range before anything runs.
  */
 public final class SpecterConsole extends JFrame {
 
@@ -32,12 +43,13 @@ public final class SpecterConsole extends JFrame {
             "Recon scan", "Brute force", "Password spray", "Honeytoken replay", "Full campaign"
     };
 
-    private final transient Attacker attacker;
+    private final transient ScopeGuard guard;
     private final JTextField hostField;
     private final JTextField portField;
     private final JComboBox<String> campaignBox = new JComboBox<>(CAMPAIGNS);
     private final JSlider stealthSlider = new JSlider(0, 5000, 0);
-    private final JTextArea logArea = new JTextArea(18, 60);
+    private final JCheckBox concurrentBox = new JCheckBox("All at once (split threads)");
+    private final JTextArea logArea = new JTextArea(10, 60);
 
     public SpecterConsole(ScopeGuard guard) {
         this(guard, LabConfig.defaults());
@@ -45,7 +57,7 @@ public final class SpecterConsole extends JFrame {
 
     public SpecterConsole(ScopeGuard guard, LabConfig config) {
         super("Specter — attack simulator (lab range only)");
-        this.attacker = new Attacker(guard, this::log);
+        this.guard = guard;
         this.hostField = new JTextField(config.consoleHost(), 12);
         this.portField = new JTextField(Integer.toString(config.httpDecoyPort()), 6);
         buildUi();
@@ -68,6 +80,7 @@ public final class SpecterConsole extends JFrame {
         JPanel campaignRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
         campaignRow.add(new JLabel("Campaign:"));
         campaignRow.add(campaignBox);
+        campaignRow.add(concurrentBox);
 
         JPanel stealthRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
         stealthRow.add(new JLabel("Stealth delay (ms):"));
@@ -89,7 +102,7 @@ public final class SpecterConsole extends JFrame {
 
         add(controls, BorderLayout.NORTH);
         add(new JScrollPane(logArea), BorderLayout.CENTER);
-        setSize(760, 520);
+        setSize(760, 420);
         setLocationRelativeTo(null);
     }
 
@@ -102,15 +115,53 @@ public final class SpecterConsole extends JFrame {
             log("invalid port");
             return;
         }
+        boolean concurrent = concurrentBox.isSelected();
         Campaign campaign = buildCampaign((String) campaignBox.getSelectedItem(), port);
         Duration stealth = Duration.ofMillis(stealthSlider.getValue());
+        Target target = new Target(host, port);
+
+        // Each launch gets its own shell popup, bus and attacker, so campaigns never cross-talk.
+        TraceBus bus = new TraceBus();
+        ShellWindow shell = new ShellWindow(ShellTheme.specter(), e -> true);
+        bus.subscribe(shell::onTrace);
+        Attacker attacker = new Attacker(guard, this::log);
+        attacker.setTrace(bus, "attack");
+
+        JFrame popup = openShell(campaign.name() + " → " + host + ":" + port
+                + (concurrent ? "  [concurrent]" : ""), shell, attacker);
+        if (concurrent) {
+            shell.enableSplit();
+        }
+
         try {
-            attacker.launch(campaign, new Target(host, port), stealth);
+            if (concurrent) {
+                attacker.launchConcurrent(campaign, target);
+            } else {
+                attacker.launch(campaign, target, stealth);
+            }
             log("launched '" + campaign.name() + "' at " + host + ":" + port
-                    + " (stealth " + stealth.toMillis() + "ms)");
+                    + (concurrent ? " (all at once)" : " (stealth " + stealth.toMillis() + "ms)"));
         } catch (SecurityException e) {
+            bus.line("attack", "scope", host, TraceLevel.BAD, "ScopeGuard refused " + host + ": " + e.getMessage());
+            bus.line("attack", "scope", host, TraceLevel.BANNER, "REFUSED — OUTSIDE LAB RANGE");
             log("REFUSED: " + e.getMessage());
         }
+        popup.setVisible(true);
+    }
+
+    private JFrame openShell(String title, ShellWindow shell, Attacker attacker) {
+        JFrame frame = new JFrame("Specter shell — " + title);
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.add(shell);
+        frame.setSize(860, 560);
+        frame.setLocationByPlatform(true);
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                attacker.shutdown();
+            }
+        });
+        return frame;
     }
 
     private Campaign buildCampaign(String choice, int port) {

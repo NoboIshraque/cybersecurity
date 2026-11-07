@@ -2,9 +2,14 @@ package com.mirage.specter;
 
 import com.mirage.common.LabConfig;
 import com.mirage.common.ScopeGuard;
+import com.mirage.common.trace.TraceBus;
+import com.mirage.ui.shell.ShellTheme;
+import com.mirage.ui.shell.ShellWindow;
 
+import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import java.awt.GraphicsEnvironment;
+import java.io.IOException;
 
 /** Entry point for the red-team Specter console. */
 public final class SpecterMain {
@@ -24,6 +29,33 @@ public final class SpecterMain {
             System.out.println("ScopeGuard active: targets outside the lab range are refused.");
             return;
         }
-        SwingUtilities.invokeLater(() -> new SpecterConsole(guard, config).setVisible(true));
+        SwingUtilities.invokeLater(() -> {
+            new SpecterConsole(guard, config).setVisible(true);
+            startCounterWatch(config);
+        });
+    }
+
+    /**
+     * A passive listener so this laptop can see when the Console turns a technique back on it.
+     * It only accepts and logs; it never reaches out. If the port is taken, Specter still runs.
+     */
+    private static void startCounterWatch(LabConfig config) {
+        TraceBus bus = new TraceBus();
+        ShellWindow shell = new ShellWindow(ShellTheme.specter(), e -> true);
+        bus.subscribe(shell::onTrace);
+        CounterWatch watch = new CounterWatch(config.counterWatchPort(), bus);
+        try {
+            watch.start();
+        } catch (IOException e) {
+            System.out.println("counter-watch could not bind :" + config.counterWatchPort()
+                    + " (" + e.getMessage() + "); continuing without it.");
+            return;
+        }
+        JFrame frame = new JFrame("Specter — counter-watch (incoming)");
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.add(shell);
+        frame.setSize(760, 440);
+        frame.setLocationByPlatform(true);
+        frame.setVisible(true);
     }
 }
