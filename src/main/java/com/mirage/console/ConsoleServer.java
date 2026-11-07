@@ -22,10 +22,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -37,10 +40,21 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class ConsoleServer implements CommandSink {
 
-    /** One connected Sensor: its socket plus a writer for pushing commands back. */
+    /** Lines a Sensor may have waiting to be sent before it counts as too slow and is dropped. */
+    static final int OUTBOX = 256;
+    private static final String CLOSE = new String("close"); // identity-compared wake-up for the writer
+
+    /**
+     * One connected Sensor: its socket, a bounded outbox and its own writer thread (B-15). Queuing
+     * never blocks the caller (the engine or an operator's button); a Sensor that stops reading
+     * fills its outbox, or stalls a write past the timeout, and is dropped on its own.
+     */
     private static final class Connection {
         private final Socket socket;
         private final Writer out;
+        private final BlockingQueue<String> outbox = new ArrayBlockingQueue<>(OUTBOX);
+        private volatile long writingSince; // System.nanoTime() of the write in progress, 0 when idle
+        private volatile boolean closed;
         volatile String sensorId;
 
         Connection(Socket socket) throws IOException {
@@ -48,22 +62,59 @@ public final class ConsoleServer implements CommandSink {
             this.out = new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8);
         }
 
-        synchronized void send(String line) {
+        void startWriter(String name) {
+            Thread t = new Thread(this::writeLoop, name);
+            t.setDaemon(true);
+            t.start();
+        }
+
+        /** Queue a line; false (and the link is closed) if this Sensor is already too far behind. */
+        boolean offer(String line) {
+            if (closed) {
+                return false;
+            }
+            if (!outbox.offer(line)) {
+                closeQuietly();
+                return false;
+            }
+            return true;
+        }
+
+        /** True if one write has been blocked for longer than {@code timeoutNanos}. */
+        boolean stalled(long now, long timeoutNanos) {
+            long since = writingSince;
+            return since != 0 && now - since > timeoutNanos;
+        }
+
+        private void writeLoop() {
             try {
-                out.write(line);
-                out.write('\n');
-                out.flush();
-            } catch (IOException e) {
-                // connection is going away; it will be removed on the read side
+                while (!closed) {
+                    String line = outbox.take();
+                    if (line == CLOSE) {
+                        return;
+                    }
+                    writingSince = System.nanoTime();
+                    out.write(line);
+                    out.write('\n');
+                    out.flush();
+                    writingSince = 0;
+                }
+            } catch (IOException | InterruptedException e) {
+                // link gone: it is removed on the read side
+            } finally {
+                closeQuietly();
             }
         }
 
         void closeQuietly() {
+            closed = true;
             try {
-                socket.close();
+                socket.close(); // also unblocks a write stuck on a peer that stopped reading
             } catch (IOException e) {
                 // ignore
             }
+            outbox.clear();
+            outbox.offer(CLOSE);
         }
     }
 
@@ -122,6 +173,35 @@ public final class ConsoleServer implements CommandSink {
         return this;
     }
 
+    /** A single write to a Sensor blocked for this long closes its link (B-15). */
+    public static final Duration DEFAULT_WRITE_TIMEOUT = Duration.ofSeconds(10);
+    private volatile Duration writeTimeout = DEFAULT_WRITE_TIMEOUT;
+    private ScheduledExecutorService watchdog;
+
+    /** Override the write timeout. Call before {@link #start}. */
+    public ConsoleServer setWriteTimeout(Duration timeout) {
+        this.writeTimeout = Objects.requireNonNull(timeout);
+        return this;
+    }
+
+    /** Close any link whose current write has been stuck past the timeout. */
+    private void dropStalledLinks() {
+        long now = System.nanoTime();
+        long limit = writeTimeout.toNanos();
+        for (Connection conn : connections) {
+            if (conn.stalled(now, limit)) {
+                trace.line("console", "dispatch", null, TraceLevel.WARN, "closing the link to "
+                        + describe(conn) + ": it stopped reading commands (a write blocked for over "
+                        + writeTimeout.toMillis() + " ms)");
+                conn.closeQuietly();
+            }
+        }
+    }
+
+    private static String describe(Connection conn) {
+        return conn.sensorId != null ? conn.sensorId : conn.socket.getInetAddress().getHostAddress();
+    }
+
     /** Override the idle timeout. Call before {@link #start}. */
     public ConsoleServer setIdleTimeout(Duration timeout) {
         this.idleTimeout = Objects.requireNonNull(timeout);
@@ -153,6 +233,13 @@ public final class ConsoleServer implements CommandSink {
         Thread accept = new Thread(this::acceptLoop, "accept");
         accept.setDaemon(true);
         accept.start();
+        watchdog = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "tx-watchdog");
+            t.setDaemon(true);
+            return t;
+        });
+        long every = Math.max(50, Math.min(1000, writeTimeout.toMillis() / 4));
+        watchdog.scheduleWithFixedDelay(this::dropStalledLinks, every, every, TimeUnit.MILLISECONDS);
         return server.getLocalPort();
     }
 
@@ -205,6 +292,7 @@ public final class ConsoleServer implements CommandSink {
             return;
         }
         connections.add(conn);
+        conn.startWriter("tx-" + socket.getInetAddress().getHostAddress());
         // Name the pooled thread after its peer so the shells can show which rx thread did the work.
         String peer = socket.getInetAddress().getHostAddress();
         Thread.currentThread().setName("rx-" + peer);
@@ -285,8 +373,12 @@ public final class ConsoleServer implements CommandSink {
         String line = JsonCodec.encode(command);
         int sent = 0;
         for (Connection conn : connections) {
-            conn.send(line);
-            sent++;
+            if (conn.offer(line)) { // never blocks: each Sensor has its own outbox and writer (B-15)
+                sent++;
+            } else {
+                trace.line("console", "dispatch", command.targetIp(), TraceLevel.WARN, "dropped the link to "
+                        + describe(conn) + ": " + OUTBOX + " commands waiting, it stopped reading");
+            }
         }
         trace.line("console", "dispatch", command.targetIp(), TraceLevel.INFO,
                 "broadcast " + command.type() + " " + command.targetIp() + " to " + sent + " sensor(s)");
@@ -304,6 +396,9 @@ public final class ConsoleServer implements CommandSink {
         }
         for (Connection conn : connections) {
             conn.closeQuietly();
+        }
+        if (watchdog != null) {
+            watchdog.shutdownNow();
         }
         if (pool != null) {
             pool.shutdownNow();
