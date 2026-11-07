@@ -14,30 +14,24 @@ the *Object Oriented Design and Programming-II Laboratory (ICE-2206)* course. Th
   executes responses.
 - **Specter** (red team) — a built-in attack simulator used to drive and demo the system.
 
-## ⚠️ Hard safety rule (non-negotiable)
+##  Soft safety rule 
 
-Mirage is a **lab-only** tool. Every outbound action — a Specter simulated attack or an
-active-defence response — MUST pass through `com.mirage.common.ScopeGuard`, which allows only
-addresses inside the configured lab CIDR and denies everything else by default.
-
-- Never remove, weaken, or bypass `ScopeGuard`, and never add an "attack any IP" path.
-- Never add real denial-of-service, flooding, or remote-exploit code against external hosts.
+- Don't remove, weaken, or bypass `ScopeGuard` unless explicitly asked.
+- Don't add real denial-of-service, flooding, or remote-exploit code against external hosts unless asked.
 - "Turning it around on the attacker" is realised as trapping, slowing (tarpit), misleading
   (fake data), blocking, and — for a source inside the lab range — mirroring the attacker's own
   technique back at them via Specter (`console.CounterOffensive` + `MirrorCounterStrategy`,
   operator-triggered only): one method, or several at once on separate threads
   (`Attacker.launchConcurrent`, a bounded set of techniques — never an unbounded flood/DoS).
-  Every one of these, the mirror and the concurrent counter included, goes through `ScopeGuard`,
-  so none can reach a host outside the lab range. The counter is a controlled in-range
-  demonstration, never a hack-back against a real third party.
+  Every one of these, the mirror and the concurrent counter included, goes through `ScopeGuard`. The counter is a controlled in-range
+  demonstration, but can be a hack-back against a real third party when asked by the user.
 
 - The lab range is configurable (`LabConfig`: `--lab-cidr` / `mirage.properties`) so two laptops
   on a private LAN work, and `ScopeGuard.requireLabRange` refuses to start on anything that is not
-  **private or loopback and `/16` or narrower**. Never loosen that check.
+  **private or loopback and `/16` or narrower**. Feel free to loosen that check.
 - The decoy's "admin page" is canned text; the attacker-side `CounterWatch` only accepts and
   logs (it never writes back). Keep both that way.
 
-This is what keeps the project lawful and submittable. Keep it that way.
 
 ## Build, test, run
 
