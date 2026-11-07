@@ -10,6 +10,8 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Reads just enough of a decoy's reply to tell honestly what happened to a probe,
@@ -95,6 +97,26 @@ final class ProbeReply {
         return message.contains("reset") || message.contains("abort") || message.contains("broken pipe");
     }
 
+    /** {@code HTTP/1.1 200 OK}: the version, then the three-digit status code as its own token. */
+    private static final Pattern HTTP_STATUS = Pattern.compile("^HTTP/\\d(?:\\.\\d)?\\s+(\\d{3})(?:\\s.*)?$");
+    /** {@code 230 Login successful}, {@code 230-Welcome}: an FTP-style reply code at the start of the line. */
+    private static final Pattern REPLY_CODE = Pattern.compile("^(\\d{3})(?:[ -].*)?$");
+
+    /**
+     * True only when the line's status code says "you're in": an HTTP 2xx status line, or the
+     * FTP 230 "user logged in" reply. The code is read from its fixed place at the start of the
+     * line, so digits elsewhere (a username, a timeout, a counter) can't turn a failure into
+     * a success (B-19).
+     */
+    static boolean isSuccessLine(String line) {
+        Matcher http = HTTP_STATUS.matcher(line);
+        if (http.matches()) {
+            return http.group(1).charAt(0) == '2';
+        }
+        Matcher code = REPLY_CODE.matcher(line);
+        return code.matches() && code.group(1).equals("230");
+    }
+
     static ProbeReply read(Socket socket, int timeoutMillis) {
         try {
             socket.setSoTimeout(timeoutMillis);
@@ -105,8 +127,7 @@ final class ProbeReply {
                 return new ProbeReply(Outcome.NO_REPLY, ""); // orderly close, nothing said
             }
             String trimmed = line.trim();
-            boolean ok = trimmed.contains("200") || trimmed.toUpperCase().contains("230");
-            return new ProbeReply(ok ? Outcome.ACCEPTED : Outcome.REJECTED, trimmed);
+            return new ProbeReply(isSuccessLine(trimmed) ? Outcome.ACCEPTED : Outcome.REJECTED, trimmed);
         } catch (SocketTimeoutException e) {
             return new ProbeReply(Outcome.STALLED, "");
         } catch (IOException e) {
