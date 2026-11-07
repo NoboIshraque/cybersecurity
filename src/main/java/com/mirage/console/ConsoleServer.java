@@ -5,6 +5,8 @@ import com.mirage.common.JsonCodec;
 import com.mirage.common.MessageType;
 import com.mirage.common.ResponseCommand;
 import com.mirage.common.SensorMessage;
+import com.mirage.common.trace.TraceLevel;
+import com.mirage.common.trace.TraceSink;
 
 import javax.net.ServerSocketFactory;
 import java.io.BufferedReader;
@@ -66,7 +68,13 @@ public final class ConsoleServer implements CommandSink {
     private final CopyOnWriteArrayList<Connection> connections = new CopyOnWriteArrayList<>();
 
     private volatile boolean running;
+    private volatile TraceSink trace = TraceSink.NONE;
     private ServerSocket server;
+
+    /** Send a trace line for every decoded message and broadcast (default: none). */
+    public void setTrace(TraceSink trace) {
+        this.trace = trace == null ? TraceSink.NONE : trace;
+    }
 
     public ConsoleServer(ServerSocketFactory socketFactory, BlockingQueue<AttackEvent> events,
                          SensorRegistry registry) {
@@ -83,6 +91,7 @@ public final class ConsoleServer implements CommandSink {
     }
 
     private void acceptLoop() {
+        Thread.currentThread().setName("accept");
         while (running) {
             try {
                 Socket socket = server.accept();
@@ -101,6 +110,10 @@ public final class ConsoleServer implements CommandSink {
             return;
         }
         connections.add(conn);
+        // Name the pooled thread after its peer so the shells can show which rx thread did the work.
+        String peer = socket.getInetAddress().getHostAddress();
+        Thread.currentThread().setName("rx-" + peer);
+        trace.line("console", "rx", null, TraceLevel.INFO, "sensor link opened from " + peer);
         try (BufferedReader in = new BufferedReader(
                 new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
@@ -116,24 +129,44 @@ public final class ConsoleServer implements CommandSink {
         } finally {
             connections.remove(conn);
             conn.closeQuietly();
+            trace.line("console", "rx", null, TraceLevel.WARN, "sensor link closed (" + peer + ")");
         }
     }
 
     private void route(Connection conn, SensorMessage message) {
         if (message.type() == MessageType.HEARTBEAT && message.sensorId() != null) {
+            if (conn.sensorId == null) {
+                Thread.currentThread().setName("rx-" + message.sensorId());
+                trace.line("console", "rx", null, TraceLevel.GOOD,
+                        "sensor registered: " + message.sensorId());
+            }
             conn.sensorId = message.sensorId();
             registry.markSeen(message.sensorId(), message.timestamp());
         } else if (message.type() == MessageType.EVENT && message.event() != null) {
-            events.offer(message.event().withSensor(conn.sensorId));
+            AttackEvent event = message.event().withSensor(conn.sensorId);
+            trace.line("console", "rx", event.sourceIp(), TraceLevel.INFO,
+                    "EVENT " + event.sourceIp() + " -> " + event.decoyType() + " " + event.action()
+                            + (event.payload() == null || event.payload().isEmpty() ? "" : "  [" + event.payload() + "]")
+                            + "  => queue");
+            events.offer(event);
+        } else if (message.type() == MessageType.ACK) {
+            String note = message.note() == null ? "" : message.note();
+            String target = note.contains(" ") ? note.substring(note.indexOf(' ') + 1) : null;
+            trace.line("console", "ack", target, TraceLevel.GOOD,
+                    message.sensorId() + " confirms: " + note + " applied");
         }
     }
 
     @Override
     public void broadcast(ResponseCommand command) {
         String line = JsonCodec.encode(command);
+        int sent = 0;
         for (Connection conn : connections) {
             conn.send(line);
+            sent++;
         }
+        trace.line("console", "dispatch", command.targetIp(), TraceLevel.INFO,
+                "broadcast " + command.type() + " " + command.targetIp() + " to " + sent + " sensor(s)");
     }
 
     public int connectionCount() {

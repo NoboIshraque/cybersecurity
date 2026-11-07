@@ -4,6 +4,7 @@ import com.mirage.common.AttackEvent;
 import com.mirage.common.Honeytoken;
 import com.mirage.common.LabConfig;
 import com.mirage.common.ScopeGuard;
+import com.mirage.common.trace.TraceBus;
 import com.mirage.common.TlsFactories;
 import com.mirage.console.db.Database;
 import com.mirage.console.detection.BaitFileRule;
@@ -59,20 +60,27 @@ public final class ConsoleMain {
         HoneytokenStore honeytokens = new HoneytokenStore();
         honeytokens.plant(new Honeytoken("ht-1", "svc_backup:S3cr3tBackup!", "config/backup.cfg"));
 
+        // The live process shells subscribe to this bus; nothing is printed until one attaches.
+        TraceBus trace = new TraceBus();
+
         BlockingQueue<AttackEvent> events = new LinkedBlockingQueue<>();
         SensorRegistry registry = new SensorRegistry();
         ConsoleServer server = new ConsoleServer(serverSocketFactory(), events, registry);
+        server.setTrace(trace);
         AttackerDirectory directory = new AttackerDirectory();
 
         // The server is the CommandSink: active-defence responses broadcast to the Sensors.
         ResponsePolicy policy = new ResponsePolicy(guard, server);
         ResponseController responses = new ResponseController(guard, server);
+        responses.setTrace(trace);
 
         // Operator-triggered counter-offensive: mirror the attacker's own technique back,
         // through the same ScopeGuard, so it can only ever reach a source inside the lab range.
+        Attacker counterAttacker = new Attacker(guard, line -> System.out.println("[counter] " + line));
+        counterAttacker.setTrace(trace, "op");
         CounterOffensive counter = new CounterOffensive(
-                new Attacker(guard, line -> System.out.println("[counter] " + line)),
-                new MirrorCounterStrategy(), config.counterWatchPort());
+                counterAttacker, new MirrorCounterStrategy(), config.counterWatchPort());
+        counter.setTrace(trace);
         List<DetectionRule> rules = List.of(
                 new PortScanRule(),
                 new BruteForceRule(),
@@ -82,6 +90,7 @@ public final class ConsoleMain {
                 new LateralMovementRule());
 
         CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence, directory);
+        engine.setTrace(trace);
         Thread engineThread = new Thread(engine, "correlation-engine");
         engineThread.setDaemon(true);
         engineThread.start();

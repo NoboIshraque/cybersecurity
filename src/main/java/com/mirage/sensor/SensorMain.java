@@ -30,7 +30,16 @@ public final class SensorMain {
         SensorClient client = null;
         try {
             client = new SensorClient(sensorId, socketFactory(), consoleHost, consolePort);
-            client.startReceiving(defence::apply); // active-defence commands from the Console
+            final SensorClient link = client;
+            client.startReceiving(command -> { // active-defence commands from the Console
+                defence.apply(command);
+                System.out.println("[defence] applied " + command.type() + " " + command.targetIp());
+                try {
+                    link.sendAck(command); // lets the Console show "applied" in its shell
+                } catch (IOException e) {
+                    // link down; the command is still applied locally
+                }
+            });
             System.out.println("Connected to Console at " + consoleHost + ":" + consolePort
                     + " as " + sensorId);
         } catch (IOException e) {

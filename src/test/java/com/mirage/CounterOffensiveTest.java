@@ -6,6 +6,7 @@ import com.mirage.common.Severity;
 import com.mirage.console.CounterOffensive;
 import com.mirage.console.CounterStrategy;
 import com.mirage.specter.AttackStrategy;
+import com.mirage.specter.AttackTrace;
 import com.mirage.specter.Attacker;
 import com.mirage.specter.Campaign;
 import com.mirage.specter.Target;
@@ -23,7 +24,7 @@ class CounterOffensiveTest {
 
     /** A harmless strategy so the test never touches the network. */
     private static final class NoOpAttack implements AttackStrategy {
-        @Override public void run(Target target) { /* no network */ }
+        @Override public void run(Target target, AttackTrace trace) { /* no network */ }
         @Override public String name() { return "noop"; }
     }
 
@@ -56,7 +57,7 @@ class CounterOffensiveTest {
         CyclicBarrier barrier = new CyclicBarrier(methods);
         CountDownLatch finished = new CountDownLatch(methods);
         AttackStrategy blocking = new AttackStrategy() {
-            @Override public void run(Target target) {
+            @Override public void run(Target target, AttackTrace trace) {
                 try {
                     barrier.await(2, TimeUnit.SECONDS);
                     finished.countDown();

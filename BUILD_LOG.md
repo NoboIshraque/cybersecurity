@@ -86,13 +86,15 @@ New patterns used (and existing ones extended):
       checkout never has to fetch it.
 - [x] `mvnw test`: all **48 tests green** via the wrapper (~18 s).
 
-### Phase 1 — Configurable lab range & two-laptop networking
-- [ ] `common.LabConfig`: reads `mirage.properties` and CLI flags (`--lab-cidr`, `--console-host`, ports).
-      Falls back to today's defaults so single-machine demos still work.
-- [ ] Range validation (private/loopback only, prefix ≥ /16) → refuse to start otherwise.
-- [ ] Console status bar shows its LAN address ("Attacker should target 192.168.0.107").
-- [ ] Sensor and Specter read the console/target host from the config.
-- [ ] Tests: `LabConfigTest`, new `ScopeGuardTest` cases for the validation.
+### Phase 1 — Configurable lab range & two-laptop networking ✅
+- [x] `common.LabConfig`: reads `mirage.properties` and CLI flags (`--lab-cidr`, `--console-host`,
+      `--console-port`, decoy ports, `--counterwatch-port`). Defaults reproduce the single-machine setup.
+- [x] Range validation (private/loopback only, prefix ≥ /16) in `ScopeGuard.requireLabRange`; entry
+      points refuse to start on a bad range.
+- [x] Console prints its LAN address at start-up ("point the attacker laptop at 192.168.0.107:8443").
+      _(Status-bar display folded into the Phase 6 dashboard rework.)_
+- [x] Sensor and Specter read console host / target host / ports from the config.
+- [x] Tests: `LabConfigTest` (5) + `ScopeGuardTest` lab-range cases (4). **57 tests green.**
 
 ### Phase 2 — Trace plumbing (no UI yet)
 - [ ] `common.trace`: `TraceEvent` record (time, thread, stage, text, level), `TraceSink`, `TraceBus`,
@@ -182,3 +184,4 @@ New patterns used (and existing ones extended):
 | --- | --- | --- |
 | 2026-11-07 | Plan | Map written, decisions agreed. Waiting for "go". |
 | 2026-11-07 | 0 | Branch `feature/live-shells`; Maven Wrapper 3.3.2 → Maven 3.9.9; 48 tests green. |
+| 2026-11-07 | 1 | `LabConfig` + `ScopeGuard.requireLabRange` (private/loopback, ≥/16); entry points wired. 57 tests green. |

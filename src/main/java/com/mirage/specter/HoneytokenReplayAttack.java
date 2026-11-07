@@ -1,5 +1,7 @@
 package com.mirage.specter;
 
+import com.mirage.common.trace.TraceLevel;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
@@ -16,7 +18,10 @@ public final class HoneytokenReplayAttack implements AttackStrategy {
     }
 
     @Override
-    public void run(Target target) {
+    public void run(Target target, AttackTrace trace) {
+        String user = credentials.contains(":") ? credentials.substring(0, credentials.indexOf(':')) : credentials;
+        trace.line(TraceLevel.COMMAND, "replay stolen credential '" + user + ":****' at "
+                + target.host() + ":" + target.port());
         try (Socket socket = new Socket(target.host(), target.port())) {
             String creds = Base64.getEncoder()
                     .encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
@@ -24,8 +29,11 @@ public final class HoneytokenReplayAttack implements AttackStrategy {
             OutputStream out = socket.getOutputStream();
             out.write(request.getBytes(StandardCharsets.UTF_8));
             out.flush();
-        } catch (IOException ignored) {
-            // move on
+            ProbeReply reply = ProbeReply.read(socket, 1500);
+            trace.line(BruteForceAttack.levelFor(reply.outcome),
+                    "replay -> " + BruteForceAttack.describe(reply));
+        } catch (IOException e) {
+            trace.line(TraceLevel.BAD, "replay -> connection failed");
         }
     }
 

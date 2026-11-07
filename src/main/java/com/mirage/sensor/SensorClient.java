@@ -41,6 +41,11 @@ public final class SensorClient implements AutoCloseable {
         writeLine(JsonCodec.encode(SensorMessage.heartbeat(sensorId)));
     }
 
+    /** Confirm to the Console that a response command has been applied on this Sensor. */
+    public synchronized void sendAck(ResponseCommand applied) throws IOException {
+        writeLine(JsonCodec.encode(SensorMessage.ack(sensorId, applied)));
+    }
+
     /** Start a background thread that applies each command the Console sends. */
     public void startReceiving(Consumer<ResponseCommand> handler) {
         Thread t = new Thread(() -> receiveLoop(handler), "sensor-client-rx");
