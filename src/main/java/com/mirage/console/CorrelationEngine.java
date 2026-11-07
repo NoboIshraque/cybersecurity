@@ -27,11 +27,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * producers that enqueue events; this one thread owns all profile and ledger
  * mutation, which keeps shared state thread-safe with almost no locking.
  *
- * <p>Rules classify a source's whole profile, so a rule keeps matching on every
+ * <p>Rules classify a source's profile, so a rule keeps matching on every
  * later event. The engine raises each rule once per source and again only when
  * that rule's severity for the source rises, so the ledger records each finding
- * instead of one copy per event. {@link #resetAlerts(String)} clears a source's
- * memory (the operator unblocked it).
+ * instead of one copy per event. {@link #resetAlerts(String)} gives a source a clean
+ * slate (the operator unblocked it): from then on the rules see only its new activity.
  *
  * <p>Each step can also be narrated to a {@link TraceSink} for the live process
  * shells. Tracing only reads; it never changes what the engine decides.
@@ -45,7 +45,14 @@ public final class CorrelationEngine implements Runnable {
     private final ResponsePolicy policy;
     private final Persistence persistence;
     private final AttackerDirectory directory;
+    /** Per source: everything it ever did (the dossier and the database). */
     private final Map<String, AttackerProfile> profiles = new ConcurrentHashMap<>();
+    /**
+     * Per source: what it did since the operator last unblocked it; the rules judge only this
+     * (B-03). Starts equal to the lifetime profile, replaced by an empty one on unblock
+     * (engine thread only).
+     */
+    private final Map<String, AttackerProfile> sinceUnblock = new HashMap<>();
     /** Per source: each rule's highest severity alerted so far (engine thread only). */
     private final Map<String, Map<String, Severity>> alerted = new HashMap<>();
     private final Queue<String> resets = new ConcurrentLinkedQueue<>();
@@ -109,21 +116,26 @@ public final class CorrelationEngine implements Runnable {
 
     /** Package-visible so tests can drive a single event without starting a thread. */
     void process(AttackEvent event) {
+        applyResets(); // before this event, so it is the first of the new slate
         boolean stored = store("event", () -> persistence.saveEvent(event), event.sourceIp());
         AttackerProfile profile = profiles.computeIfAbsent(event.sourceIp(), AttackerProfile::new);
         profile.add(event);
         directory.update(profile); // publish an immutable snapshot for the dashboard
+        AttackerProfile judged = sinceUnblock.computeIfAbsent(event.sourceIp(), ip -> profile);
+        if (judged != profile) {
+            judged.add(event); // unblocked earlier: the rules see only what came after
+        }
         trace.line("console", "engine", event.sourceIp(), TraceLevel.INFO,
                 "dequeued " + event.decoyType() + " " + event.action() + " from " + event.sourceIp()
                         + "  (profile: " + profile.eventCount() + " events"
+                        + (judged != profile ? ", " + judged.eventCount() + " since unblock" : "")
                         + (stored ? ", saved to H2)" : ", NOT saved to H2)"));
 
-        applyResets();
         Map<String, Severity> raised = alerted.computeIfAbsent(event.sourceIp(), ip -> new HashMap<>());
         List<String> matched = new ArrayList<>();
         int stillMatching = 0;
         for (DetectionRule rule : rules) {
-            Optional<Classification> hit = rule.classify(profile);
+            Optional<Classification> hit = rule.classify(judged);
             if (hit.isEmpty()) {
                 continue;
             }
@@ -147,10 +159,12 @@ public final class CorrelationEngine implements Runnable {
     }
 
     /**
-     * Forget which alerts a source has raised, so its next activity alerts (and, with
-     * auto-response on, is answered) afresh. Called when the operator unblocks a source.
+     * Give a source a clean slate (the operator unblocked it). From its next event on, the rules
+     * judge only what it does after the unblock, and alert (and, with auto-response on, answer)
+     * afresh. Its earlier findings stay in the ledger once and its dossier keeps the whole
+     * history; they are just not raised again by its next packet (B-03).
      * Safe from any thread: the request is queued and applied by the engine thread,
-     * which stays the only one touching the alert memory.
+     * which stays the only one touching the alert memory and the profiles.
      */
     public void resetAlerts(String sourceIp) {
         if (sourceIp != null) {
@@ -161,9 +175,11 @@ public final class CorrelationEngine implements Runnable {
     private void applyResets() {
         String ip;
         while ((ip = resets.poll()) != null) {
-            if (alerted.remove(ip) != null) {
-                trace.line("console", "engine", ip, TraceLevel.INFO,
-                        "alert memory cleared for " + ip + " (unblocked) — new activity will alert again");
+            boolean known = alerted.remove(ip) != null;
+            known |= sinceUnblock.put(ip, new AttackerProfile(ip)) != null;
+            if (known) {
+                trace.line("console", "engine", ip, TraceLevel.INFO, "clean slate for " + ip
+                        + " (unblocked): earlier findings stay in the ledger; only new activity is judged");
             }
         }
     }

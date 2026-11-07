@@ -96,7 +96,12 @@ class AlertDedupTest {
         assertNoMore();
         engine.resetAlerts("10.10.0.5");
         feed("10.10.0.5", 1);
-        assertEquals(Severity.HIGH, next(), "after a reset the current finding is raised afresh");
+        // B-03: a clean slate judges only the new activity, so one event is MEDIUM again,
+        // not the old HIGH raised a second time
+        assertEquals(Severity.MEDIUM, next(), "after a reset only new activity is judged");
+        assertNoMore();
+        feed("10.10.0.5", 2);
+        assertEquals(Severity.HIGH, next(), "and it escalates again on its own new activity");
         assertNoMore();
     }
 }
