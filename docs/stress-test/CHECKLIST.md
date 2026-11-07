@@ -38,7 +38,7 @@ are merged into one line. Fix the waves in order.
 - [x] **MEDIUM** · [B-03](B-robustness.md) — "Unblock = clean slate" with auto-response on re-blocks on the next packet and re-records all earlier findings. *Reset only the response memory, not the ledger findings; or suppress auto-response for a grace period after an operator unblock.*
 - [x] **MEDIUM** · [B-17](B-robustness.md) — Shells lag without bound under load and keep every line forever. *Cap the shell buffer; drop or summarise when the backlog exceeds N.*
 - [x] **MEDIUM** · [B-28](B-robustness.md) — Rules have no time window, and thresholds sit exactly at what Specter sends. *Sliding windows; thresholds with margin; tests at the boundary.*
-- [ ] **MEDIUM** · [B-26](B-robustness.md) — Test gaps around these failure modes. *Add tests with each fix above.*
+- [x] **MEDIUM** · [B-26](B-robustness.md) — Test gaps around these failure modes. *Add tests with each fix above.*
 
 ## Wave 3 — polish and hygiene
 
