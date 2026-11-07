@@ -27,17 +27,25 @@ public final class CorrelationEngine implements Runnable {
     private final AlertBus bus;
     private final ResponsePolicy policy;
     private final Persistence persistence;
+    private final AttackerDirectory directory;
     private final Map<String, AttackerProfile> profiles = new ConcurrentHashMap<>();
 
     public CorrelationEngine(BlockingQueue<AttackEvent> events, List<DetectionRule> rules,
                              AlertLedger ledger, AlertBus bus, ResponsePolicy policy,
                              Persistence persistence) {
+        this(events, rules, ledger, bus, policy, persistence, new AttackerDirectory());
+    }
+
+    public CorrelationEngine(BlockingQueue<AttackEvent> events, List<DetectionRule> rules,
+                             AlertLedger ledger, AlertBus bus, ResponsePolicy policy,
+                             Persistence persistence, AttackerDirectory directory) {
         this.events = events;
         this.rules = rules;
         this.ledger = ledger;
         this.bus = bus;
         this.policy = policy;
         this.persistence = persistence;
+        this.directory = directory;
     }
 
     @Override
@@ -56,6 +64,7 @@ public final class CorrelationEngine implements Runnable {
         persistence.saveEvent(event);
         AttackerProfile profile = profiles.computeIfAbsent(event.sourceIp(), AttackerProfile::new);
         profile.add(event);
+        directory.update(profile); // publish an immutable snapshot for the dashboard
         for (DetectionRule rule : rules) {
             rule.classify(profile).ifPresent(c -> raise(profile, c));
         }

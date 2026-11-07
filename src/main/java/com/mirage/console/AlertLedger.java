@@ -41,7 +41,15 @@ public final class AlertLedger {
     }
 
     public synchronized boolean verify() {
-        return verifyChain(new ArrayList<>(chain), signer);
+        return firstBrokenIndex() < 0;
+    }
+
+    /**
+     * The 0-based position of the first entry that fails verification, or -1 if the
+     * whole chain is intact. The dashboard uses this to highlight the broken link.
+     */
+    public synchronized int firstBrokenIndex() {
+        return firstBrokenIndex(new ArrayList<>(chain), signer);
     }
 
     /** Verify the hash chain only (no signatures). */
@@ -51,20 +59,22 @@ public final class AlertLedger {
 
     /** Verify the hash chain and every entry's signature. */
     public static boolean verifyChain(List<LedgerEntry> chain, LedgerSigner signer) {
+        return firstBrokenIndex(chain, signer) < 0;
+    }
+
+    /** The index of the first entry whose link or signature is broken, or -1 if intact. */
+    public static int firstBrokenIndex(List<LedgerEntry> chain, LedgerSigner signer) {
         String prev = GENESIS;
-        for (LedgerEntry e : chain) {
-            if (!e.prevHash().equals(prev)) {
-                return false;
-            }
-            if (!e.hash().equals(sha256(prev + e.alert().canonical()))) {
-                return false;
-            }
-            if (!signer.verify(e.hash(), e.signature())) {
-                return false;
+        for (int i = 0; i < chain.size(); i++) {
+            LedgerEntry e = chain.get(i);
+            if (!e.prevHash().equals(prev)
+                    || !e.hash().equals(sha256(prev + e.alert().canonical()))
+                    || !signer.verify(e.hash(), e.signature())) {
+                return i;
             }
             prev = e.hash();
         }
-        return true;
+        return -1;
     }
 
     public synchronized List<LedgerEntry> entries() {

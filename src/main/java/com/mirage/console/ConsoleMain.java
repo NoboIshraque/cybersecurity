@@ -13,6 +13,7 @@ import com.mirage.console.detection.LateralMovementRule;
 import com.mirage.console.detection.PasswordSprayRule;
 import com.mirage.console.detection.PortScanRule;
 import com.mirage.console.ui.Dashboard;
+import com.mirage.specter.Attacker;
 
 import javax.net.ServerSocketFactory;
 import javax.swing.SwingUtilities;
@@ -51,9 +52,17 @@ public final class ConsoleMain {
         BlockingQueue<AttackEvent> events = new LinkedBlockingQueue<>();
         SensorRegistry registry = new SensorRegistry();
         ConsoleServer server = new ConsoleServer(serverSocketFactory(), events, registry);
+        AttackerDirectory directory = new AttackerDirectory();
 
         // The server is the CommandSink: active-defence responses broadcast to the Sensors.
         ResponsePolicy policy = new ResponsePolicy(guard, server);
+        ResponseController responses = new ResponseController(guard, server);
+
+        // Operator-triggered counter-offensive: mirror the attacker's own technique back,
+        // through the same ScopeGuard, so it can only ever reach a source inside the lab range.
+        CounterOffensive counter = new CounterOffensive(
+                new Attacker(guard, line -> System.out.println("[counter] " + line)),
+                new MirrorCounterStrategy(), 8080);
         List<DetectionRule> rules = List.of(
                 new PortScanRule(),
                 new BruteForceRule(),
@@ -62,7 +71,7 @@ public final class ConsoleMain {
                 new BaitFileRule(),
                 new LateralMovementRule());
 
-        CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence);
+        CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence, directory);
         Thread engineThread = new Thread(engine, "correlation-engine");
         engineThread.setDaemon(true);
         engineThread.start();
@@ -81,7 +90,7 @@ public final class ConsoleMain {
             System.out.println("Headless: dashboard not shown (console logging only).");
         } else {
             SwingUtilities.invokeLater(() -> {
-                Dashboard dashboard = new Dashboard(ledger, server::connectionCount);
+                Dashboard dashboard = new Dashboard(ledger, server::connectionCount, directory, responses, counter);
                 bus.subscribe(dashboard::onAlert);
                 dashboard.setVisible(true);
             });

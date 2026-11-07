@@ -188,11 +188,79 @@ The full, compiling sources (with JUnit tests passing) are the authoritative ref
 
 ## 5. Result
 
-Two Swing applications are planned: the blue-team **Console dashboard** (network map, live
-alert feed colour-coded by severity and tagged with ATT&CK, attacker dossier, ledger status —
-see Figure 5 wireframe) and the red-team **Specter console** (target picker restricted to the
-lab range, campaign selector, stealth slider, live attack log). Screenshots will be added here
-once the interfaces are built.
+The user-facing deliverable is two Swing applications — the blue-team **Console dashboard**
+and the red-team **Specter console** — and both are implemented. The screenshots below are
+from the running build, captured on a headless display during a scripted demonstration. (To
+regenerate them: `mvn compile && tools/screenshots/capture.sh`.)
+
+### 5.1 Console dashboard (Figure 5)
+
+The dashboard is a single window with four regions. A **network map** across the top shows
+one node per source that has touched a decoy; a node starts grey and turns from green through
+red as the worst alert raised against that source escalates. Down the left is the **live alert
+feed**: one row per alert, newest first, colour-coded by severity (red CRITICAL, orange HIGH,
+yellow MEDIUM, green LOW) and tagged with its MITRE ATT&CK technique. Selecting a row, or a
+map node, fills the **attacker dossier / session replay / response** panel on the right. A
+**status strip** along the bottom shows the alert count, the number of connected Sensors, and
+the ledger state, next to a one-click **Verify ledger** control.
+
+![Console dashboard](docs/screenshots/console-dashboard.png)
+
+*Figure 5. The Console dashboard during the scripted run: the network map (four sources, one
+still grey with no alert raised yet), the severity-coloured alert feed, and the attacker
+dossier for the selected source (10.10.0.5) listing the services it probed and the passwords
+it tried. The status strip reports six alerts, two connected Sensors, and a verified ledger.*
+
+### 5.2 Specter console (Figure 6)
+
+The operator picks a target in the authorised lab range, chooses a campaign (port scan,
+brute-force, password spray, honeytoken replay, or a full campaign), sets a stealth slider,
+and presses Launch. A live log shows each simulated attacker as it runs, and any target
+outside the `ScopeGuard` range is refused before a packet leaves the console.
+
+![Specter console](docs/screenshots/specter-console.png)
+
+*Figure 6. The Specter red-team console running a full campaign against a lab target
+(127.0.0.1:8081): target picker, campaign selector, and stealth slider above the live attack
+log.*
+
+### 5.3 Session replay and active response (Figure 7)
+
+Selecting an alert, or clicking a node on the map, opens that source's detail view. The
+**attacker dossier** lists the services it probed, the credentials and distinct passwords it
+tried, and any honeytokens or bait files it touched. The **session replay** shows, in order,
+exactly what the intruder sent at each decoy. The **responses** tab is a manual override:
+alongside the automatic active defence — the `ResponsePolicy` issues a tarpit, fabricated
+data, or a network-wide block by severity, enforced on the Sensor by its `ConnectionGate` —
+the operator can issue those same commands by hand, and can launch a **counter-attack** that
+reads the source's detected technique and turns that same method back on them
+(`console.CounterOffensive` + `MirrorCounterStrategy`), or a **simultaneous counter** that runs
+every counter technique at once, each on its own thread (`Attacker.launchConcurrent`), so the
+source faces several methods in parallel — a direct use of the project's multithreading.
+Every command — defensive or counter, automatic or manual — passes `ScopeGuard` first, so a
+counter can only ever reach a source inside the lab range; a real external address is refused.
+This is a controlled, in-range demonstration of "turning it around", not a hack-back.
+
+![Session replay and the manual-override / counter-attack / simultaneous-counter response panel](docs/screenshots/detail-replay-responses.png)
+
+*Figure 7. The detail view for a selected source. Top: the session replay — the exact port
+probes and login attempts the intruder sent at each decoy. Bottom: the responses panel; the
+detected brute-force (T1110) is mirrored back as a `mirror-brute` counter-attack, and
+`COUNTER-ALL` runs all four methods against the source at once, each on its own thread. Every
+command is checked by ScopeGuard before it leaves.*
+
+### 5.4 Ledger verification (Figure 8)
+
+A one-click **Verify ledger** check walks the hash chain — each entry hashing the one before
+it, each hash signed with ECDSA — and reports the result in the status strip: *verified*
+while every link is intact, *BROKEN* the moment any stored alert is altered. When a link is
+broken, the dashboard names the offending entry and highlights its row in red.
+
+![Ledger verification: a tampered entry highlighted in red](docs/screenshots/ledger-broken.png)
+
+*Figure 8. The integrity check after one stored alert was altered on disk: the status strip
+reads BROKEN (entry 2) and the tampered alert's row is highlighted in red in the feed. An
+intact chain instead reads verified and highlights nothing.*
 
 ## Conclusion
 
