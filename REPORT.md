@@ -93,7 +93,7 @@ hashing, detection rules, scope guard) is covered by JUnit tests.
 
 | Area | Choice |
 | --- | --- |
-| Language | Java 17 (built on JDK 21) |
+| Language | Java 17 (runs on JDK 17+; CI tests on JDK 17) |
 | Networking | `java.net` sockets, TLS via `javax.net.ssl` |
 | Concurrency | `java.util.concurrent` (thread pools, `BlockingQueue`, scheduled tasks) |
 | UI | Java Swing (`SwingWorker`, custom-painted map) |

@@ -72,7 +72,8 @@ each one applies to files it creates:
 Without them the Console prints a warning and runs as before; the ledger's hash chain still
 shows any edit to stored alerts.
 
-Requires JDK 17+ (built and tested on JDK 21). Laptop B needs only Java, not Maven.
+Requires JDK 17+: the code targets Java 17 and CI tests on JDK 17; it also runs on newer JDKs
+(developed on 21 and 25). Laptop B needs only Java, not Maven.
 
 ## Project layout
 

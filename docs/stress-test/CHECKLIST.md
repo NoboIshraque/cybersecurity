@@ -50,7 +50,7 @@ are merged into one line. Fix the waves in order.
 - [x] **LOW** · [B-12](B-robustness.md) — A second Console in the same folder dies with a raw H2 stack trace.
 - [x] **LOW** · [B-16](B-robustness.md) — The shell's thread strip never shows "done".
 - [x] **LOW** · [B-18](B-robustness.md) — Attacker dossier is a frozen snapshot; "Port probes" is always 0 (and "Honeytokens used" stays empty).
-- [ ] **LOW** · [B-23](B-robustness.md) — Smaller docs-vs-code contradictions.
+- [x] **LOW** · [B-23](B-robustness.md) — Smaller docs-vs-code contradictions.
 - [ ] **LOW** · [B-25](B-robustness.md) — `PersistenceDaoTest` isn't isolated (named in-memory H2 keeps rows).
 - [ ] **LOW** · [B-32](B-robustness.md) — Mistyped flags are silently ignored; ports aren't range-checked.
 - [ ] **LOW** · [B-33](B-robustness.md) — Smaller concurrency/robustness notes from code reading (SUSPECTED).

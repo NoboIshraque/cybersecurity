@@ -14,7 +14,7 @@ you run yourself. Nothing here changes system settings on its own.
 | | Laptop A — defender | Laptop B — attacker |
 | --- | --- | --- |
 | Java | 17 or newer | 17 or newer (nothing else, no Maven) |
-| Files | the repo (or the four files below) | `mirage.jar`, `run-attacker.bat` (or `.sh`), `mirage.properties` |
+| Files | the repo (or the three files below) | `mirage.jar`, `run-attacker.bat` (or `.sh`), `mirage.properties` |
 | Inbound ports | 8081, 8021, 8023 (decoys) | 8080 (counter-watch) |
 | Runs | `run-defender.bat` | `run-attacker.bat` |
 
@@ -69,7 +69,7 @@ role refuse to start. That is `ScopeGuard`, by design.
 
 ## 5. Copy the files to Laptop B
 
-Put these four files in one folder on Laptop B (USB stick, shared drive, whatever is handy):
+Put these three files in one folder on Laptop B (USB stick, shared drive, whatever is handy):
 
 ```
 mirage.jar          (from Laptop A's target\ folder)
