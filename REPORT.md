@@ -142,8 +142,8 @@ Four families, each built on an abstraction: `Decoy` (Template Method) → fake 
 | Template Method | `Decoy` | Fix the flow, vary the reply |
 | Strategy | `DetectionRule`, `ResponsePolicy`, `AttackStrategy` | Pluggable algorithms |
 | Command | `ResponseAction` | Queue/execute responses uniformly |
-| Observer | `AlertBus` → dashboard | Decouple detection from UI |
-| Producer–Consumer | network → `BlockingQueue` → engine | Safe concurrency |
+| Observer | `AlertBus` → dashboard; `TraceBus` → process shells | Decouple detection (and its narration) from UI |
+| Producer–Consumer | network → `BlockingQueue` → engine; workers → `ShellModel` → Swing timer | Safe concurrency; paced display |
 
 ### 3.5 Workflow: Detection to Response (Figure 3 — sequence)
 
@@ -261,6 +261,92 @@ broken, the dashboard names the offending entry and highlights its row in red.
 *Figure 8. The integrity check after one stored alert was altered on disk: the status strip
 reads BROKEN (entry 2) and the tampered alert's row is highlighted in red in the feed. An
 intact chain instead reads verified and highlights nothing.*
+
+### 5.5 Live process shells and the two-host demo (Figures 9–14)
+
+The final iteration makes the system's work *visible* as it happens, and splits the demo across
+two machines: **Laptop A** (the protected host) runs the Console and the Sensor, and
+**Laptop B** runs Specter. Both ship as one runnable jar
+(`java -jar mirage.jar defender | attacker`). The lab range becomes configurable so the two
+laptops can share a private LAN. A new start-up check, `ScopeGuard.requireLabRange`, refuses any
+range that is not private or loopback and `/16` or narrower, so the boundary can be moved but
+never widened onto the internet.
+
+**Process shells.** Every component narrates its steps as `TraceEvent`s (time, channel, thread,
+stage, source, level, text) on a `TraceBus`, an Observer just like the `AlertBus`. Terminal-style
+shells subscribe and draw each line tagged and coloured by the thread that produced it, with a
+live thread strip on top. When several threads work at once, the shell splits into one pane per
+thread. The shell's model is a paced producer–consumer queue: worker threads add lines, a Swing
+timer drains a few at a time, so a sub-second scan still reads clearly. Pacing only delays the
+display, never the work. On Specter, each launch opens its own shell and ends with a banner
+derived from the decoy's real reply. A strategy reads that reply through `ProbeReply`:
+*accepted*, *rejected*, *reset* (blocked), *no reply*, or *timed out* (tarpit). The banners are
+therefore honest outcomes, not guesses (Figure 9).
+
+![Specter shell: a honeytoken replay is let in by the decoy](docs/screenshots/live-specter-access-granted.png)
+
+*Figure 9. Specter on Laptop B replays the planted credential. The HTTP decoy accepts this one
+trap credential and serves a canned "admin page", so the attacker sees ACCESS GRANTED, but
+nothing real stands behind it.*
+
+**Threat popup.** On the Console, the first alert from a source opens a popup whose banner
+escalates with the worst severity seen: **PROBE DETECTED → UNDER ATTACK → COMPROMISED**. Beneath
+it, a shell shows the Console's own pipeline for that source: the receive thread queuing the
+event, the correlation engine dequeuing it, each rule's verdict, the ledger entry's hash and
+ECDSA signature, and the response decision. Because the popup opens *after* the alert that
+triggered it, a bounded `TraceBacklog` replays the lines it missed before going live, with no gap
+and no duplicate. Each rule raises an alert once per source and again only if its severity
+rises, so the ledger holds one entry per finding rather than one per packet (Figure 10).
+
+![Threat popup at COMPROMISED, waiting for the operator](docs/screenshots/live-threat-popup-compromised.png)
+
+*Figure 10. The Console's threat popup for the intruder: COMPROMISED (stolen credential,
+intruder inside the decoy, T1078, CRITICAL), with the pipeline shell beneath. Auto-response is
+off, so the alert is recorded and the Console waits for the operator.*
+
+**Operator-gated response.** A shared `AutoResponse` switch decides whether the `ResponsePolicy`
+acts on its own. In the demo it is off, so the operator answers from the popup. Each action
+opens an *operation shell* and runs on a worker thread named after it (`op-tarpit`,
+`op-block`, …). The shell shows the operator's command, the `ScopeGuard` check, the broadcast to
+the Sensors, and each Sensor's **ACK**, a new wire message sent once the command is applied
+(Figure 11). The ACK of a block moves the popup to **NEUTRALISED** (Figure 12), and on Laptop B
+the next attempt reads *CONNECTION BLOCKED*. A blocked decoy rejects with a TCP reset, which
+the attacker's prober tells apart from a peer that closes without answering. Ticking
+*Auto-response* restores fully automatic defence.
+
+![Operation shell: tarpit, fake data and block, each confirmed by the Sensor](docs/screenshots/live-op-shell-block.png)
+
+*Figure 11. The defence operation shell. Each command is tagged with its own thread
+(`op-tarpit`, `op-feed-fake`, `op-block`), passes ScopeGuard, is broadcast, and is confirmed by
+the Sensor's receive thread.*
+
+![The threat popup after the Sensor confirms the block](docs/screenshots/live-threat-popup-neutralised.png)
+
+*Figure 12. The popup turns NEUTRALISED only when a Sensor confirms the block (its ACK), not
+when the command is merely sent.*
+
+**Counters, seen from both ends.** The counter-offensive of §5.3 now shows both sides. On the
+Console, *Simultaneous counter* opens a counter shell split into one pane per counter thread,
+running a bounded set of four techniques at once (Figure 13). On Laptop B, a passive
+`CounterWatch` listener accepts and logs each incoming connection and raises an **INCOMING
+COUNTER-ATTACK** banner (Figure 14). It never sends anything back, so the counter's probes end
+in *NO REPLY*. Both directions remain confined to the lab range by `ScopeGuard`.
+
+![Simultaneous counter: one pane per counter thread](docs/screenshots/live-op-shell-counter-split.png)
+
+*Figure 13. The counter operation shell in split view: the operator's command on `op-counter-all`
+and each counter technique on its own thread, all running concurrently.*
+
+![The attacker's counter-watch reporting the incoming counter-attack](docs/screenshots/live-counterwatch-incoming.png)
+
+*Figure 14. Laptop B's counter-watch: every incoming connection, its source port and the first
+line it carried, on its own thread. It is accept-and-log only.*
+
+**Verification.** Besides 98 unit tests, the whole demo is exercised by an automated GUI dry run
+(`tools/screenshots/LiveDemoShot.java`). It starts the real Console, Sensor and Specter, presses
+their buttons the way the presenters would, and checks 27 outcomes: every campaign, every
+operator action, auto-response on and off, a counter reaching the counter-watch, and an
+out-of-range target being refused. Figures 9–14 come from that run.
 
 ## Conclusion
 

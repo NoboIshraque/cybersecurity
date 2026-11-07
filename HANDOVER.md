@@ -4,25 +4,24 @@ _Last updated: 2026-11-07_
 
 Start here each session, then read `CLAUDE.md` for conventions.
 
-## ⚡ ACTIVE WORK — live process shells & two-laptop demo (branch `feature/live-shells`)
+## ⚡ LIVE SHELLS & TWO-LAPTOP DEMO — built, in draft PR (branch `feature/live-shells`)
 
-A new feature is **in progress** on the branch `feature/live-shells` (not merged; `master` is still
-the feature-complete state below). The full plan and running log is **`BUILD_LOG.md`** — read its
-"▶ RESUME HERE" section first.
+All phases (0–9) of the live-shells feature are done on `feature/live-shells`, pushed, with a
+**draft PR** to `master` (link below). Merge it once the real two-laptop rehearsal has been done.
+The phase-by-phase log is **`BUILD_LOG.md`**.
 
-- **Build/test:** Maven is **not installed** on the demo laptop — use the committed wrapper:
-  `./mvnw -B test` (PowerShell: `.\mvnw.cmd -B test`). First run fetches Maven 3.9.9 into `~/.m2`.
-- **Baseline right now: 98 tests green.** Phases 0–7 done: Console threat popups, operation
-  shells, auto-response checkbox, pipeline shell, and the two-laptop packaging
-  (`mvnw package` → `target/mirage.jar`; `run-defender.bat` / `run-attacker.bat`;
-  `docs/TWO-LAPTOP-SETUP.md`).
-- **Phase 8 done:** `mvnw verify` green; the automated localhost dry run
-  (`tools/screenshots/LiveDemoShot.java`) passes 27/27; fresh figures in `docs/screenshots/live-*.png`.
-  Its two findings are fixed: the engine raises each rule once per source (again on a higher
-  severity or after an Unblock), and a blocked decoy resets the connection so a silent listener
-  reads `NO REPLY` instead of `CONNECTION BLOCKED`.
-- **Next:** Phase 9 (DEMO.md, README, CLAUDE.md, REPORT §5.5, draft PR) and the user's real
-  two-laptop rehearsal. Exact next steps are in `BUILD_LOG.md`.
+- **Build/test:** Maven is **not installed** on the demo laptop. Use the committed wrapper:
+  `./mvnw -B test` (PowerShell: `.\mvnw.cmd -B test`). **98 tests green.**
+- **Run:** `.\mvnw.cmd -DskipTests package` → `target/mirage.jar`; `run-defender.bat` (Laptop A:
+  Console + Sensor) and `run-attacker.bat` (Laptop B: Specter + counter-watch). Set-up:
+  `docs/TWO-LAPTOP-SETUP.md`. Script: `DEMO.md`.
+- **GUI dry run:** `tools/screenshots/LiveDemoShot.java` clicks through the whole demo (27 checks,
+  all pass) and regenerates `docs/screenshots/live-*.png`. How-to: `tools/screenshots/README.md`.
+- **Still to do (user):** the real two-laptop rehearsal (firewall commands are in the setup doc
+  for you to run as admin); then mark the PR ready and merge.
+- **Report artifact:** the formatted report artifact (link below) belongs to the account this
+  project was handed over from and cannot be edited from the current one. `REPORT.md` has the
+  new §5.5 (Figures 9–14); copy it into the artifact from that account, or publish a fresh one.
 - **What it adds:** terminal-style "process shells" on both sides that stream each step live (and
   split into one pane per thread for concurrent runs), a decoy that lets a trap credential "in" to a
   fake page, an operator-gated (manual-by-default) response flow, a counter-watch listener on the
@@ -35,7 +34,7 @@ the feature-complete state below). The full plan and running log is **`BUILD_LOG
 1. `./mvnw test` — confirm the build is green (use the wrapper; `mvn` is not installed).
 2. Check **Development phases** — all seven are complete, and all four stretch goals are done.
 3. On `master`, the system is feature-complete and documented. The live-shells feature above is the
-   active in-progress branch.
+   draft PR on `feature/live-shells`.
 
 ## Development phases
 
@@ -95,6 +94,13 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
 
 ## Decisions log
 
+- **Live shells (2026-11-07):** Specter "gets in" by decoy deception (a trap credential opens a
+  canned fake admin page); responses are operator-gated with an auto-response switch (off with the
+  GUI, on headless); Specter notices counters passively (`CounterWatch`, accept-and-log only);
+  threads shown both as a tagged stream and as split panes. Lab range configurable but forced
+  private/loopback and ≤ /16. Each rule alerts once per source (again on higher severity or after
+  an Unblock). A blocked decoy rejects with a TCP reset (so "blocked" ≠ "no reply").
+
 - **Topic:** deception-based IDS ("Mirage"), two-sided (blue Console + red Specter).
 - **Safety:** all offence/active-defence gated by `ScopeGuard` to a lab CIDR; non-IP sources refused.
 - **"Counter-attack":** trap + slow (tarpit) + mislead (fake data) + block, plus an
@@ -134,6 +140,13 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
   `CounterOffensive.counterAll`: a Simultaneous-counter button runs all four counter methods at once,
   each on its own thread (bounded, `ScopeGuard`-gated), showcasing multithreading. Added the
   concurrency proof test + Figure 7 now shows the `COUNTER-ALL` line. 48 tests green.
+
+- **2026-11-07 (live shells, Phases 0–9)** — Maven wrapper; configurable lab range +
+  `requireLabRange`; `TraceBus` trace plumbing + Sensor ACK; `ShellModel`/`ShellWindow`; pooled
+  decoys + decoy-access deception; Specter shells + `CounterWatch`; Console `ThreatPopup`,
+  `OperationShells`, auto-response switch, pipeline shell; fat jar + `Launcher` + run scripts +
+  two-laptop guide; automated GUI dry run (27/27) + 13 figures; alert de-duplication and the
+  reset-vs-silent-close fix; DEMO/README/CLAUDE/REPORT §5.5 updated; draft PR opened. 98 tests green.
 
 ## Links
 

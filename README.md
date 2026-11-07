@@ -27,44 +27,56 @@ simulator, **Specter**, drives the whole demo — restricted to the lab's own ad
 
 ## Status
 
-Proposal complete; foundational code scaffolded and **all tests green**. See
-[`HANDOVER.md`](HANDOVER.md) for exactly where to pick up next.
+Feature-complete and **all tests green** (98). The live-shells release adds terminal-style
+process shells on both sides, an escalating threat popup with operator-driven responses, and
+a one-jar launcher for a two-laptop demo. See [`HANDOVER.md`](HANDOVER.md) for where to pick up.
 
 ## Architecture (in one line)
 
 Sensors host decoys and report over TLS to the Console, which classifies and responds;
-Specter attacks the decoys from inside the lab range. Full design, with diagrams, is in the
+Specter attacks the decoys from inside the lab range. Both sides narrate every step into live
+process shells (one pane per thread when work runs concurrently). Full design, with diagrams, is in the
 proposal document (link in `HANDOVER.md`).
 
 ## Build and run
 
-```bash
-mvn test                 # compile + run the unit tests
-mvn compile              # compile only
+Maven need not be installed: use the committed wrapper (`.\mvnw.cmd` on Windows, `./mvnw` elsewhere).
 
-# run an entry point (after mvn compile)
-java -cp target/classes com.mirage.console.ConsoleMain
-java -cp target/classes com.mirage.sensor.SensorMain
-java -cp target/classes com.mirage.specter.SpecterMain
+```bash
+./mvnw test                     # compile + run the unit tests
+./mvnw -DskipTests package      # build the runnable jar: target/mirage.jar
+
+run-defender.bat                # Laptop A: Console + Sensor (decoys)     (.sh on macOS/Linux)
+run-attacker.bat                # Laptop B: Specter + counter-watch
+java -jar target/mirage.jar     # lists the roles: defender | attacker | console | sensor | specter
 ```
 
-The Console and Specter open GUI windows (a live dashboard and the red-team console); the Sensor runs headless. See [`DEMO.md`](DEMO.md) for the full walkthrough.
+With no `mirage.properties` everything runs on one machine over `127.0.0.1`. For two laptops,
+copy `mirage.properties.example` to `mirage.properties` and follow
+[`docs/TWO-LAPTOP-SETUP.md`](docs/TWO-LAPTOP-SETUP.md). [`DEMO.md`](DEMO.md) is the
+who-clicks-what demo script.
 
-Requires JDK 17+ (built and tested on JDK 21) and Maven 3.9+.
+Requires JDK 17+ (built and tested on JDK 21). Laptop B needs only Java, not Maven.
 
 ## Project layout
 
 ```
 src/main/java/com/mirage/
-  common/     domain types + ScopeGuard (the safety boundary)
-  console/    AlertLedger, AlertBus, CorrelationEngine, ResponsePolicy
-    detection/  DetectionRule + rules (brute-force, port-scan, honeytoken)
+  Launcher    the jar's entry point (defender / attacker / console / sensor / specter)
+  common/     domain types, ScopeGuard (the safety boundary), LabConfig
+    trace/      TraceEvent, TraceBus, TraceBacklog (what the live shells show)
+  console/    AlertLedger, AlertBus, CorrelationEngine, ResponsePolicy, CounterOffensive,
+              ThreatTracker, ShellFilters
+    detection/  DetectionRule + rules (scan, brute-force, spray, honeytoken, decoy access, ...)
     response/   ResponseAction commands (tarpit, feed-fakes, block)
-  sensor/     Decoy (abstract) + FakeHttpLoginDecoy, SensorMain
-  specter/    AttackStrategy + BruteForceAttack, Attacker, SpecterMain
-src/test/java/com/mirage/   unit tests (ledger, scope guard, rules)
+    ui/         Dashboard, ThreatPopup, OperationShells, network map, detail panel
+  sensor/     Decoy (abstract, pooled) + HTTP/FTP/Telnet decoys, bait-file watcher, SensorMain
+  specter/    AttackStrategy + attacks, Attacker, CounterWatch, SpecterConsole, SpecterMain
+  ui/shell/   ShellModel + ShellWindow (terminal-style process shell, shared by both sides)
+src/test/java/com/mirage/   unit tests (98)
+tools/screenshots/          GUI dry run + figure harnesses
 db/schema.sql               H2 database schema
-docs/                       design notes and exported figures (as added)
+docs/                       two-laptop setup guide and screenshots
 ```
 
 ## Documentation
@@ -73,7 +85,9 @@ docs/                       design notes and exported figures (as added)
 - [`HANDOVER.md`](HANDOVER.md) — live status, phases, decisions log, and next steps.
 - [`PROPOSAL.md`](PROPOSAL.md) — the project proposal (submission).
 - [`REPORT.md`](REPORT.md) — the detailed project report (report format).
-- [`DEMO.md`](DEMO.md) — the projector demo script (run it end to end).
+- [`DEMO.md`](DEMO.md) — the two-laptop demo script (who clicks what, what the audience sees).
+- [`docs/TWO-LAPTOP-SETUP.md`](docs/TWO-LAPTOP-SETUP.md) — network, config and firewall set-up.
+- [`BUILD_LOG.md`](BUILD_LOG.md) — how the live-shells feature was built, phase by phase.
 
 ## Academic note
 

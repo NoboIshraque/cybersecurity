@@ -1,11 +1,15 @@
 # BUILD LOG — Live shells & two-laptop demo
 
-_Created: 2026-11-07 · Status: **IN PROGRESS — Phases 0–8 done (98 tests green, dry run 27/27); next is Phase 9**_
+_Created: 2026-11-07 · Status: **DONE — Phases 0–9 complete (98 tests green, dry run 27/27); draft PR open; awaiting the user's two-laptop rehearsal**_
 
 This is the map for the next piece of work and its running log. Each phase gets ticked off,
 and the **Progress log** at the bottom gets a line as each one lands.
 
 ## ▶ RESUME HERE (continuing from another account / session)
+
+> **All phases are done.** What remains is the user's real two-laptop rehearsal
+> (`docs/TWO-LAPTOP-SETUP.md`), then marking the draft PR ready and merging it. The list
+> below is kept as the record of how the work was resumed.
 
 1. **Branch:** `feature/live-shells` (not pushed, not merged; `master` untouched). `git log --oneline`
    shows one commit per phase. Check out that branch first.
@@ -253,13 +257,17 @@ New patterns used (and existing ones extended):
    on the build laptop (stopping it was outside what the session was allowed to do). Close that
    Specter window, or end that `java` process, before the next local run.
 
-### Phase 9 — Docs & PR
-- [ ] `DEMO.md`: new two-laptop script ("who clicks what, what the audience sees").
-- [ ] `HANDOVER.md` (status, decisions, session log), `README.md`, `CLAUDE.md` (TraceBus/shell
-      pattern, LabConfig, the new safety check).
-- [ ] `REPORT.md`: new §5.5 "Live process shells & two-host demo" with figures; republish the
-      report artifact.
-- [ ] Push the branch and open the **draft PR**.
+### Phase 9 — Docs & PR ✅
+- [x] `DEMO.md`: new two-laptop script (one table per act: who clicks what, what the audience
+      sees, talking points) + one-laptop fallback.
+- [x] `HANDOVER.md` (status, decisions, session log), `README.md` (run with the jar/scripts,
+      layout), `CLAUDE.md` (jar roles, the lab-range safety check, TraceBus/ShellModel patterns,
+      how to add shell lines / operator actions, alert de-duplication, the GUI dry run).
+- [x] `REPORT.md`: new §5.5 "Live process shells and the two-host demo" with Figures 9–14, and
+      the design-pattern table extended. **Report artifact not republished:** it belongs to the
+      account the project was handed over from and can't be read or edited from this one (see
+      HANDOVER).
+- [x] Pushed `feature/live-shells` and opened the **draft PR** to `master`.
 
 ## What you'll need on demo day
 
@@ -287,3 +295,4 @@ New patterns used (and existing ones extended):
 | 2026-11-07 | 7 | Shaded `target/mirage.jar`, `Launcher` roles, run scripts, `mirage.properties.example`, lab-range-aware LAN IP, `docs/TWO-LAPTOP-SETUP.md`. 93 tests green. |
 | 2026-11-07 | 8 | `mvnw verify` 93 green; `LiveDemoShot` dry run 25/25 PASS; 13 `live-*.png` figures; lab-range-only LAN address. Findings logged (alert flood, counter "blocked" label). |
 | 2026-11-07 | 8 (fixes) | Alerts once per (source, rule), re-raised on escalation or after Unblock; block = TCP reset vs silent close = `NO REPLY`. 98 tests green; dry run 27/27; figures refreshed. |
+| 2026-11-07 | 9 | DEMO.md two-laptop script, README/CLAUDE/HANDOVER, REPORT §5.5 (Figs 9–14); branch pushed, draft PR opened. |
