@@ -53,9 +53,14 @@ public final class CorrelationEngine implements Runnable {
      * (engine thread only).
      */
     private final Map<String, AttackerProfile> sinceUnblock = new HashMap<>();
-    /** Per source: each rule's highest severity alerted so far (engine thread only). */
+    /**
+     * Per source: each rule's highest severity alerted so far, and (under {@link #TECHNIQUE} +
+     * technique id) each ATT&CK technique's (engine thread only).
+     */
     private final Map<String, Map<String, Severity>> alerted = new HashMap<>();
     private final Queue<String> resets = new ConcurrentLinkedQueue<>();
+    /** Key prefix for a technique's entry in {@link #alerted} (rule names never contain ':'). */
+    private static final String TECHNIQUE = "technique:";
     private volatile TraceSink trace = TraceSink.NONE;
     private volatile AutoResponse autoResponse = new AutoResponse(true);
 
@@ -147,6 +152,17 @@ public final class CorrelationEngine implements Runnable {
                 continue;
             }
             raised.put(ruleName, now);
+            // B-04: another rule already reported this technique at this severity or higher (a
+            // honeytoken login and the decoy session it opens are both T1078): same finding.
+            String techniqueKey = TECHNIQUE + hit.get().attackTechnique();
+            Severity sameFinding = raised.get(techniqueKey);
+            if (sameFinding != null && now.ordinal() <= sameFinding.ordinal()) {
+                stillMatching++;
+                trace.line("console", "rule", event.sourceIp(), TraceLevel.INFO, ruleName + " also matches: "
+                        + hit.get().attackTechnique() + " " + now + " is the same finding — not alerted twice");
+                continue;
+            }
+            raised.put(techniqueKey, now);
             matched.add(ruleName);
             raise(profile, hit.get(), ruleName);
         }
