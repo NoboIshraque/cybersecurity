@@ -41,10 +41,10 @@ class LabConfigTest {
     @Test
     void parseArgsSupportsEqualsAndSpaceForms() {
         Map<String, String> parsed = LabConfig.parseArgs(
-                new String[]{"--console-host", "10.10.0.2", "--http-port=9090", "ignored", "--bogus=x"});
+                new String[]{"--console-host", "10.10.0.2", "--http-port=9090", "ignored"});
         assertEquals("10.10.0.2", parsed.get("console.host"));
         assertEquals("9090", parsed.get("decoy.http.port"));
-        assertFalse(parsed.containsKey("bogus"));
+        // an unknown flag such as --bogus is refused now (B-32, LabConfigFlagsTest)
     }
 
     @Test

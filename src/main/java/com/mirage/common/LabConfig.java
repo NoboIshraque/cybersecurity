@@ -49,11 +49,11 @@ public final class LabConfig {
     private LabConfig(Map<String, String> v) {
         this.labCidrs = splitCidrs(v.getOrDefault("lab.cidrs", DEFAULT_CIDRS));
         this.consoleHost = v.getOrDefault("console.host", "127.0.0.1");
-        this.consolePort = intValue(v, "console.port", 8443);
-        this.httpDecoyPort = intValue(v, "decoy.http.port", 8081);
-        this.ftpDecoyPort = intValue(v, "decoy.ftp.port", 8021);
-        this.telnetDecoyPort = intValue(v, "decoy.telnet.port", 8023);
-        this.counterWatchPort = intValue(v, "counterwatch.port", 8080);
+        this.consolePort = portValue(v, "console.port", 8443);
+        this.httpDecoyPort = portValue(v, "decoy.http.port", 8081);
+        this.ftpDecoyPort = portValue(v, "decoy.ftp.port", 8021);
+        this.telnetDecoyPort = portValue(v, "decoy.telnet.port", 8023);
+        this.counterWatchPort = portValue(v, "counterwatch.port", 8080);
         this.baitDir = Path.of(v.getOrDefault("bait.dir", "bait"));
         String id = v.get("sensor.id");
         this.sensorId = id == null || id.isBlank() ? null : id.trim();
@@ -95,18 +95,31 @@ public final class LabConfig {
         return load(Path.of("mirage.properties"), args);
     }
 
-    /** Map the small set of supported CLI flags onto property keys. */
+    /** The supported CLI flags and their property keys, in the order the usage lists them. */
+    private static final Map<String, String> FLAGS = flags();
+
+    private static Map<String, String> flags() {
+        Map<String, String> f = new LinkedHashMap<>();
+        f.put("--lab-cidr", "lab.cidrs");
+        f.put("--lab-cidrs", "lab.cidrs"); // B-32: the natural spelling, matching the property name
+        f.put("--console-host", "console.host");
+        f.put("--console-port", "console.port");
+        f.put("--http-port", "decoy.http.port");
+        f.put("--ftp-port", "decoy.ftp.port");
+        f.put("--telnet-port", "decoy.telnet.port");
+        f.put("--counterwatch-port", "counterwatch.port");
+        f.put("--bait-dir", "bait.dir");
+        f.put("--sensor-id", "sensor.id");
+        return java.util.Collections.unmodifiableMap(f);
+    }
+
+    /**
+     * Map the supported CLI flags onto property keys. B-32: an unknown flag or a flag without a
+     * value is refused (it used to be dropped silently, so a typo ran on the defaults). A bare
+     * word that is not a flag's value is ignored, as before (the first one may be a host).
+     */
     public static Map<String, String> parseArgs(String[] args) {
-        Map<String, String> flagToKey = Map.of(
-                "--lab-cidr", "lab.cidrs",
-                "--console-host", "console.host",
-                "--console-port", "console.port",
-                "--http-port", "decoy.http.port",
-                "--ftp-port", "decoy.ftp.port",
-                "--telnet-port", "decoy.telnet.port",
-                "--counterwatch-port", "counterwatch.port",
-                "--bait-dir", "bait.dir",
-                "--sensor-id", "sensor.id");
+        Map<String, String> flagToKey = FLAGS;
         Map<String, String> out = new LinkedHashMap<>();
         if (args == null) {
             return out;
@@ -127,9 +140,14 @@ public final class LabConfig {
                 value = (i + 1 < args.length && !args[i + 1].startsWith("--")) ? args[++i] : "";
             }
             String key = flagToKey.get(flag);
-            if (key != null && !value.isBlank()) {
-                out.put(key, value.trim());
+            if (key == null) {
+                throw new IllegalArgumentException("unknown option " + flag + " (options: "
+                        + String.join(", ", FLAGS.keySet()) + ")");
             }
+            if (value.isBlank()) {
+                throw new IllegalArgumentException(flag + " needs a value, e.g. " + flag + "=...");
+            }
+            out.put(key, value.trim());
         }
         return out;
     }
@@ -259,6 +277,15 @@ public final class LabConfig {
             }
         }
         return List.copyOf(out);
+    }
+
+    /** A TCP port setting: refused, naming the key, unless it is 1-65535 (B-32). */
+    private static int portValue(Map<String, String> v, String key, int fallback) {
+        int port = intValue(v, key, fallback);
+        if (port < 1 || port > 65535) {
+            throw new IllegalArgumentException(key + " must be a port from 1 to 65535, not " + port);
+        }
+        return port;
     }
 
     private static int intValue(Map<String, String> v, String key, int fallback) {

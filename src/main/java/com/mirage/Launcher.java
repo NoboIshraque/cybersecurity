@@ -117,6 +117,7 @@ public final class Launcher {
                   --console-host 192.168.0.107             the defender laptop's IP (Specter's target)
                   --console-port 8443   --http-port 8081   --ftp-port 8021
                   --telnet-port 8023    --counterwatch-port 8080
+                  --bait-dir bait       --sensor-id lab-a    (unknown options are refused)
 
                 Every outbound action is checked by ScopeGuard against the lab range.""");
     }

@@ -15,9 +15,10 @@ import java.io.IOException;
 public final class SpecterMain {
 
     public static void main(String[] args) {
-        LabConfig config = LabConfig.load(args);
+        LabConfig config;
         ScopeGuard guard;
         try {
+            config = LabConfig.load(args); // B-32: a mistyped flag or a bad port is refused here
             guard = config.scopeGuard(); // validates the lab range before anything can be launched
         } catch (IllegalArgumentException e) {
             System.err.println("Refusing to start: " + e.getMessage());
