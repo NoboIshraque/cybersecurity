@@ -1,6 +1,6 @@
 # BUILD LOG — Live shells & two-laptop demo
 
-_Created: 2026-11-07 · Status: **IN PROGRESS — Phases 0–7 done (93 tests green); next is Phase 8**_
+_Created: 2026-11-07 · Status: **IN PROGRESS — Phases 0–8 done (93 tests green, dry run 25/25); next is Phase 9**_
 
 This is the map for the next piece of work and its running log. Each phase gets ticked off,
 and the **Progress log** at the bottom gets a line as each one lands.
@@ -15,9 +15,10 @@ and the **Progress log** at the bottom gets a line as each one lands.
    ```
    First wrapper run downloads Maven 3.9.9 to `~/.m2/wrapper`. **Current baseline: 93 tests green.**
 3. **What's done:** Phases 0–7 complete (Console threat popups, operation shells, auto-response
-   checkbox, pipeline shell; runnable `target/mirage.jar` + `Launcher` + run scripts + setup doc). See the per-phase checkboxes below and the Progress log at the bottom.
+   checkbox, pipeline shell; runnable `target/mirage.jar` + `Launcher` + run scripts + setup doc;
+   localhost dry run `tools/screenshots/LiveDemoShot.java` 25/25 PASS + `docs/screenshots/live-*.png`).
+   **Open decisions for the user** are under Phase 8 ("Findings"). See the per-phase checkboxes below and the Progress log at the bottom.
 4. **What's next (in order):**
-   - **Phase 8** — `./mvnw verify`, a localhost GUI dry-run, fresh screenshots into `docs/screenshots/`.
    - **Phase 9** — update `DEMO.md`, `HANDOVER.md`, `README.md`, `CLAUDE.md`, `REPORT.md` §5.5; push
      the branch and open a **draft PR** to `master`.
 5. **Key facts for the next session:** every Console trace line is already emitted on a `TraceBus`
@@ -118,7 +119,7 @@ New patterns used (and existing ones extended):
       `--console-port`, decoy ports, `--counterwatch-port`). Defaults reproduce the single-machine setup.
 - [x] Range validation (private/loopback only, prefix ≥ /16) in `ScopeGuard.requireLabRange`; entry
       points refuse to start on a bad range.
-- [x] Console prints its LAN address at start-up ("point the attacker laptop at 192.168.0.107:8443").
+- [x] Console prints its LAN address at start-up ("on the attacker laptop set console.host=192.168.0.107").
       _(Status-bar display folded into the Phase 6 dashboard rework.)_
 - [x] Sensor and Specter read console host / target host / ports from the config.
 - [x] Tests: `LabConfigTest` (5) + `ScopeGuardTest` lab-range cases (4). **57 tests green.**
@@ -215,12 +216,35 @@ New patterns used (and existing ones extended):
       Sensor up, decoy :8081 reachable; `attacker` → Specter + counter-watch :8080 listening;
       `--lab-cidr 8.8.8.0/24` refused.
 
-### Phase 8 — Verification
-- [ ] `mvnw verify` green (old 48 + new tests).
-- [ ] Localhost dry run on this laptop: both roles, every campaign, every operator action,
-      auto on/off, counter → counter-watch popup.
-- [ ] Fresh screenshots of the shells and popups into `docs/screenshots/`.
-- [ ] (Your part) the real two-laptop rehearsal using the setup doc.
+### Phase 8 — Verification ✅ (except the user's two-laptop rehearsal)
+- [x] `mvnw verify` green: **93 tests**, `target/mirage.jar` built.
+- [x] Localhost dry run, automated in `tools/screenshots/LiveDemoShot.java` (real Console + Sensor +
+      Specter in one JVM, driven through their own buttons): **25/25 PASS**. Every campaign one at a
+      time and all at once (split), popup PROBE → UNDER ATTACK → COMPROMISED, Tarpit → Specter
+      `CONNECTION STALLED`, Feed fake ACK, Block → NEUTRALISED + Specter `CONNECTION BLOCKED`, Counter
+      → counter-watch `INCOMING`, Simultaneous counter split, Unblock → back to COMPROMISED,
+      auto-response ON → Console blocks by itself, pipeline shell, out-of-range target refused.
+- [x] 13 fresh figures `docs/screenshots/live-*.png` (rendered from the windows, no desktop in
+      them); listed in `tools/screenshots/README.md`.
+- [x] Fixed during the dry run: the Console no longer advertises an address **outside** the lab
+      range (on the default config it named a VirtualBox adapter); it now says "No LAN address inside
+      the lab range … single-machine demo on 127.0.0.1". Start-up hint corrected to
+      `console.host=<ip>` (Specter targets the decoys, not :8443).
+- [ ] (Your part) the real two-laptop rehearsal using `docs/TWO-LAPTOP-SETUP.md`.
+
+**Findings for the user to decide (not changed):**
+1. **Alert flood.** Every new event re-runs every rule against the whole profile, and each
+   matching rule raises a *new* alert/ledger entry, so one source reached 213 alerts in the dry run
+   (e.g. `PortScanRule MATCH` again on every login). Pre-existing engine behaviour (also on
+   `master`), but the live shells make it very visible. Option: raise each (source, rule) once and
+   re-raise only on a higher severity.
+2. **Counters read "CONNECTION BLOCKED".** The counter-watch never replies (decision 3:
+   accept-and-log only), so each counter probe sees a dropped connection and its strategy prints
+   `CONNECTION BLOCKED`, which is misleading. Option: have the counter-watch return a one-line
+   canned banner, or label a no-reply close as `NO REPLY`.
+3. While testing, a `mirage.jar attacker` process from the Phase 7 check was left holding :8080
+   on the build laptop (stopping it was outside what the session was allowed to do). Close that
+   Specter window, or end that `java` process, before the next local run.
 
 ### Phase 9 — Docs & PR
 - [ ] `DEMO.md`: new two-laptop script ("who clicks what, what the audience sees").
@@ -254,3 +278,4 @@ New patterns used (and existing ones extended):
 | 2026-11-07 | docs | Handoff: resume section added for continuing from another account. Phases 6 pt2–9 remain. |
 | 2026-11-07 | 6 (pt2–3) | ThreatPopup + ThreatTracker, OperationShells (op threads, split counters), TraceBacklog replay, auto-response checkbox (GUI default OFF), pipeline shell, LAN address in status bar. GUI smoke run passed. 91 tests green. |
 | 2026-11-07 | 7 | Shaded `target/mirage.jar`, `Launcher` roles, run scripts, `mirage.properties.example`, lab-range-aware LAN IP, `docs/TWO-LAPTOP-SETUP.md`. 93 tests green. |
+| 2026-11-07 | 8 | `mvnw verify` 93 green; `LiveDemoShot` dry run 25/25 PASS; 13 `live-*.png` figures; lab-range-only LAN address. Findings logged (alert flood, counter "blocked" label). |

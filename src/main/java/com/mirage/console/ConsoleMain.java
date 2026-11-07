@@ -47,12 +47,15 @@ public final class ConsoleMain {
             System.err.println("Refusing to start: " + e.getMessage());
             return;
         }
-        // Prefer the address inside the lab range (skips VirtualBox / VPN adapters).
-        java.util.Optional<String> lanIp = LabConfig.primaryLanIp(guard::isAuthorised);
+        // Only advertise an address inside the lab range (skips VirtualBox / VPN adapters): an
+        // address outside it could never be attacked or defended, so it would only mislead.
+        java.util.Optional<String> lanIp = LabConfig.primaryLanIp(guard::isAuthorised)
+                .filter(guard::isAuthorised);
         lanIp.ifPresentOrElse(
                 ip -> System.out.println("This host's LAN address: " + ip
-                        + "  (point the attacker laptop at " + ip + ":" + config.consolePort() + ")"),
-                () -> System.out.println("No LAN address detected; single-machine demo on 127.0.0.1."));
+                        + "  (on the attacker laptop set console.host=" + ip + ")"),
+                () -> System.out.println("No LAN address inside the lab range " + config.labCidrs()
+                        + "; single-machine demo on 127.0.0.1 (set lab.cidrs to your network for two laptops)."));
         AlertLedger ledger = new AlertLedger(new KeyPairSigner());
         AlertBus bus = new AlertBus();
         bus.subscribe(alert -> System.out.println("[alert] " + alert.canonical()));

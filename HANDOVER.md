@@ -16,8 +16,12 @@ the feature-complete state below). The full plan and running log is **`BUILD_LOG
   shells, auto-response checkbox, pipeline shell, and the two-laptop packaging
   (`mvnw package` → `target/mirage.jar`; `run-defender.bat` / `run-attacker.bat`;
   `docs/TWO-LAPTOP-SETUP.md`).
-- **Next:** Phase 8 (verify + localhost dry run + screenshots), Phase 9 (docs + draft PR).
-  Exact next steps are in `BUILD_LOG.md`.
+- **Phase 8 done:** `mvnw verify` green; the automated localhost dry run
+  (`tools/screenshots/LiveDemoShot.java`) passes 25/25; fresh figures in `docs/screenshots/live-*.png`.
+  Two findings await a decision (alert flood; counters reading "CONNECTION BLOCKED"): see
+  BUILD_LOG Phase 8.
+- **Next:** Phase 9 (DEMO.md, README, CLAUDE.md, REPORT §5.5, draft PR) and the user's real
+  two-laptop rehearsal. Exact next steps are in `BUILD_LOG.md`.
 - **What it adds:** terminal-style "process shells" on both sides that stream each step live (and
   split into one pane per thread for concurrent runs), a decoy that lets a trap credential "in" to a
   fake page, an operator-gated (manual-by-default) response flow, a counter-watch listener on the

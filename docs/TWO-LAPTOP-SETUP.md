@@ -122,8 +122,9 @@ macOS: allow Java when the application-firewall prompt appears. Linux with ufw:
 ## 7. Start and test the connection
 
 1. **Laptop A**: run `run-defender.bat`. Look for these lines:
-   - `This host's LAN address: 192.168.0.107  (point the attacker laptop at ...)`. It should
-     match `console.host`.
+   - `This host's LAN address: 192.168.0.107  (on the attacker laptop set console.host=...)`.
+     It should match `console.host`. If it says `No LAN address inside the lab range`, then
+     `lab.cidrs` doesn't cover this laptop's Wi-Fi address. Fix the range (step 4).
    - `Connected to Console at 127.0.0.1:8443 as sensor-...`
    - `Decoys listening: http-login:8081, ftp:8021, telnet:8023`
    - `Auto-response: OFF`. The dashboard opens and waits for the operator.
