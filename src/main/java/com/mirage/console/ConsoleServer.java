@@ -1,6 +1,8 @@
 package com.mirage.console;
 
 import com.mirage.common.AttackEvent;
+import com.mirage.common.BoundedLineReader;
+import com.mirage.common.LineTooLongException;
 import com.mirage.common.JsonCodec;
 import com.mirage.common.MessageType;
 import com.mirage.common.ResponseCommand;
@@ -9,20 +11,22 @@ import com.mirage.common.trace.TraceLevel;
 import com.mirage.common.trace.TraceSink;
 
 import javax.net.ServerSocketFactory;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Accepts Sensor connections on a thread pool and reads newline-delimited JSON.
@@ -66,12 +70,38 @@ public final class ConsoleServer implements CommandSink {
     private final ServerSocketFactory socketFactory;
     private final BlockingQueue<AttackEvent> events;
     private final SensorRegistry registry;
-    private final ExecutorService pool = Executors.newCachedThreadPool();
+    private ExecutorService pool;
     private final CopyOnWriteArrayList<Connection> connections = new CopyOnWriteArrayList<>();
 
     private volatile boolean running;
     private volatile TraceSink trace = TraceSink.NONE;
     private ServerSocket server;
+
+    /** Longest line accepted from a Sensor; past it the link is closed (B-08, A-01). */
+    public static final int MAX_LINE_BYTES = JsonCodec.MAX_LINE_BYTES;
+    /** Sensor links served at once; more are closed on accept. */
+    public static final int DEFAULT_MAX_CONNECTIONS = 32;
+    /** A link that sends nothing for this long is closed. Sensors heartbeat every 10 s. */
+    public static final Duration DEFAULT_IDLE_TIMEOUT = Duration.ofSeconds(45);
+
+    private volatile int maxConnections = DEFAULT_MAX_CONNECTIONS;
+    private volatile Duration idleTimeout = DEFAULT_IDLE_TIMEOUT;
+    private final AtomicInteger open = new AtomicInteger();
+
+    /** Override the connection cap. Call before {@link #start}. */
+    public ConsoleServer setMaxConnections(int max) {
+        if (max < 1) {
+            throw new IllegalArgumentException("max connections must be at least 1");
+        }
+        this.maxConnections = max;
+        return this;
+    }
+
+    /** Override the idle timeout. Call before {@link #start}. */
+    public ConsoleServer setIdleTimeout(Duration timeout) {
+        this.idleTimeout = Objects.requireNonNull(timeout);
+        return this;
+    }
 
     /** Send a trace line for every decoded message and broadcast (default: none). */
     public void setTrace(TraceSink trace) {
@@ -87,19 +117,56 @@ public final class ConsoleServer implements CommandSink {
 
     public int start(int port) throws IOException {
         server = socketFactory.createServerSocket(port);
+        // One rx thread per link, never more than the cap (A-01: was an unbounded cached pool).
+        pool = Executors.newFixedThreadPool(maxConnections, r -> {
+            Thread t = new Thread(r, "rx");
+            t.setDaemon(true);
+            return t;
+        });
         running = true;
-        pool.submit(this::acceptLoop);
+        Thread accept = new Thread(this::acceptLoop, "accept");
+        accept.setDaemon(true);
+        accept.start();
         return server.getLocalPort();
     }
 
     private void acceptLoop() {
-        Thread.currentThread().setName("accept");
         while (running) {
+            Socket socket;
             try {
-                Socket socket = server.accept();
-                pool.submit(() -> handle(socket));
+                socket = server.accept();
             } catch (IOException e) {
-                // server closed or transient error
+                if (server.isClosed()) {
+                    return;
+                }
+                continue; // transient error
+            }
+            if (open.incrementAndGet() > maxConnections) {
+                open.decrementAndGet();
+                trace.line("console", "rx", null, TraceLevel.WARN, "refused a link from "
+                        + socket.getInetAddress().getHostAddress() + ": " + maxConnections + " links already open");
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    // ignore
+                }
+                continue;
+            }
+            try {
+                pool.execute(() -> {
+                    try {
+                        handle(socket);
+                    } finally {
+                        open.decrementAndGet();
+                    }
+                });
+            } catch (RuntimeException e) { // pool shut down: stopping
+                open.decrementAndGet();
+                try {
+                    socket.close();
+                } catch (IOException ignored) {
+                    // ignore
+                }
             }
         }
     }
@@ -116,8 +183,9 @@ public final class ConsoleServer implements CommandSink {
         String peer = socket.getInetAddress().getHostAddress();
         Thread.currentThread().setName("rx-" + peer);
         trace.line("console", "rx", null, TraceLevel.INFO, "sensor link opened from " + peer);
-        try (BufferedReader in = new BufferedReader(
-                new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
+        try {
+            socket.setSoTimeout((int) Math.min(Integer.MAX_VALUE, idleTimeout.toMillis()));
+            BoundedLineReader in = new BoundedLineReader(socket.getInputStream(), MAX_LINE_BYTES);
             String line;
             while ((line = in.readLine()) != null) {
                 if (line.isBlank()) {
@@ -131,6 +199,12 @@ public final class ConsoleServer implements CommandSink {
                             + peer + ": " + abbreviate(line));
                 }
             }
+        } catch (LineTooLongException e) {
+            trace.line("console", "rx", null, TraceLevel.BAD, "closing the link from " + peer + ": "
+                    + e.getMessage() + " (no newline)");
+        } catch (SocketTimeoutException e) {
+            trace.line("console", "rx", null, TraceLevel.WARN, "closing the link from " + peer + ": silent for "
+                    + idleTimeout.toSeconds() + " s (no heartbeat)");
         } catch (IOException e) {
             // Sensor disconnected
         } finally {
@@ -198,7 +272,9 @@ public final class ConsoleServer implements CommandSink {
         for (Connection conn : connections) {
             conn.closeQuietly();
         }
-        pool.shutdownNow();
+        if (pool != null) {
+            pool.shutdownNow();
+        }
     }
 
     private static String abbreviate(String line) {

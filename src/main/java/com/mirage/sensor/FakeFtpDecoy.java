@@ -2,10 +2,9 @@ package com.mirage.sensor;
 
 import com.mirage.common.Action;
 import com.mirage.common.AttackEvent;
+import com.mirage.common.BoundedLineReader;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -22,8 +21,7 @@ public final class FakeFtpDecoy extends Decoy {
     protected void interact(Socket socket, String sourceIp, int sourcePort,
                             Consumer<AttackEvent> sink) throws IOException {
         OutputStream out = socket.getOutputStream();
-        BufferedReader in = new BufferedReader(
-                new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+        BoundedLineReader in = lines(socket);
         send(out, "220 FTP server ready");
 
         String user = null;

@@ -2,6 +2,8 @@ package com.mirage.sensor;
 
 import com.mirage.common.Action;
 import com.mirage.common.AttackEvent;
+import com.mirage.common.BoundedLineReader;
+import com.mirage.common.LineTooLongException;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -45,6 +47,9 @@ public abstract class Decoy {
 
     /** At most one "refused by a limit" event per source in this window, so a flood can't flood the Console. */
     private static final long LIMIT_REPORT_EVERY_MS = 5000;
+
+    /** Longest line a decoy reads from a client. */
+    public static final int MAX_LINE_BYTES = 8192;
 
     protected final String type;
     protected final int port;
@@ -170,6 +175,10 @@ public abstract class Decoy {
         try (Socket s = socket) {
             s.setSoTimeout((int) Math.min(Integer.MAX_VALUE, limits.readTimeout().toMillis()));
             interact(s, src, srcPort, sink);
+        } catch (LineTooLongException e) {
+            // B-08: cut off instead of buffering; worth reporting, it's not a normal client
+            sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT,
+                    "refused: " + e.getMessage(), Instant.now()));
         } catch (IOException e) {
             // read timeout, client gone or decoy stopped; this connection is done
         } finally {
@@ -291,6 +300,11 @@ public abstract class Decoy {
         } catch (IOException e) {
             // already closed
         }
+    }
+
+    /** The client's input as lines of at most {@link #MAX_LINE_BYTES}; subclasses read through this. */
+    protected static BoundedLineReader lines(Socket socket) throws IOException {
+        return new BoundedLineReader(socket.getInputStream(), MAX_LINE_BYTES);
     }
 
     protected AttackEvent event(String sourceIp, int sourcePort, Action action, String payload) {
