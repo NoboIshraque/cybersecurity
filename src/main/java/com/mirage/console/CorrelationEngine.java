@@ -13,15 +13,25 @@ import com.mirage.console.response.ResponseAction;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * The single consumer in the producer-consumer pipeline. Network threads are
  * producers that enqueue events; this one thread owns all profile and ledger
  * mutation, which keeps shared state thread-safe with almost no locking.
+ *
+ * <p>Rules classify a source's whole profile, so a rule keeps matching on every
+ * later event. The engine raises each rule once per source and again only when
+ * that rule's severity for the source rises, so the ledger records each finding
+ * instead of one copy per event. {@link #resetAlerts(String)} clears a source's
+ * memory (the operator unblocked it).
  *
  * <p>Each step can also be narrated to a {@link TraceSink} for the live process
  * shells. Tracing only reads; it never changes what the engine decides.
@@ -36,6 +46,9 @@ public final class CorrelationEngine implements Runnable {
     private final Persistence persistence;
     private final AttackerDirectory directory;
     private final Map<String, AttackerProfile> profiles = new ConcurrentHashMap<>();
+    /** Per source: each rule's highest severity alerted so far (engine thread only). */
+    private final Map<String, Map<String, Severity>> alerted = new HashMap<>();
+    private final Queue<String> resets = new ConcurrentLinkedQueue<>();
     private volatile TraceSink trace = TraceSink.NONE;
     private volatile AutoResponse autoResponse = new AutoResponse(true);
 
@@ -88,16 +101,53 @@ public final class CorrelationEngine implements Runnable {
                 "dequeued " + event.decoyType() + " " + event.action() + " from " + event.sourceIp()
                         + "  (profile: " + profile.events().size() + " events, saved to H2)");
 
+        applyResets();
+        Map<String, Severity> raised = alerted.computeIfAbsent(event.sourceIp(), ip -> new HashMap<>());
         List<String> matched = new ArrayList<>();
+        int stillMatching = 0;
         for (DetectionRule rule : rules) {
-            rule.classify(profile).ifPresent(c -> {
-                matched.add(rule.getClass().getSimpleName());
-                raise(profile, c, rule.getClass().getSimpleName());
-            });
+            Optional<Classification> hit = rule.classify(profile);
+            if (hit.isEmpty()) {
+                continue;
+            }
+            String ruleName = rule.getClass().getSimpleName();
+            Severity before = raised.get(ruleName);
+            Severity now = hit.get().severity();
+            if (before != null && now.ordinal() <= before.ordinal()) {
+                stillMatching++; // already alerted for this source at this severity: no duplicate
+                continue;
+            }
+            raised.put(ruleName, now);
+            matched.add(ruleName);
+            raise(profile, hit.get(), ruleName);
         }
         if (matched.isEmpty()) {
-            trace.line("console", "rule", event.sourceIp(), TraceLevel.INFO,
-                    rules.size() + " rules checked, no match");
+            trace.line("console", "rule", event.sourceIp(), TraceLevel.INFO, stillMatching == 0
+                    ? rules.size() + " rules checked, no match"
+                    : rules.size() + " rules checked: " + stillMatching
+                            + " still match, already alerted for this source — no new alert");
+        }
+    }
+
+    /**
+     * Forget which alerts a source has raised, so its next activity alerts (and, with
+     * auto-response on, is answered) afresh. Called when the operator unblocks a source.
+     * Safe from any thread: the request is queued and applied by the engine thread,
+     * which stays the only one touching the alert memory.
+     */
+    public void resetAlerts(String sourceIp) {
+        if (sourceIp != null) {
+            resets.add(sourceIp);
+        }
+    }
+
+    private void applyResets() {
+        String ip;
+        while ((ip = resets.poll()) != null) {
+            if (alerted.remove(ip) != null) {
+                trace.line("console", "engine", ip, TraceLevel.INFO,
+                        "alert memory cleared for " + ip + " (unblocked) — new activity will alert again");
+            }
         }
     }
 

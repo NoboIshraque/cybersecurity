@@ -107,6 +107,7 @@ public final class ConsoleMain {
         CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence, directory);
         engine.setTrace(trace);
         engine.setAutoResponse(autoResponse);
+        responses.setOnUnblock(engine::resetAlerts); // an unblocked source starts with a clean slate
         Thread engineThread = new Thread(engine, "correlation-engine");
         engineThread.setDaemon(true);
         engineThread.start();

@@ -9,6 +9,7 @@ import com.mirage.common.trace.TraceSink;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Issues manual active-defence commands from the dashboard's override panel.
@@ -23,10 +24,16 @@ public final class ResponseController {
     private final CommandSink sink;
     private final List<String> log = new ArrayList<>();
     private volatile TraceSink trace = TraceSink.NONE;
+    private volatile Consumer<String> onUnblock = ip -> { };
 
     public ResponseController(ScopeGuard guard, CommandSink sink) {
         this.guard = guard;
         this.sink = sink;
+    }
+
+    /** Told the source address after each UNBLOCK is sent (the engine clears its alert memory). */
+    public void setOnUnblock(Consumer<String> listener) {
+        this.onUnblock = listener == null ? ip -> { } : listener;
     }
 
     /** Narrate each operator command to the operation shell (default: none). */
@@ -45,6 +52,9 @@ public final class ResponseController {
             guard.require(targetIp);
             trace.line("op", "command", targetIp, TraceLevel.GOOD, "in range — dispatching");
             sink.broadcast(new ResponseCommand(type, targetIp));
+            if (type == CommandType.UNBLOCK) {
+                onUnblock.accept(targetIp);
+            }
             line = Instant.now() + "  " + type + "  →  " + targetIp;
         } catch (SecurityException e) {
             trace.line("op", "command", targetIp, TraceLevel.BAD,

@@ -12,14 +12,15 @@ the feature-complete state below). The full plan and running log is **`BUILD_LOG
 
 - **Build/test:** Maven is **not installed** on the demo laptop — use the committed wrapper:
   `./mvnw -B test` (PowerShell: `.\mvnw.cmd -B test`). First run fetches Maven 3.9.9 into `~/.m2`.
-- **Baseline right now: 93 tests green.** Phases 0–7 done: Console threat popups, operation
+- **Baseline right now: 98 tests green.** Phases 0–7 done: Console threat popups, operation
   shells, auto-response checkbox, pipeline shell, and the two-laptop packaging
   (`mvnw package` → `target/mirage.jar`; `run-defender.bat` / `run-attacker.bat`;
   `docs/TWO-LAPTOP-SETUP.md`).
 - **Phase 8 done:** `mvnw verify` green; the automated localhost dry run
-  (`tools/screenshots/LiveDemoShot.java`) passes 25/25; fresh figures in `docs/screenshots/live-*.png`.
-  Two findings await a decision (alert flood; counters reading "CONNECTION BLOCKED"): see
-  BUILD_LOG Phase 8.
+  (`tools/screenshots/LiveDemoShot.java`) passes 27/27; fresh figures in `docs/screenshots/live-*.png`.
+  Its two findings are fixed: the engine raises each rule once per source (again on a higher
+  severity or after an Unblock), and a blocked decoy resets the connection so a silent listener
+  reads `NO REPLY` instead of `CONNECTION BLOCKED`.
 - **Next:** Phase 9 (DEMO.md, README, CLAUDE.md, REPORT §5.5, draft PR) and the user's real
   two-laptop rehearsal. Exact next steps are in `BUILD_LOG.md`.
 - **What it adds:** terminal-style "process shells" on both sides that stream each step live (and

@@ -28,7 +28,15 @@ class BlockedDecoyTest {
         try (Socket s = new Socket("127.0.0.1", decoy.boundPort())) {
             BufferedReader in = new BufferedReader(
                     new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
-            assertNull(in.readLine(), "a blocked source should be dropped, not greeted with a banner");
+            // A blocked source is rejected with a TCP reset: the read fails (or, if the reset
+            // races the read, ends) — either way it is never greeted with a banner.
+            String greeting;
+            try {
+                greeting = in.readLine();
+            } catch (java.net.SocketException reset) {
+                greeting = null;
+            }
+            assertNull(greeting, "a blocked source should be rejected, not greeted with a banner");
 
             AttackEvent event = events.poll(3, TimeUnit.SECONDS);
             assertNotNull(event);

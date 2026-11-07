@@ -88,6 +88,9 @@ public class LiveDemoShot {
         check("console popup: COMPROMISED", waitLevel(ThreatLevel.COMPROMISED, 10_000));
         check("popup says it is waiting for the operator",
                 waitText(popup(), "COMPROMISED", 5000) && labelText(popup()).contains("waiting for the operator"));
+        int afterCampaigns = alertCount();
+        check("alerts recorded once per finding, not per event (" + afterCampaigns + " alerts)",
+                afterCampaigns > 0 && afterCampaigns <= 10);
         shot(replay, "live-specter-access-granted");
         Thread.sleep(1500);
         shot(popup(), "live-threat-popup-compromised");
@@ -130,6 +133,8 @@ public class LiveDemoShot {
         click(popup(), "Simultaneous counter");
         check("simultaneous counter: split, one pane per counter thread", waitPanes(counterShell, 4, 20_000));
         waitText(counterShell, "COUNTERS LAUNCHED", 15_000);
+        check("counters against the silent counter-watch read NO REPLY, not BLOCKED",
+                waitText(counterShell, "NO REPLY", 15_000) && !allText(counterShell).contains("CONNECTION BLOCKED"));
         Thread.sleep(2500);
         shot(counterShell, "live-op-shell-counter-split");
         shot(watch, "live-counterwatch-incoming");
@@ -260,6 +265,14 @@ public class LiveDemoShot {
             return false;
         }
         return r.get();
+    }
+
+    /** The "Alerts: N" figure from the dashboard status bar. */
+    private static int alertCount() throws InterruptedException {
+        Thread.sleep(2500); // the status bar refreshes on alerts and every 2 s
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("Alerts: (\\d+)")
+                .matcher(allText(frame("Mirage Console")));
+        return m.find() ? Integer.parseInt(m.group(1)) : -1;
     }
 
     private static AbstractButton autoBox() {

@@ -86,7 +86,10 @@ public abstract class Decoy {
 
             if (decision == ConnectionGate.Decision.BLOCK) {
                 sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT, "blocked", Instant.now()));
-                return; // socket closed by try-with-resources -> dropped
+                // Reject like a firewall: close with a TCP reset (not a quiet close), so the
+                // client can tell "blocked" apart from a service that simply never answers.
+                s.setSoLinger(true, 0);
+                return; // closed by try-with-resources -> reset
             }
 
             sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT, "", Instant.now()));

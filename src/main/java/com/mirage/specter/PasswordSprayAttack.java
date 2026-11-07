@@ -31,7 +31,8 @@ public final class PasswordSprayAttack implements AttackStrategy {
                 trace.line(TraceLevel.GOOD, "valid credential found: " + user + ":" + password);
                 break;
             }
-            if (last == ProbeReply.Outcome.DROPPED || last == ProbeReply.Outcome.STALLED) {
+            if (last == ProbeReply.Outcome.DROPPED || last == ProbeReply.Outcome.STALLED
+                    || last == ProbeReply.Outcome.NO_REPLY) {
                 break;
             }
         }

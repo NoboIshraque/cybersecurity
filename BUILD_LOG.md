@@ -1,6 +1,6 @@
 # BUILD LOG — Live shells & two-laptop demo
 
-_Created: 2026-11-07 · Status: **IN PROGRESS — Phases 0–8 done (93 tests green, dry run 25/25); next is Phase 9**_
+_Created: 2026-11-07 · Status: **IN PROGRESS — Phases 0–8 done (98 tests green, dry run 27/27); next is Phase 9**_
 
 This is the map for the next piece of work and its running log. Each phase gets ticked off,
 and the **Progress log** at the bottom gets a line as each one lands.
@@ -13,11 +13,11 @@ and the **Progress log** at the bottom gets a line as each one lands.
    ```bash
    ./mvnw -B test        # on Windows PowerShell: .\mvnw.cmd -B test
    ```
-   First wrapper run downloads Maven 3.9.9 to `~/.m2/wrapper`. **Current baseline: 93 tests green.**
+   First wrapper run downloads Maven 3.9.9 to `~/.m2/wrapper`. **Current baseline: 98 tests green.**
 3. **What's done:** Phases 0–7 complete (Console threat popups, operation shells, auto-response
    checkbox, pipeline shell; runnable `target/mirage.jar` + `Launcher` + run scripts + setup doc;
-   localhost dry run `tools/screenshots/LiveDemoShot.java` 25/25 PASS + `docs/screenshots/live-*.png`).
-   **Open decisions for the user** are under Phase 8 ("Findings"). See the per-phase checkboxes below and the Progress log at the bottom.
+   localhost dry run `tools/screenshots/LiveDemoShot.java` 27/27 PASS + `docs/screenshots/live-*.png`;
+   the two dry-run findings fixed: alerts once per finding, counters read `NO REPLY`). See the per-phase checkboxes below and the Progress log at the bottom.
 4. **What's next (in order):**
    - **Phase 9** — update `DEMO.md`, `HANDOVER.md`, `README.md`, `CLAUDE.md`, `REPORT.md` §5.5; push
      the branch and open a **draft PR** to `master`.
@@ -232,17 +232,24 @@ New patterns used (and existing ones extended):
       `console.host=<ip>` (Specter targets the decoys, not :8443).
 - [ ] (Your part) the real two-laptop rehearsal using `docs/TWO-LAPTOP-SETUP.md`.
 
-**Findings for the user to decide (not changed):**
-1. **Alert flood.** Every new event re-runs every rule against the whole profile, and each
-   matching rule raises a *new* alert/ledger entry, so one source reached 213 alerts in the dry run
-   (e.g. `PortScanRule MATCH` again on every login). Pre-existing engine behaviour (also on
-   `master`), but the live shells make it very visible. Option: raise each (source, rule) once and
-   re-raise only on a higher severity.
-2. **Counters read "CONNECTION BLOCKED".** The counter-watch never replies (decision 3:
-   accept-and-log only), so each counter probe sees a dropped connection and its strategy prints
-   `CONNECTION BLOCKED`, which is misleading. Option: have the counter-watch return a one-line
-   canned banner, or label a no-reply close as `NO REPLY`.
-3. While testing, a `mirage.jar attacker` process from the Phase 7 check was left holding :8080
+**Findings, fixed after the dry run (user chose "fix both"):**
+1. ✅ **Alert flood.** Rules classify the whole profile, so every event re-matched and each match
+   became a new alert (213 for one source). `CorrelationEngine` now raises each rule **once per
+   source**, again only when that rule's severity for the source **rises**; the shells say
+   "N still match, already alerted — no new alert". An operator **Unblock** clears the source's
+   memory (`ResponseController.setOnUnblock` → `CorrelationEngine.resetAlerts`, applied on the
+   engine thread, so confinement holds), so activity after an unblock alerts and auto-responds
+   again. Dry run: 5 alerts for four campaigns (was 213). Tested in `AlertDedupTest` (3).
+2. ✅ **Counters read "CONNECTION BLOCKED".** A blocked decoy now rejects with a **TCP reset**
+   (`setSoLinger(true, 0)`, like a firewall reject); `ProbeReply` reads a reset as `DROPPED`
+   (CONNECTION BLOCKED) and a quiet close with nothing said as the new **`NO_REPLY`** (banner
+   `NO REPLY`). The counter-watch still never writes anything (decision 3 intact); it now drains
+   what it is sent before closing so its close stays quiet. Tested in `ProbeOutcomeTest` (2);
+   `BlockedDecoyTest` accepts the reset.
+3. Not changed (minor, pre-existing): the dossier's "Honeytokens used" stays "—" in the live
+   demo, because it counts `HONEYTOKEN_USE` events and the HTTP decoy reports a replayed
+   honeytoken as `LOGIN_ATTEMPT` + `DECOY_ACCESS` (the `HoneytokenUseRule` alert still fires).
+4. While testing, a `mirage.jar attacker` process from the Phase 7 check was left holding :8080
    on the build laptop (stopping it was outside what the session was allowed to do). Close that
    Specter window, or end that `java` process, before the next local run.
 
@@ -279,3 +286,4 @@ New patterns used (and existing ones extended):
 | 2026-11-07 | 6 (pt2–3) | ThreatPopup + ThreatTracker, OperationShells (op threads, split counters), TraceBacklog replay, auto-response checkbox (GUI default OFF), pipeline shell, LAN address in status bar. GUI smoke run passed. 91 tests green. |
 | 2026-11-07 | 7 | Shaded `target/mirage.jar`, `Launcher` roles, run scripts, `mirage.properties.example`, lab-range-aware LAN IP, `docs/TWO-LAPTOP-SETUP.md`. 93 tests green. |
 | 2026-11-07 | 8 | `mvnw verify` 93 green; `LiveDemoShot` dry run 25/25 PASS; 13 `live-*.png` figures; lab-range-only LAN address. Findings logged (alert flood, counter "blocked" label). |
+| 2026-11-07 | 8 (fixes) | Alerts once per (source, rule), re-raised on escalation or after Unblock; block = TCP reset vs silent close = `NO REPLY`. 98 tests green; dry run 27/27; figures refreshed. |

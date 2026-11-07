@@ -32,8 +32,8 @@ import java.util.List;
  * The red-team control panel. Pick a target in the lab range, choose a campaign,
  * set the stealth delay, and launch. Every launch opens its own terminal-style
  * shell popup that streams each step as it happens and ends with a banner
- * (SCAN COMPLETE / ACCESS GRANTED / CONNECTION BLOCKED / CONNECTION STALLED /
- * REFUSED). "All at once" launches every technique concurrently and the shell
+ * (SCAN COMPLETE / ACCESS GRANTED / NO ACCESS / CONNECTION BLOCKED / CONNECTION STALLED /
+ * NO REPLY / REFUSED). "All at once" launches every technique concurrently and the shell
  * shows one pane per thread. Every launch goes through {@link Attacker}, which
  * refuses any target outside the authorised range before anything runs.
  */
