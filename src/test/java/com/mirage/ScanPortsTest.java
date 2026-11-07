@@ -78,7 +78,8 @@ class ScanPortsTest {
                     "decoy.telnet.port", String.valueOf(decoys.get(2).getLocalPort()),
                     "counterwatch.port", String.valueOf(counterWatch.getLocalPort())));
             List<String> lines = new ArrayList<>();
-            scanIn(Campaigns.recon(config)).run(new Target("127.0.0.1", 0), (level, text) -> lines.add(text));
+            // the scan probes its own port list; the target's port is only a (valid) placeholder
+            scanIn(Campaigns.recon(config)).run(new Target("127.0.0.1", 1), (level, text) -> lines.add(text));
 
             assertTrue(lines.contains("SCAN COMPLETE — 3 OPEN"), lines.toString());
             counterWatch.setSoTimeout(200);

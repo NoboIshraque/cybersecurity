@@ -49,7 +49,9 @@ public final class Attacker {
 
     public void launch(Campaign campaign, Target target, Duration stealthDelay) {
         guard.require(target.host()); // safety boundary, on the caller's thread
-        pool.submit(() -> runCampaign(campaign, target, stealthDelay));
+        // execute, not submit: anything that still escapes reaches the thread's uncaught-exception
+        // handler (printed) instead of being parked in a Future nobody reads (B-20).
+        pool.execute(() -> runCampaign(campaign, target, stealthDelay));
     }
 
     /**
@@ -61,7 +63,7 @@ public final class Attacker {
     public void launchConcurrent(Campaign campaign, Target target) {
         guard.require(target.host()); // safety boundary, before any thread starts
         for (AttackStrategy strategy : campaign.strategies()) {
-            pool.submit(() -> runOne(strategy, target, true));
+            pool.execute(() -> runOne(strategy, target, true));
         }
         logger.accept(campaign.strategies().size() + " strategies launched concurrently against "
                 + target.host() + ":" + target.port());
@@ -89,7 +91,17 @@ public final class Attacker {
         AttackTrace t = (level, text) ->
                 trace.line(channel, strategy.name(), target.host(), level, text);
         t.line(TraceLevel.INFO, "start " + strategy.name() + " -> " + where);
-        strategy.run(target, t);
+        try {
+            strategy.run(target, t);
+        } catch (RuntimeException e) {
+            // B-20: a bug in one strategy must end its shell visibly, not vanish in the pool.
+            String reason = e.getClass().getSimpleName()
+                    + (e.getMessage() == null ? "" : ": " + e.getMessage());
+            logger.accept(strategy.name() + " against " + where + " failed: " + reason);
+            t.line(TraceLevel.BAD, strategy.name() + " stopped by an error: " + reason);
+            t.line(TraceLevel.BANNER, "ERROR — " + strategy.name().toUpperCase() + " FAILED");
+            return;
+        }
         t.line(TraceLevel.INFO, strategy.name() + " finished");
     }
 

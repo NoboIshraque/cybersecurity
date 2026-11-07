@@ -111,7 +111,11 @@ public final class SpecterConsole extends JFrame {
         try {
             port = Integer.parseInt(portField.getText().trim());
         } catch (NumberFormatException e) {
-            log("invalid port");
+            log("invalid port: '" + portField.getText().trim() + "' is not a number");
+            return;
+        }
+        if (port < Target.MIN_PORT || port > Target.MAX_PORT) { // B-20: refuse before any shell opens
+            log("invalid port: " + port + " (must be " + Target.MIN_PORT + "-" + Target.MAX_PORT + ")");
             return;
         }
         boolean concurrent = concurrentBox.isSelected();

@@ -64,6 +64,8 @@ public final class CounterOffensive {
             } catch (SecurityException e) {
                 line = Instant.now() + "  REFUSED counter  →  " + sourceIp + "  (" + e.getMessage() + ")";
                 trace.line("op", "counter", sourceIp, TraceLevel.BAD, "REFUSED: " + e.getMessage());
+            } catch (IllegalArgumentException e) {
+                line = badTarget(sourceIp, e);
             }
         }
         log.add(line);
@@ -88,9 +90,17 @@ public final class CounterOffensive {
         } catch (SecurityException e) {
             line = Instant.now() + "  REFUSED counter  →  " + sourceIp + "  (" + e.getMessage() + ")";
             trace.line("op", "counter", sourceIp, TraceLevel.BAD, "REFUSED: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            line = badTarget(sourceIp, e);
         }
         log.add(line);
         return line;
+    }
+
+    /** The configured counter port is not a real port (B-20): say so instead of throwing at the operator. */
+    private String badTarget(String sourceIp, IllegalArgumentException e) {
+        trace.line("op", "counter", sourceIp, TraceLevel.BAD, "ERROR: bad counter target: " + e.getMessage());
+        return Instant.now() + "  ERROR counter  →  " + sourceIp + "  (" + e.getMessage() + ")";
     }
 
     public synchronized List<String> log() {
