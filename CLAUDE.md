@@ -56,18 +56,23 @@ single-machine demo on `127.0.0.1` (copy `mirage.properties.example` for two lap
 `docs/TWO-LAPTOP-SETUP.md`; demo script: `DEMO.md`.
 
 **GUI dry run:** `tools/screenshots/LiveDemoShot.java` runs the real Console + Sensor + Specter in
-one JVM, clicks through the whole demo, prints PASS/FAIL (27 checks) and regenerates
+one JVM, clicks through the whole demo, prints PASS/FAIL (28 checks) and regenerates
 `docs/screenshots/live-*.png`. Run it after any change to the shells, popups or responses (how-to
 in `tools/screenshots/README.md`).
 
-JDK 17+ (built on JDK 21), Maven 3.9+. Language level is `maven.compiler.release=17`.
+JDK 17+ (CI tests on JDK 17; newer JDKs work too), Maven 3.9+. Language level is
+`maven.compiler.release=17`.
+
+Optional passwords come from environment variables (`MIRAGE_LEDGER_PASSWORD`,
+`MIRAGE_DB_PASSWORD`, `MIRAGE_TLS_PASSWORD`); the README's table says what each one protects.
 
 > **Live shells & two-laptop demo** were built on branch `feature/live-shells` (draft PR to
 > `master`); the phase-by-phase log is `BUILD_LOG.md`.
 >
-> **Current work: stress-test fixes.** The ordered work list is `docs/stress-test/CHECKLIST.md`
-> (details in `A-security.md` / `B-robustness.md`); how to resume is at the top of `HANDOVER.md`.
-> Every fix needs a test that fails before and passes after, and ticks its checklist line.
+> **Stress-test fixes: done.** Every line of `docs/stress-test/CHECKLIST.md` is ticked (details
+> in `A-security.md` / `B-robustness.md`): 265 tests green, GUI dry run 28/28. Next: the real
+> two-laptop rehearsal, then mark PR #12 ready and merge it into `master`. Any later fix follows
+> the same rule: a test that fails before and passes after.
 
 ## Design patterns in use (keep extending these, don't bypass them)
 
@@ -81,10 +86,16 @@ JDK 17+ (built on JDK 21), Maven 3.9+. Language level is `maven.compiler.release
 
 ## How to extend (the common tasks)
 
-- **New decoy** → subclass `sensor.Decoy`, implement `interact()`, register it in `SensorMain`.
+- **New decoy** → subclass `sensor.Decoy`, implement `interact()` (and `feedFake()` for the
+  "Feed fake data" response; it falls back to `interact()`; lure files come from `sensor.Lures`),
+  register it in `SensorMain`.
 - **New detection rule** → implement `console.detection.DetectionRule`, add it to the rules
-  list in `ConsoleMain`, and add a unit test.
+  list in `ConsoleMain`, and add a unit test. Count "how many in a short time" through
+  `AttackerProfile`'s windowed counts (`common.WindowedDistinct`, windows in
+  `common.DetectionWindows`), not over the source's lifetime.
 - **New response** → implement `console.response.ResponseAction`, wire it into `ResponsePolicy`.
+  On the Sensor, `DefenceState` decides what a connection gets: block beats everything; between
+  tarpit and fake data, the one ordered last wins.
 - **New attack** → implement `specter.AttackStrategy` (only ever used via `Attacker`, which
   calls `ScopeGuard.require` first). Report every step through the `AttackTrace` and read the
   reply with `ProbeReply` so the shell shows an honest outcome (ACCEPTED / REJECTED / DROPPED =
@@ -101,7 +112,8 @@ JDK 17+ (built on JDK 21), Maven 3.9+. Language level is `maven.compiler.release
 - Keep `CorrelationEngine` the single mutator of profiles, the ledger and its per-source alert
   memory (thread-safety by confinement). Producers only enqueue (`resetAlerts` queues a request).
   Each rule alerts once per source and again only when its severity rises or the source is
-  unblocked.
+  unblocked. A second rule that finds the same ATT&CK technique is not alerted twice, and after
+  an unblock the rules judge only what the source did since.
 - Auto-response (`console.AutoResponse`) is **off** when the dashboard is up (the operator
   responds) and **on** when headless.
 - Add or update a JUnit test whenever you touch ledger logic, a detection rule, or ScopeGuard.
