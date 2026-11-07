@@ -130,7 +130,7 @@ macOS: allow Java when the application-firewall prompt appears. Linux with ufw:
    - `This host's LAN address: 192.168.0.107  (on the attacker laptop set console.host=...)`.
      It should match `console.host`. If it says `No LAN address inside the lab range`, then
      `lab.cidrs` doesn't cover this laptop's Wi-Fi address. Fix the range (step 4).
-   - `Connected to Console at 127.0.0.1:8443 as sensor-...`
+   - `[link] connected to Console at 127.0.0.1:8443 as sensor-...`
    - `Decoys listening: http-login:8081, ftp:8021, telnet:8023`
    - `Auto-response: OFF`. The dashboard opens and waits for the operator.
 2. **Laptop B**: test that it can reach the decoy before starting anything:
@@ -164,7 +164,7 @@ Tick **Auto-response** on the dashboard to have the Console respond instantly in
 | Specter connections time out | Firewall on A (step 6), a Java block rule, a Public network profile, or Wi-Fi client isolation (use a hotspot). |
 | Console prints the wrong LAN address | It prefers an address inside `lab.cidrs`. Check that the range matches your Wi-Fi network. |
 | `counter-watch could not bind :8080` | Something else uses 8080. Set `counterwatch.port` to a free port in **both** files. |
-| `Could not reach Console ...` on A | Another Console already holds 8443, or `console.port` differs. Close old Java windows and retry. |
+| `[link] Console at ... not reachable; retrying` on A | The Console isn't up yet or `console.port` differs. The Sensor keeps retrying and buffers events, and connects as soon as the Console is listening. |
 | `mirage.jar not found` | Build it (step 3) or copy it next to the script. |
 
 ## Safety

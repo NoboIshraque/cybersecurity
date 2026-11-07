@@ -5,7 +5,6 @@ import com.mirage.common.LabConfig;
 import com.mirage.common.TlsFactories;
 
 import javax.net.SocketFactory;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,37 +26,20 @@ public final class SensorMain {
         String sensorId = "sensor-" + InetAddress.getLocalHost().getHostName();
         DefenceState defence = new DefenceState();
 
-        SensorClient client = null;
-        try {
-            client = new SensorClient(sensorId, socketFactory(), consoleHost, consolePort);
-            final SensorClient link = client;
-            client.startReceiving(command -> { // active-defence commands from the Console
-                defence.apply(command);
-                System.out.println("[defence] applied " + command.type() + " " + command.targetIp());
-                try {
-                    link.sendAck(command); // lets the Console show "applied" in its shell
-                } catch (IOException e) {
-                    // link down; the command is still applied locally
-                }
-            });
-            System.out.println("Connected to Console at " + consoleHost + ":" + consolePort
-                    + " as " + sensorId);
-        } catch (IOException e) {
-            System.out.println("Could not reach Console at " + consoleHost + ":" + consolePort
-                    + " (" + e.getMessage() + "). Running decoys locally without reporting.");
-        }
-        final SensorClient reporter = client;
+        // Keeps (re)connecting in the background, so the Console may start later or restart (B-05).
+        SensorLink link = new SensorLink(sensorId, socketFactory(), consoleHost, consolePort,
+                command -> { // active-defence commands from the Console; the link ACKs each one
+                    defence.apply(command);
+                    System.out.println("[defence] applied " + command.type() + " " + command.targetIp());
+                });
+        System.out.println("Reporting to Console at " + consoleHost + ":" + consolePort + " as " + sensorId
+                + " (reconnects automatically).");
+        link.start();
 
         Consumer<AttackEvent> sink = event -> {
             System.out.println("[decoy] " + event.sourceIp() + " -> " + event.decoyType()
                     + " (" + event.action() + ") " + event.payload());
-            if (reporter != null) {
-                try {
-                    reporter.sendEvent(event);
-                } catch (IOException e) {
-                    // link down; keep serving
-                }
-            }
+            link.sendEvent(event); // buffered while the link is down
         };
 
         new FakeHttpLoginDecoy(config.httpDecoyPort()).start(sink, defence);
@@ -72,16 +54,13 @@ public final class SensorMain {
         new BaitFileWatcher(baitDir, sink).start();
         System.out.println("Watching bait files in " + baitDir.toAbsolutePath() + ".");
 
-        if (reporter != null) {
-            ScheduledExecutorService heartbeats = Executors.newSingleThreadScheduledExecutor();
-            heartbeats.scheduleAtFixedRate(() -> {
-                try {
-                    reporter.sendHeartbeat();
-                } catch (IOException e) {
-                    // link down
-                }
-            }, 0, 10, TimeUnit.SECONDS);
-        }
+        // Always scheduled: a heartbeat on a down link is a no-op, and the link heartbeats itself on connect.
+        ScheduledExecutorService heartbeats = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "sensor-heartbeat");
+            t.setDaemon(true);
+            return t;
+        });
+        heartbeats.scheduleAtFixedRate(link::sendHeartbeat, 10, 10, TimeUnit.SECONDS);
 
         System.out.println("Sensor running. Ctrl+C to stop.");
         Thread.currentThread().join();

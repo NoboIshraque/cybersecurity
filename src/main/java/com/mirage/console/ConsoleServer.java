@@ -17,6 +17,7 @@ import java.io.Writer;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -119,14 +120,19 @@ public final class ConsoleServer implements CommandSink {
                 new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = in.readLine()) != null) {
-                if (!line.isBlank()) {
+                if (line.isBlank()) {
+                    continue;
+                }
+                try {
                     route(conn, JsonCodec.decode(line));
+                } catch (RuntimeException e) {
+                    // One bad line is skipped; it must not cost the Sensor its link (B-13).
+                    trace.line("console", "rx", null, TraceLevel.WARN, "skipped an unreadable line from "
+                            + peer + ": " + abbreviate(line));
                 }
             }
         } catch (IOException e) {
             // Sensor disconnected
-        } catch (RuntimeException e) {
-            // malformed message; drop this connection
         } finally {
             connections.remove(conn);
             conn.closeQuietly();
@@ -142,7 +148,8 @@ public final class ConsoleServer implements CommandSink {
                         "sensor registered: " + message.sensorId());
             }
             conn.sensorId = message.sensorId();
-            registry.markSeen(message.sensorId(), message.timestamp());
+            registry.markSeen(message.sensorId(),
+                    message.timestamp() != null ? message.timestamp() : Instant.now());
         } else if (message.type() == MessageType.EVENT && message.event() != null) {
             Optional<String> problem = EventValidator.problem(message.event());
             if (problem.isPresent()) {
@@ -182,11 +189,19 @@ public final class ConsoleServer implements CommandSink {
         return connections.size();
     }
 
+    /** Stop accepting and close every Sensor link, so Sensors see the Console go away and reconnect. */
     public void stop() throws IOException {
         running = false;
         if (server != null) {
             server.close();
         }
+        for (Connection conn : connections) {
+            conn.closeQuietly();
+        }
         pool.shutdownNow();
+    }
+
+    private static String abbreviate(String line) {
+        return line.length() <= 80 ? line : line.substring(0, 80) + "…";
     }
 }

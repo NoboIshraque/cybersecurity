@@ -48,24 +48,35 @@ public final class SensorClient implements AutoCloseable {
 
     /** Start a background thread that applies each command the Console sends. */
     public void startReceiving(Consumer<ResponseCommand> handler) {
-        Thread t = new Thread(() -> receiveLoop(handler), "sensor-client-rx");
+        Thread t = new Thread(() -> {
+            try {
+                receive(handler);
+            } catch (IOException e) {
+                // link closed
+            }
+        }, "sensor-client-rx");
         t.setDaemon(true);
         t.start();
     }
 
-    private void receiveLoop(Consumer<ResponseCommand> handler) {
-        try (BufferedReader in = new BufferedReader(
-                new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = in.readLine()) != null) {
-                if (!line.isBlank()) {
-                    handler.accept(JsonCodec.decodeCommand(line));
-                }
+    /**
+     * Apply each command the Console sends, on the calling thread, until the link closes
+     * (returns) or fails (throws). A line that can't be decoded or applied is skipped, so one
+     * bad or newer-format command doesn't end the link (B-13).
+     */
+    public void receive(Consumer<ResponseCommand> handler) throws IOException {
+        BufferedReader in = new BufferedReader(
+                new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+        String line;
+        while ((line = in.readLine()) != null) {
+            if (line.isBlank()) {
+                continue;
             }
-        } catch (IOException e) {
-            // link closed
-        } catch (RuntimeException e) {
-            // malformed command; ignore
+            try {
+                handler.accept(JsonCodec.decodeCommand(line));
+            } catch (RuntimeException e) {
+                System.out.println("[link] skipped a command the Sensor could not apply: " + e.getMessage());
+            }
         }
     }
 
