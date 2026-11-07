@@ -110,14 +110,16 @@ New patterns used (and existing ones extended):
       STALLED=tarpit), so outcomes are honest.
 - [x] Tests: `TraceBusTest` (3), `AckCodecTest` (2), `StrategyOutcomeTest` (allow/block/tarpit). **65 green.**
 
-### Phase 3 — Shell window component
-- [ ] `ui.shell.ShellModel` (no GUI, testable): thread-safe paced queue, thread → colour map,
-      live thread states (running / waiting / done), banner events.
-- [ ] `ui.shell.ShellWindow` (Swing): black terminal pane, monospace, typed-out command lines,
-      thread-tagged colour lines, live thread strip, big banners, **split-pane mode** for
-      concurrent runs, speed slider, Save log.
-- [ ] Shared by both apps: one component, two colour themes (red/amber for Specter, blue/green for Console).
-- [ ] Tests: `ShellModelTest` (ordering, pacing, thread lanes, banners).
+### Phase 3 — Shell window component ✅
+- [x] `ui.shell.ShellModel` (no GUI, testable): paced FIFO (`poll(max)`), stable thread→colour map
+      (cycles a 6-colour palette), first-seen lane order, running/waiting/done state, banner flag.
+- [x] `ui.shell.ShellWindow` (Swing): dark terminal `JTextPane`, monospace, thread-tagged colour
+      lines, `$`-prompt command lines, live thread strip, big banners, **split-threads** view (one
+      pane per concurrent thread), speed slider, Save log / Clear.
+- [x] Shared by both apps in neutral `com.mirage.ui.shell`; `ShellTheme.console()` (blue/green) and
+      `ShellTheme.specter()` (red/amber).
+- [x] Tests: `ShellModelTest` (7) — order, batch pacing, colour stability+cycling, lanes, done-state,
+      concurrency, banners. **72 tests green.**
 
 ### Phase 4 — Decoy deception (the fake "inside")
 - [ ] `Decoy`: serve each connection on a bounded pool (keeps the template loop), so a tarpitted
@@ -186,3 +188,4 @@ New patterns used (and existing ones extended):
 | 2026-11-07 | 0 | Branch `feature/live-shells`; Maven Wrapper 3.3.2 → Maven 3.9.9; 48 tests green. |
 | 2026-11-07 | 1 | `LabConfig` + `ScopeGuard.requireLabRange` (private/loopback, ≥/16); entry points wired. 57 tests green. |
 | 2026-11-07 | 2 | `common.trace` (TraceBus) + ACK on the wire; Console & Specter emit honest step traces. 65 tests green. |
+| 2026-11-07 | 3 | `ui.shell` ShellModel + ShellWindow (themes, strip, banners, split view, speed). 72 tests green. |

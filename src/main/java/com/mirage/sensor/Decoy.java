@@ -9,6 +9,8 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.Instant;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
@@ -16,15 +18,22 @@ import java.util.function.Consumer;
  * supplies {@link #interact}. A {@link ConnectionGate} decides whether a source
  * is served normally, tarpitted (held and dripped one byte at a time), or blocked
  * (dropped immediately).
+ *
+ * <p>Each accepted connection is served on a small bounded pool, so a tarpitted
+ * client cannot stall the others and several simultaneous probes really run in
+ * parallel. The accept thread only accepts; it never does per-connection work.
  */
 public abstract class Decoy {
 
     private static final long TARPIT_DRIP_MS = 5000;
+    private static final int WORKERS = 12;
 
     protected final String type;
     protected final int port;
     private volatile boolean running;
     private volatile int boundPort = -1;
+    private final ExecutorService workers = Executors.newFixedThreadPool(WORKERS);
+    private ServerSocket server;
 
     protected Decoy(String type, int port) {
         this.type = type;
@@ -48,36 +57,46 @@ public abstract class Decoy {
     }
 
     public final void start(Consumer<AttackEvent> sink, ConnectionGate gate) throws IOException {
-        ServerSocket server = new ServerSocket(port); // port 0 binds an ephemeral port
+        this.server = new ServerSocket(port); // port 0 binds an ephemeral port
         this.boundPort = server.getLocalPort();
         this.running = true;
-        Thread t = new Thread(() -> acceptLoop(server, sink, gate), "decoy-" + type + "-" + boundPort);
+        Thread t = new Thread(() -> acceptLoop(sink, gate), "decoy-" + type + "-" + boundPort);
         t.setDaemon(true);
         t.start();
     }
 
-    private void acceptLoop(ServerSocket server, Consumer<AttackEvent> sink, ConnectionGate gate) {
+    private void acceptLoop(Consumer<AttackEvent> sink, ConnectionGate gate) {
         while (running) {
-            try (Socket socket = server.accept()) {
-                String src = ((InetSocketAddress) socket.getRemoteSocketAddress())
-                        .getAddress().getHostAddress();
-                int srcPort = socket.getPort();
-                ConnectionGate.Decision decision = gate.decide(src);
-
-                if (decision == ConnectionGate.Decision.BLOCK) {
-                    sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT, "blocked", Instant.now()));
-                    continue; // socket closed by try-with-resources -> dropped
-                }
-
-                sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT, "", Instant.now()));
-                if (decision == ConnectionGate.Decision.TARPIT) {
-                    tarpit(socket);
-                } else {
-                    interact(socket, src, srcPort, sink);
-                }
+            try {
+                Socket socket = server.accept();
+                workers.submit(() -> handle(socket, sink, gate)); // each connection on its own thread
             } catch (IOException e) {
-                // socket closed or decoy stopped; keep serving the next client
+                // server closed or decoy stopped; stop accepting
+                return;
             }
+        }
+    }
+
+    private void handle(Socket socket, Consumer<AttackEvent> sink, ConnectionGate gate) {
+        Thread.currentThread().setName("decoy-" + type + "-conn");
+        try (Socket s = socket) {
+            String src = ((InetSocketAddress) s.getRemoteSocketAddress()).getAddress().getHostAddress();
+            int srcPort = s.getPort();
+            ConnectionGate.Decision decision = gate.decide(src);
+
+            if (decision == ConnectionGate.Decision.BLOCK) {
+                sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT, "blocked", Instant.now()));
+                return; // socket closed by try-with-resources -> dropped
+            }
+
+            sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT, "", Instant.now()));
+            if (decision == ConnectionGate.Decision.TARPIT) {
+                tarpit(s);
+            } else {
+                interact(s, src, srcPort, sink);
+            }
+        } catch (IOException e) {
+            // socket closed or decoy stopped; this connection is done
         }
     }
 
@@ -98,6 +117,14 @@ public abstract class Decoy {
 
     public void stop() {
         running = false;
+        workers.shutdownNow();
+        try {
+            if (server != null) {
+                server.close(); // unblock accept()
+            }
+        } catch (IOException e) {
+            // already closed
+        }
     }
 
     protected AttackEvent event(String sourceIp, int sourcePort, Action action, String payload) {

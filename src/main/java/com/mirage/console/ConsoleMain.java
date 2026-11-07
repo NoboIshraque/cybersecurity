@@ -9,6 +9,7 @@ import com.mirage.common.TlsFactories;
 import com.mirage.console.db.Database;
 import com.mirage.console.detection.BaitFileRule;
 import com.mirage.console.detection.BruteForceRule;
+import com.mirage.console.detection.DecoyAccessRule;
 import com.mirage.console.detection.DetectionRule;
 import com.mirage.console.detection.HoneytokenUseRule;
 import com.mirage.console.detection.LateralMovementRule;
@@ -86,6 +87,7 @@ public final class ConsoleMain {
                 new BruteForceRule(),
                 new PasswordSprayRule(),
                 new HoneytokenUseRule(honeytokens),
+                new DecoyAccessRule(),
                 new BaitFileRule(),
                 new LateralMovementRule());
 
