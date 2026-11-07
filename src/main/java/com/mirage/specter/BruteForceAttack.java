@@ -2,9 +2,6 @@ package com.mirage.specter;
 
 import com.mirage.common.trace.TraceLevel;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -47,20 +44,15 @@ public final class BruteForceAttack implements AttackStrategy {
     }
 
     private ProbeReply.Outcome attempt(Target target, String user, String pass, AttackTrace trace) {
-        try (Socket socket = new Socket(target.host(), target.port())) {
-            String creds = Base64.getEncoder()
-                    .encodeToString((user + ":" + pass).getBytes(StandardCharsets.UTF_8));
-            String request = "GET / HTTP/1.0\r\nAuthorization: Basic " + creds + "\r\n\r\n";
-            OutputStream out = socket.getOutputStream();
-            out.write(request.getBytes(StandardCharsets.UTF_8));
-            out.flush();
-            ProbeReply reply = ProbeReply.read(socket, 1500);
-            trace.line(levelFor(reply.outcome), "try " + user + ":" + pass + "  ->  " + describe(reply));
-            return reply.outcome;
-        } catch (IOException e) {
-            trace.line(TraceLevel.BAD, "try " + user + ":" + pass + "  ->  connection failed");
-            return ProbeReply.Outcome.DROPPED;
-        }
+        ProbeReply reply = ProbeReply.probe(target, basicAuthRequest(user + ":" + pass), 1500);
+        trace.line(levelFor(reply.outcome), "try " + user + ":" + pass + "  ->  " + describe(reply));
+        return reply.outcome;
+    }
+
+    /** {@code GET /} with a Basic {@code Authorization} header for {@code credentials} ("user:pass"). */
+    static byte[] basicAuthRequest(String credentials) {
+        String encoded = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+        return ("GET / HTTP/1.0\r\nAuthorization: Basic " + encoded + "\r\n\r\n").getBytes(StandardCharsets.UTF_8);
     }
 
     static TraceLevel levelFor(ProbeReply.Outcome outcome) {
@@ -76,7 +68,7 @@ public final class BruteForceAttack implements AttackStrategy {
         return switch (reply.outcome) {
             case ACCEPTED -> "200 OK  ACCESS GRANTED";
             case REJECTED -> reply.firstLine.isEmpty() ? "rejected" : reply.firstLine;
-            case DROPPED -> "connection reset (blocked)";
+            case DROPPED -> reply.connectFailed() ? "connection failed" : "connection reset (blocked)";
             case NO_REPLY -> "closed without a reply (nothing answering)";
             case STALLED -> "no reply (tarpit)";
         };

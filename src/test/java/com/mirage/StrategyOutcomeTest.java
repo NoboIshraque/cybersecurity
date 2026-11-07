@@ -2,8 +2,11 @@ package com.mirage;
 
 import com.mirage.sensor.ConnectionGate;
 import com.mirage.sensor.FakeHttpLoginDecoy;
+import com.mirage.specter.AttackStrategy;
 import com.mirage.specter.AttackTrace;
 import com.mirage.specter.BruteForceAttack;
+import com.mirage.specter.HoneytokenReplayAttack;
+import com.mirage.specter.PasswordSprayAttack;
 import com.mirage.specter.Target;
 import org.junit.jupiter.api.Test;
 
@@ -44,6 +47,36 @@ class StrategyOutcomeTest {
         decoy.stop();
 
         assertTrue(lines.stream().anyMatch(l -> l.contains("blocked")), lines.toString());
+        assertTrue(lines.contains("BANNER CONNECTION BLOCKED"), lines.toString());
+    }
+
+    /**
+     * B-24: the outcome above depended on whether the decoy's reset beat the request. Every
+     * credential strategy must call it a block every time, so run each one many times.
+     */
+    @Test
+    void everyCredentialStrategySeesABlockEveryTime() throws Exception {
+        FakeHttpLoginDecoy decoy = new FakeHttpLoginDecoy(0);
+        decoy.start(e -> { }, sourceIp -> ConnectionGate.Decision.BLOCK);
+        try {
+            Target target = new Target("127.0.0.1", decoy.boundPort());
+            List<AttackStrategy> strategies = List.of(
+                    new BruteForceAttack("admin", List.of("x")),
+                    new PasswordSprayAttack(List.of("alice", "bob"), "Winter2026!"),
+                    new HoneytokenReplayAttack("svc_backup:S3cr3tBackup!"));
+            for (int run = 0; run < 25; run++) {
+                for (AttackStrategy strategy : strategies) {
+                    lines.clear();
+                    strategy.run(target, trace);
+                    assertTrue(lines.stream().noneMatch(l -> l.contains("connection failed")),
+                            strategy.name() + " run " + run + ": " + lines);
+                    assertTrue(lines.contains("BANNER CONNECTION BLOCKED"),
+                            strategy.name() + " run " + run + ": " + lines);
+                }
+            }
+        } finally {
+            decoy.stop();
+        }
     }
 
     @Test
