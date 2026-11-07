@@ -5,9 +5,6 @@ import com.mirage.console.ConsoleMain;
 import com.mirage.sensor.SensorMain;
 import com.mirage.specter.SpecterMain;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -53,26 +50,40 @@ public final class Launcher {
         }
     }
 
-    /** Console on a background thread, then (once it is listening) the Sensor on this one. */
-    private static void defender(String[] args) throws Exception {
-        LabConfig config = LabConfig.load(args);
-        Thread console = new Thread(() -> {
-            try {
-                ConsoleMain.main(args);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } catch (Exception e) {
-                System.err.println("Console stopped: " + e);
-            }
-        }, "console-main");
-        console.start();
+    /** One start-up step of a role; throws if that part of the role can't start. */
+    @FunctionalInterface
+    interface Step {
+        void run(String[] args) throws Exception;
+    }
 
-        if (!waitForPort(config.consolePort(), 20_000, console)) {
-            System.err.println("Console did not come up on port " + config.consolePort()
-                    + " (see the messages above); not starting the Sensor.");
-            System.exit(1);
+    private static void defender(String[] args) throws Exception {
+        int code = defender(args, ConsoleMain::start, SensorMain::start);
+        if (code != 0) {
+            System.exit(code); // also closes a dashboard that did open: the role is all or nothing
         }
-        SensorMain.main(sensorArgs(args));
+        Thread.currentThread().join();
+    }
+
+    /**
+     * Start the Console, and only once <em>it</em> is listening (its own bind succeeded, not
+     * merely "something answers on the port"), the Sensor. If either part can't start, the whole
+     * role fails with exit code 1 (B-10, B-31): no Sensor against a leftover Console, no
+     * Console with a Sensor that has no decoys.
+     */
+    static int defender(String[] args, Step console, Step sensor) {
+        try {
+            console.run(args);
+        } catch (Exception e) {
+            System.err.println("Defender not started: " + e.getMessage());
+            return 1;
+        }
+        try {
+            sensor.run(sensorArgs(args));
+        } catch (Exception e) {
+            System.err.println("Defender stopped: the Sensor could not start: " + e.getMessage());
+            return 1;
+        }
+        return 0;
     }
 
     /**
@@ -86,22 +97,6 @@ public final class Launcher {
         out.addAll(Arrays.asList(args));
         out.add("--console-host=127.0.0.1"); // last flag wins over anything the user passed
         return out.toArray(String[]::new);
-    }
-
-    private static boolean waitForPort(int port, long timeoutMillis, Thread owner) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + timeoutMillis;
-        while (System.currentTimeMillis() < deadline) {
-            if (!owner.isAlive()) {
-                return false; // the Console refused to start (e.g. an unsafe lab range)
-            }
-            try (Socket probe = new Socket()) {
-                probe.connect(new InetSocketAddress("127.0.0.1", port), 300);
-                return true;
-            } catch (IOException notYet) {
-                Thread.sleep(250);
-            }
-        }
-        return false;
     }
 
     private static void usage() {

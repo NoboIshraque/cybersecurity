@@ -22,6 +22,7 @@ import com.mirage.specter.Attacker;
 import javax.net.ServerSocketFactory;
 import javax.swing.SwingUtilities;
 import java.awt.GraphicsEnvironment;
+import java.net.BindException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -36,6 +37,22 @@ import java.util.concurrent.TimeUnit;
 public final class ConsoleMain {
 
     public static void main(String[] args) throws Exception {
+        try {
+            start(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage()); // an unsafe lab range: refuse, as before
+            return;
+        }
+        Thread.currentThread().join();
+    }
+
+    /**
+     * Wire and start the Console; returns the port it is listening on. Throws if it can't start
+     * (B-10): {@link IllegalArgumentException} for an unsafe lab range, {@link BindException}
+     * when the Console port is already taken, so a caller (the {@code defender} role) never
+     * mistakes someone else's listener on that port for its own Console.
+     */
+    public static int start(String[] args) throws Exception {
         System.out.println("Mirage Console starting...");
 
         LabConfig config = LabConfig.load(args);
@@ -44,8 +61,7 @@ public final class ConsoleMain {
         try {
             guard = config.scopeGuard(); // validates the lab range (private/loopback, /16..32)
         } catch (IllegalArgumentException e) {
-            System.err.println("Refusing to start: " + e.getMessage());
-            return;
+            throw new IllegalArgumentException("Refusing to start: " + e.getMessage(), e);
         }
         // Only advertise an address inside the lab range (skips VirtualBox / VPN adapters): an
         // address outside it could never be attacked or defended, so it would only mislead.
@@ -112,7 +128,15 @@ public final class ConsoleMain {
         engineThread.setDaemon(true);
         engineThread.start();
 
-        int port = server.start(config.consolePort());
+        int port;
+        try {
+            port = server.start(config.consolePort());
+        } catch (BindException e) {
+            BindException taken = new BindException("the Console can't listen on port " + config.consolePort()
+                    + " (" + e.getMessage() + "): is another Console or defender already running?");
+            taken.initCause(e);
+            throw taken;
+        }
         System.out.println("Console listening for Sensors on port " + port + ".");
 
         ScheduledExecutorService sweeper = Executors.newSingleThreadScheduledExecutor();
@@ -137,7 +161,7 @@ public final class ConsoleMain {
         }
 
         System.out.println("Correlation engine running with " + rules.size() + " rules. Ctrl+C to stop.");
-        Thread.currentThread().join();
+        return port;
     }
 
     /** TLS when a keystore is configured (-Dmirage.keystore=...), otherwise plain sockets. */
