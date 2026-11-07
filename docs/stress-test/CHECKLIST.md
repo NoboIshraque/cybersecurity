@@ -55,7 +55,7 @@ are merged into one line. Fix the waves in order.
 - [x] **LOW** · [B-32](B-robustness.md) — Mistyped flags are silently ignored; ports aren't range-checked.
 - [x] **LOW** · [B-33](B-robustness.md) — Smaller concurrency/robustness notes from code reading (SUSPECTED).
 - [x] **INFO** · [A-09](A-security.md) — No secrets committed; add a CI guard to keep it that way.
-- [ ] **INFO** · [B-27](B-robustness.md) — The shaded jar runs every role correctly (no action needed).
+- [x] **INFO** · [B-27](B-robustness.md) — The shaded jar runs every role correctly (no action needed).
 
 - Not covered by either review: a dependency CVE scan, IPv6, and the real two-laptop network
   (both reviews ran on 127.0.0.1 only).
