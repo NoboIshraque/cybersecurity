@@ -17,8 +17,7 @@ public final class DecoyAccessRule implements DetectionRule {
 
     @Override
     public Optional<Classification> classify(AttackerProfile profile) {
-        boolean inside = profile.events().stream()
-                .anyMatch(e -> e.action() == Action.DECOY_ACCESS);
+        boolean inside = profile.count(Action.DECOY_ACCESS) > 0;
         return inside
                 ? Optional.of(new Classification(
                         "Intruder inside decoy (honeypot session)", "T1078", Severity.CRITICAL))

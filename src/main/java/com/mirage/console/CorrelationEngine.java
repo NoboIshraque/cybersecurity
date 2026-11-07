@@ -115,7 +115,7 @@ public final class CorrelationEngine implements Runnable {
         directory.update(profile); // publish an immutable snapshot for the dashboard
         trace.line("console", "engine", event.sourceIp(), TraceLevel.INFO,
                 "dequeued " + event.decoyType() + " " + event.action() + " from " + event.sourceIp()
-                        + "  (profile: " + profile.events().size() + " events"
+                        + "  (profile: " + profile.eventCount() + " events"
                         + (stored ? ", saved to H2)" : ", NOT saved to H2)"));
 
         applyResets();

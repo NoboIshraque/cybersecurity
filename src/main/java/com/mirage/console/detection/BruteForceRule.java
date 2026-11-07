@@ -10,10 +10,7 @@ public final class BruteForceRule implements DetectionRule {
 
     @Override
     public Optional<Classification> classify(AttackerProfile profile) {
-        long attempts = profile.events().stream()
-                .filter(e -> e.action() == Action.LOGIN_ATTEMPT)
-                .count();
-        if (attempts >= THRESHOLD) {
+        if (profile.count(Action.LOGIN_ATTEMPT) >= THRESHOLD) { // lifetime counter, O(1) (B-02)
             return Optional.of(new Classification(
                     "Credential brute-force", "T1110", Severity.HIGH));
         }

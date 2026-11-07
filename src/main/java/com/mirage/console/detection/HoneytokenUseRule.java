@@ -1,7 +1,6 @@
 package com.mirage.console.detection;
 
 import com.mirage.common.Action;
-import com.mirage.common.AttackEvent;
 import com.mirage.common.AttackerProfile;
 import com.mirage.common.Classification;
 import com.mirage.common.Severity;
@@ -24,15 +23,12 @@ public final class HoneytokenUseRule implements DetectionRule {
 
     @Override
     public Optional<Classification> classify(AttackerProfile profile) {
-        for (AttackEvent e : profile.events()) {
-            boolean explicit = e.action() == Action.HONEYTOKEN_USE;
-            boolean matched = e.action() == Action.LOGIN_ATTEMPT
-                    && store.match(e.payload()).isPresent();
-            if (explicit || matched) {
-                return Optional.of(new Classification(
-                        "Stolen credentials used (honeytoken)", "T1078", Severity.CRITICAL));
-            }
-        }
-        return Optional.empty();
+        // One lookup per planted token in the source's set of tried credentials (B-02).
+        boolean used = profile.count(Action.HONEYTOKEN_USE) > 0
+                || store.all().stream().anyMatch(t -> profile.triedCredentials(t.credentials()));
+        return used
+                ? Optional.of(new Classification(
+                        "Stolen credentials used (honeytoken)", "T1078", Severity.CRITICAL))
+                : Optional.empty();
     }
 }

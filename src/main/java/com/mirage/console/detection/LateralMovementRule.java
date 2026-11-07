@@ -1,6 +1,5 @@
 package com.mirage.console.detection;
 
-import com.mirage.common.AttackEvent;
 import com.mirage.common.AttackerProfile;
 import com.mirage.common.Classification;
 import com.mirage.common.Severity;
@@ -17,12 +16,7 @@ public final class LateralMovementRule implements DetectionRule {
 
     @Override
     public Optional<Classification> classify(AttackerProfile profile) {
-        long sensors = profile.events().stream()
-                .map(AttackEvent::sensorId)
-                .filter(s -> s != null && !s.isBlank())
-                .distinct()
-                .count();
-        return sensors >= DISTINCT_SENSORS
+        return profile.sensors().size() >= DISTINCT_SENSORS // distinct reporting Sensors (B-02)
                 ? Optional.of(new Classification(
                         "Multi-host activity (lateral movement)", "T1021", Severity.HIGH))
                 : Optional.empty();

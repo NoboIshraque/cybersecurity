@@ -34,8 +34,10 @@ public final class AttackerDossier {
 
     public static AttackerDossier from(AttackerSnapshot snapshot) {
         AttackerDossier d = new AttackerDossier(snapshot.sourceIp());
+        // Lifetime totals come from the snapshot; the lists below cover its recent history.
+        d.eventCount = (int) Math.min(Integer.MAX_VALUE, snapshot.totalEvents());
+        d.firstSeen = snapshot.firstSeen();
         for (AttackEvent e : snapshot.events()) {
-            d.eventCount++;
             if (d.firstSeen == null || e.timestamp().isBefore(d.firstSeen)) {
                 d.firstSeen = e.timestamp();
             }
