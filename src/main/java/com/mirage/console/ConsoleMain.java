@@ -4,6 +4,7 @@ import com.mirage.common.AttackEvent;
 import com.mirage.common.Honeytoken;
 import com.mirage.common.LabConfig;
 import com.mirage.common.ScopeGuard;
+import com.mirage.common.trace.TraceBacklog;
 import com.mirage.common.trace.TraceBus;
 import com.mirage.common.trace.TraceLevel;
 import com.mirage.common.LinkSecurity;
@@ -193,6 +194,15 @@ public final class ConsoleMain {
         System.out.println("Auto-response: " + (headless ? "ON (headless, no operator)"
                 : "OFF - the operator responds from the dashboard / threat popups"));
 
+        // B-33: the dashboard is built later, on the Swing thread, after the Console is already
+        // listening. Hold what is raised until then, so the feed and popups miss nothing.
+        AlertBacklog alertBacklog = new AlertBacklog(1000);
+        TraceBacklog traceBacklog = new TraceBacklog(5000);
+        if (!headless) {
+            bus.subscribe(alertBacklog);
+            trace.subscribe(traceBacklog);
+        }
+
         CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence, directory);
         engine.setTrace(trace);
         engine.setAutoResponse(autoResponse);
@@ -228,11 +238,11 @@ public final class ConsoleMain {
         if (headless) {
             System.out.println("Headless: dashboard not shown (console logging only).");
         } else {
-            LiveOptions live = new LiveOptions(trace, autoResponse, consoleAddress);
+            LiveOptions live = new LiveOptions(trace, autoResponse, consoleAddress, traceBacklog);
             SwingUtilities.invokeLater(() -> {
-                // The dashboard subscribes the threat popups, operation shells and pipeline shell to the TraceBus.
+                // The popups, operation shells and pipeline shell read the trace backlog (subscribed above).
                 Dashboard dashboard = new Dashboard(ledger, server::connectionCount, directory, responses, counter, live);
-                bus.subscribe(dashboard::onAlert);
+                alertBacklog.attach(dashboard::onAlert); // the alerts raised so far, then live ones
                 dashboard.setVisible(true);
             });
             System.out.println("Dashboard opening.");

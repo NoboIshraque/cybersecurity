@@ -162,6 +162,7 @@ public final class SpecterConsole extends JFrame {
             @Override
             public void windowClosed(WindowEvent e) {
                 attacker.shutdown();
+                shell.close(); // B-33: stop the shell's 45 ms timer with its window
             }
         });
         return frame;

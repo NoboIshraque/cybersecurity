@@ -72,7 +72,7 @@ public final class Dashboard extends JFrame {
     private final transient OperationRunner runner;
     private final transient ThreatTracker threats = new ThreatTracker();
     private final transient Map<String, Classification> latestTechnique = new HashMap<>();
-    private final transient Map<String, ThreatPopup> popups = new HashMap<>();
+    private final transient Map<String, ThreatPopup> popups = boundedPopups(MAX_POPUPS, ThreatPopup::dispose);
     private final transient Map<String, String> latestReason = new HashMap<>();
 
     private final AlertTableModel model = new AlertTableModel();
@@ -109,8 +109,12 @@ public final class Dashboard extends JFrame {
         this.responses = responses;
         this.live = live == null ? LiveOptions.none() : live;
         if (this.live.trace() != null) {
-            backlog = new TraceBacklog(5000);
-            this.live.trace().subscribe(backlog);
+            if (this.live.backlog() != null) {
+                backlog = this.live.backlog(); // subscribed since start-up (B-33)
+            } else {
+                backlog = new TraceBacklog(5000);
+                this.live.trace().subscribe(backlog);
+            }
             runner = new OperationShells(backlog, this::perform);
             // A Sensor's ACK of a BLOCK neutralises the source (receive thread -> Swing thread).
             backlog.attach(this::onTrace, false);
@@ -130,6 +134,36 @@ public final class Dashboard extends JFrame {
             case COUNTER -> counterFor(sourceIp);
             case COUNTER_ALL -> counterAllFor(sourceIp);
             default -> responses.issue(operation.command(), sourceIp);
+        };
+    }
+
+    /**
+     * What a counter-attack mirrors for a source (B-33): its most severe finding, the latest one
+     * on a tie. A later port scan must not turn a honeytoken-replay counter into a scan.
+     */
+    static Classification counterPick(Classification current, Classification incoming) {
+        return current == null || incoming.severity().ordinal() >= current.severity().ordinal()
+                ? incoming : current;
+    }
+
+    /** Most threat popups open at once; past this the least recently escalated one is closed. */
+    static final int MAX_POPUPS = 12;
+
+    /**
+     * A map that keeps at most {@code max} entries, ordered by use (put or get), and hands the
+     * least recently used one to {@code onEvict} when a new one would go past the cap (B-33: one
+     * popup per source, with its frame and shell timer, used to be kept for ever).
+     */
+    static <V> Map<String, V> boundedPopups(int max, java.util.function.Consumer<V> onEvict) {
+        return new java.util.LinkedHashMap<>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, V> eldest) {
+                if (size() > max) {
+                    onEvict.accept(eldest.getValue());
+                    return true;
+                }
+                return false;
+            }
         };
     }
 
@@ -216,7 +250,8 @@ public final class Dashboard extends JFrame {
     /** Called from the engine thread via the AlertBus; hops onto the EDT. */
     public void onAlert(Alert alert) {
         synchronized (latestTechnique) {
-            latestTechnique.put(alert.sourceIp(), alert.classification());
+            latestTechnique.put(alert.sourceIp(),
+                    counterPick(latestTechnique.get(alert.sourceIp()), alert.classification()));
         }
         // Track the level on the engine thread, before any response is dispatched, so a
         // fast Sensor ACK can never overtake the alert that caused it.

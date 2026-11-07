@@ -5,8 +5,9 @@ import com.mirage.common.trace.TraceLevel;
 import com.mirage.common.trace.TraceSink;
 
 import java.time.Duration;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -24,7 +25,14 @@ public final class Attacker {
 
     private final ScopeGuard guard;
     private final Consumer<String> logger;
-    private final ExecutorService pool = Executors.newFixedThreadPool(16);
+    /** How long an idle attack thread waits for more work before it exits (B-33). */
+    public static final Duration IDLE_THREAD_TIMEOUT = Duration.ofSeconds(30);
+
+    /**
+     * Up to 16 attack threads. B-33: they are daemons and exit when idle, so the Attacker that
+     * each Specter launch creates can't pile up live threads that keep the JVM running.
+     */
+    private final ThreadPoolExecutor pool;
     private volatile TraceSink trace = TraceSink.NONE;
     private volatile String channel = "attack";
 
@@ -33,8 +41,19 @@ public final class Attacker {
     }
 
     public Attacker(ScopeGuard guard, Consumer<String> logger) {
+        this(guard, logger, IDLE_THREAD_TIMEOUT);
+    }
+
+    public Attacker(ScopeGuard guard, Consumer<String> logger, Duration idleThreadTimeout) {
         this.guard = guard;
         this.logger = logger;
+        this.pool = new ThreadPoolExecutor(16, 16, idleThreadTimeout.toMillis(), TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(), r -> {
+                    Thread t = new Thread(r, "attacker");
+                    t.setDaemon(true);
+                    return t;
+                });
+        pool.allowCoreThreadTimeOut(true);
     }
 
     /** Send per-step traces to {@code trace} under {@code channel} (default: none / "attack"). */

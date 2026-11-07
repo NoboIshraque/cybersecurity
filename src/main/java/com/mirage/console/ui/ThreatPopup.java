@@ -39,6 +39,8 @@ public final class ThreatPopup extends JFrame {
 
     private final String sourceIp;
     private final ShellWindow shell;
+    private final TraceBacklog backlog;
+    private final java.util.function.Consumer<com.mirage.common.trace.TraceEvent> feed;
     private final JPanel bannerPanel = new JPanel(new GridLayout(2, 1, 0, 2));
     private final JLabel banner = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel why = new JLabel(" ", SwingConstants.CENTER);
@@ -71,7 +73,17 @@ public final class ThreatPopup extends JFrame {
         add(buildActions(runner, inspect), BorderLayout.SOUTH);
 
         setSize(920, 600);
-        backlog.attach(shell::onTrace, true); // the lines that led to this popup, then live ones
+        this.backlog = backlog;
+        this.feed = shell::onTrace;
+        backlog.attach(feed, true); // the lines that led to this popup, then live ones
+    }
+
+    /** Closed for good (the dashboard keeps a bounded number, B-33): stop the shell and its feed. */
+    @Override
+    public void dispose() {
+        backlog.detach(feed);
+        shell.close();
+        super.dispose();
     }
 
     private JPanel buildActions(OperationRunner runner, Consumer<String> inspect) {

@@ -244,15 +244,26 @@ public final class ConsoleServer implements CommandSink {
     }
 
     private void acceptLoop() {
+        long backoff = 0;
         while (running) {
             Socket socket;
             try {
                 socket = server.accept();
+                backoff = 0;
             } catch (IOException e) {
-                if (server.isClosed()) {
+                if (server.isClosed() || !running) {
                     return;
                 }
-                continue; // transient error
+                // B-33: a lasting error (e.g. out of file handles) must not spin a core at 100 %:
+                // wait 50 ms, doubling up to 1 s, before trying again.
+                backoff = backoff == 0 ? 50 : Math.min(1000, backoff * 2);
+                try {
+                    Thread.sleep(backoff);
+                } catch (InterruptedException stop) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                continue;
             }
             if (open.incrementAndGet() > maxConnections) {
                 open.decrementAndGet();
@@ -395,17 +406,16 @@ public final class ConsoleServer implements CommandSink {
     @Override
     public void broadcast(ResponseCommand command) {
         String line = JsonCodec.encode(command);
-        int sent = 0;
+        // Traced before anything is sent (B-33), so no Sensor's ACK can overtake it: the threat
+        // tracker uses this line to tell a current block from one already lifted.
+        trace.line("console", "dispatch", command.targetIp(), TraceLevel.INFO,
+                "broadcast " + command.type() + " " + command.targetIp() + " to " + connections.size() + " sensor(s)");
         for (Connection conn : connections) {
-            if (conn.offer(line)) { // never blocks: each Sensor has its own outbox and writer (B-15)
-                sent++;
-            } else {
+            if (!conn.offer(line)) { // never blocks: each Sensor has its own outbox and writer (B-15)
                 trace.line("console", "dispatch", command.targetIp(), TraceLevel.WARN, "dropped the link to "
                         + describe(conn) + ": " + OUTBOX + " commands waiting, it stopped reading");
             }
         }
-        trace.line("console", "dispatch", command.targetIp(), TraceLevel.INFO,
-                "broadcast " + command.type() + " " + command.targetIp() + " to " + sent + " sensor(s)");
     }
 
     public int connectionCount() {
