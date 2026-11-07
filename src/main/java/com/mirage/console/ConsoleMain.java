@@ -5,7 +5,7 @@ import com.mirage.common.Honeytoken;
 import com.mirage.common.LabConfig;
 import com.mirage.common.ScopeGuard;
 import com.mirage.common.trace.TraceBus;
-import com.mirage.common.TlsFactories;
+import com.mirage.common.LinkSecurity;
 import com.mirage.console.db.Database;
 import com.mirage.console.detection.BaitFileRule;
 import com.mirage.console.detection.BruteForceRule;
@@ -19,11 +19,9 @@ import com.mirage.console.ui.Dashboard;
 import com.mirage.console.ui.LiveOptions;
 import com.mirage.specter.Attacker;
 
-import javax.net.ServerSocketFactory;
 import javax.swing.SwingUtilities;
 import java.awt.GraphicsEnvironment;
 import java.net.BindException;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -63,6 +61,14 @@ public final class ConsoleMain {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Refusing to start: " + e.getMessage(), e);
         }
+        // A-02: plain text on 127.0.0.1 only, or mutual TLS; a broken TLS set-up refuses to start.
+        LinkSecurity link;
+        try {
+            link = LinkSecurity.fromEnvironment();
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Refusing to start: " + e.getMessage(), e);
+        }
+        System.out.println("Sensor link: " + link.describe() + ".");
         // Only advertise an address inside the lab range (skips VirtualBox / VPN adapters): an
         // address outside it could never be attacked or defended, so it would only mislead.
         java.util.Optional<String> lanIp = LabConfig.primaryLanIp(guard::isAuthorised)
@@ -88,7 +94,8 @@ public final class ConsoleMain {
 
         BlockingQueue<AttackEvent> events = new LinkedBlockingQueue<>();
         SensorRegistry registry = new SensorRegistry();
-        ConsoleServer server = new ConsoleServer(serverSocketFactory(), events, registry);
+        ConsoleServer server = new ConsoleServer(link.serverFactory(), events, registry)
+                .setBindAddress(link.bindAddress());
         server.setTrace(trace);
         AttackerDirectory directory = new AttackerDirectory();
 
@@ -162,23 +169,5 @@ public final class ConsoleMain {
 
         System.out.println("Correlation engine running with " + rules.size() + " rules. Ctrl+C to stop.");
         return port;
-    }
-
-    /** TLS when a keystore is configured (-Dmirage.keystore=...), otherwise plain sockets. */
-    private static ServerSocketFactory serverSocketFactory() {
-        String keystore = System.getProperty("mirage.keystore");
-        if (keystore != null) {
-            char[] password = System.getProperty("mirage.keystore.password", "changeit").toCharArray();
-            try {
-                ServerSocketFactory factory = TlsFactories.serverFactory(Path.of(keystore), password);
-                System.out.println("TLS enabled (keystore " + keystore + ").");
-                return factory;
-            } catch (RuntimeException e) {
-                System.out.println("TLS keystore failed (" + e.getMessage() + "); using plain sockets.");
-            }
-        } else {
-            System.out.println("TLS not configured (set -Dmirage.keystore=...); using plain sockets.");
-        }
-        return ServerSocketFactory.getDefault();
     }
 }

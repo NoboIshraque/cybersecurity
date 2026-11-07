@@ -74,6 +74,40 @@ public final class TlsFactories {
         }
     }
 
+    /**
+     * Mutual TLS for the lab (A-02, A-03): this side presents the keystore's key and
+     * certificate, and trusts <em>only</em> the certificates in that same keystore (pinned; no
+     * system CAs). Console and Sensor load the same lab keystore, so each proves itself to the
+     * other and nobody without it gets in.
+     */
+    public static SSLContext mutualContext(Path keystore, char[] password) {
+        try {
+            KeyStore ks = load(keystore, password);
+            KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            kmf.init(ks, password);
+            KeyStore pinned = KeyStore.getInstance("PKCS12");
+            pinned.load(null, null);
+            Enumeration<String> aliases = ks.aliases();
+            while (aliases.hasMoreElements()) {
+                String alias = aliases.nextElement();
+                Certificate cert = ks.getCertificate(alias);
+                if (cert != null) {
+                    pinned.setCertificateEntry(alias, cert);
+                }
+            }
+            if (pinned.size() == 0) {
+                throw new IllegalStateException("the keystore holds no certificate");
+            }
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(pinned);
+            SSLContext ctx = SSLContext.getInstance("TLS");
+            ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+            return ctx;
+        } catch (Exception e) {
+            throw new IllegalStateException("could not build the lab TLS context from " + keystore, e);
+        }
+    }
+
     private static SSLSocketFactory clientFactory(KeyStore truststore) throws Exception {
         TrustManagerFactory tmf =
                 TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());

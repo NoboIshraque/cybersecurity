@@ -175,3 +175,8 @@ The range in `mirage.properties` is the only thing either side can touch. Every 
 and every Console response or counter goes through `ScopeGuard`, which refuses any address
 outside it. The decoy's "admin page" is fixed text with nothing real behind it. The
 counter-watch only accepts and logs; it never sends anything back.
+
+The Console–Sensor link stays on Laptop A: the defender's Console listens on `127.0.0.1` only,
+so nothing on the network can pose as a Sensor (there is no firewall rule for 8443, and none is
+needed). To run a Sensor on a different machine, set up the lab keystore in
+[`certs/README.md`](../certs/README.md); the link is then mutual TLS.

@@ -97,6 +97,14 @@ public final class ConsoleServer implements CommandSink {
         return this;
     }
 
+    private volatile java.net.InetAddress bindAddress;
+
+    /** Listen only on this address ({@code null}: every interface). Call before {@link #start}. */
+    public ConsoleServer setBindAddress(java.net.InetAddress address) {
+        this.bindAddress = address;
+        return this;
+    }
+
     /** Override the idle timeout. Call before {@link #start}. */
     public ConsoleServer setIdleTimeout(Duration timeout) {
         this.idleTimeout = Objects.requireNonNull(timeout);
@@ -116,7 +124,8 @@ public final class ConsoleServer implements CommandSink {
     }
 
     public int start(int port) throws IOException {
-        server = socketFactory.createServerSocket(port);
+        server = bindAddress == null ? socketFactory.createServerSocket(port)
+                : socketFactory.createServerSocket(port, 50, bindAddress); // A-02: loopback unless TLS
         // One rx thread per link, never more than the cap (A-01: was an unbounded cached pool).
         pool = Executors.newFixedThreadPool(maxConnections, r -> {
             Thread t = new Thread(r, "rx");

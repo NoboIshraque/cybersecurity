@@ -2,7 +2,7 @@ package com.mirage.sensor;
 
 import com.mirage.common.AttackEvent;
 import com.mirage.common.LabConfig;
-import com.mirage.common.TlsFactories;
+import com.mirage.common.LinkSecurity;
 
 import javax.net.SocketFactory;
 import java.io.IOException;
@@ -20,7 +20,12 @@ import java.util.function.Consumer;
 public final class SensorMain {
 
     public static void main(String[] args) throws Exception {
-        start(args);
+        try {
+            start(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println("Refusing to start: " + e.getMessage()); // e.g. a remote Console without TLS
+            return;
+        }
         System.out.println("Sensor running. Ctrl+C to stop.");
         Thread.currentThread().join();
     }
@@ -41,12 +46,21 @@ public final class SensorMain {
         String sensorId = "sensor-" + InetAddress.getLocalHost().getHostName();
         DefenceState defence = new DefenceState();
 
+        // A-02 / A-03: plain text only to a Console on this machine, otherwise mutual TLS pinned to
+        // the lab certificate, so no impostor can give this Sensor orders. Checked before any decoy binds.
+        LinkSecurity security = LinkSecurity.fromEnvironment();
+        SocketFactory factory = security.clientFactory(consoleHost);
+        String origin = "the Console at " + consoleHost + ":" + consolePort
+                + (security.isTls() ? ", TLS-verified" : ", this machine");
+        System.out.println("Console link: " + security.describe() + ".");
+
         // Keeps (re)connecting in the background, so the Console may start later or restart (B-05).
         // Created now so the decoys can report into it; it only connects once start() is called.
-        SensorLink link = new SensorLink(sensorId, socketFactory(), consoleHost, consolePort,
+        SensorLink link = new SensorLink(sensorId, factory, consoleHost, consolePort,
                 command -> { // active-defence commands from the Console; the link ACKs each one
                     defence.apply(command);
-                    System.out.println("[defence] applied " + command.type() + " " + command.targetIp());
+                    System.out.println("[defence] applied " + command.type() + " " + command.targetIp()
+                            + " (from " + origin + ")");
                 });
 
         Consumer<AttackEvent> sink = event -> {
@@ -113,21 +127,5 @@ public final class SensorMain {
             started.add(decoy);
         }
         return List.copyOf(started);
-    }
-
-    /** TLS when a truststore is configured (-Dmirage.truststore=...), otherwise plain sockets. */
-    private static SocketFactory socketFactory() {
-        String truststore = System.getProperty("mirage.truststore");
-        if (truststore != null) {
-            char[] password = System.getProperty("mirage.truststore.password", "changeit").toCharArray();
-            try {
-                SocketFactory factory = TlsFactories.clientFactory(Path.of(truststore), password);
-                System.out.println("TLS enabled (truststore " + truststore + ").");
-                return factory;
-            } catch (RuntimeException e) {
-                System.out.println("TLS truststore failed (" + e.getMessage() + "); using plain sockets.");
-            }
-        }
-        return SocketFactory.getDefault();
     }
 }

@@ -35,7 +35,8 @@ a one-jar launcher for a two-laptop demo. A stress test then produced a fix list
 
 ## Architecture (in one line)
 
-Sensors host decoys and report over TLS to the Console, which classifies and responds;
+Sensors host decoys and report to the Console (over 127.0.0.1 on one machine, or mutual TLS
+between machines: see [`certs/README.md`](certs/README.md)), which classifies and responds;
 Specter attacks the decoys from inside the lab range. Both sides narrate every step into live
 process shells (one pane per thread when work runs concurrently). Full design, with diagrams, is in the
 proposal document (link in `HANDOVER.md`).

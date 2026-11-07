@@ -28,7 +28,7 @@ are merged into one line. Fix the waves in order.
 ## Wave 2 — trust, integrity and correctness
 
 - [x] **HIGH** · [B-02](B-robustness.md) — Detection is O(n²) per source (every event rescans and copies the whole history): a 12k-event flood delayed another source's CRITICAL alert from about 0.12 s to 10 s. *Incremental rule state or a sliding window; cap per-profile history.*
-- [ ] **MEDIUM** · [A-02](A-security.md) + [A-03](A-security.md) — TLS is optional, server-only, falls back to plaintext on a keystore error, and defaults to `changeit`; a Sensor obeys any host on the Console address. *TLS on by default in the scripts, fail closed, no default password, pinned lab CA.*
+- [x] **MEDIUM** · [A-02](A-security.md) + [A-03](A-security.md) — TLS is optional, server-only, falls back to plaintext on a keystore error, and defaults to `changeit`; a Sensor obeys any host on the Console address. *TLS on by default in the scripts, fail closed, no default password, pinned lab CA.*
 - [ ] **MEDIUM** · [A-06](A-security.md) + [B-30](B-robustness.md) — Ledger signing key regenerated each start and never saved; the persisted chain restarts at genesis; 5 schema tables are never written. *Persist the key, continue the chain from the DB, verify on start-up; trim or populate the unused tables.*
 - [ ] **MEDIUM** · [B-15](B-robustness.md) — A Sensor that stops reading blocks `broadcast` forever, stalling the engine, the operator buttons and every other Sensor. *Per-connection send queue with a timeout; drop slow peers.*
 - [ ] **MEDIUM** · [B-14](B-robustness.md) — Liveness uses the Sensor's own clock, so a skewed laptop gets false "possible tamper" warnings. *Use the Console's receive time.*
