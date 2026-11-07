@@ -113,6 +113,9 @@ public class LiveDemoShot {
 
         click(popup(), "Feed fake data");
         check("feed fake data: sensor ACK", waitText(defence, "confirms: FEED_FAKE", 15_000));
+        // B-09: fake data replaces the tarpit, so a wrong password is now let "in" to the lures
+        JFrame fooled = launch("Brute force", false, "127.0.0.1");
+        check("specter after fake data: ACCESS GRANTED (fake files)", waitText(fooled, "ACCESS GRANTED", 15_000));
 
         click(popup(), "Block");
         check("block: sensor ACK in op shell", waitText(defence, "confirms: BLOCK", 15_000));

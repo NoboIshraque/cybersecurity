@@ -27,9 +27,9 @@ import java.util.function.Consumer;
 
 /**
  * Template Method: the accept-observe-interact loop is fixed here; each subclass
- * supplies {@link #interact}. A {@link ConnectionGate} decides whether a source
- * is served normally, tarpitted (held and dripped one byte at a time), or blocked
- * (dropped immediately).
+ * supplies {@link #interact} (and may supply {@link #feedFake}). A {@link ConnectionGate}
+ * decides whether a source is served normally, fed fake data (let in and shown lures),
+ * tarpitted (held and dripped one byte at a time), or blocked (dropped immediately).
  *
  * <p>No client can hold the decoy hostage (B-06, B-07, A-04), within {@link DecoyLimits}:
  * <ul>
@@ -163,18 +163,23 @@ public abstract class Decoy {
         }
         // Reported before it waits for a worker, so even a queued connection is seen.
         sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT, "", Instant.now()));
+        boolean fake = decision == ConnectionGate.Decision.FEED_FAKE;
         try {
-            workers.execute(() -> serve(socket, src, srcPort, sink));
+            workers.execute(() -> serve(socket, src, srcPort, sink, fake));
         } catch (RejectedExecutionException e) {
             release(src);
             refuse(socket, src, srcPort, sink, "refused: decoy busy");
         }
     }
 
-    private void serve(Socket socket, String src, int srcPort, Consumer<AttackEvent> sink) {
+    private void serve(Socket socket, String src, int srcPort, Consumer<AttackEvent> sink, boolean fake) {
         try (Socket s = socket) {
             s.setSoTimeout((int) Math.min(Integer.MAX_VALUE, limits.readTimeout().toMillis()));
-            interact(s, src, srcPort, sink);
+            if (fake) {
+                feedFake(s, src, srcPort, sink);
+            } else {
+                interact(s, src, srcPort, sink);
+            }
         } catch (LineTooLongException e) {
             // B-08: cut off instead of buffering; worth reporting, it's not a normal client
             sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT,
@@ -313,6 +318,21 @@ public abstract class Decoy {
 
     protected abstract void interact(Socket socket, String sourceIp, int sourcePort,
                                      Consumer<AttackEvent> sink) throws IOException;
+
+    /**
+     * The second hook: serve a source the Console told us to feed fake data (B-09). It runs on
+     * the same bounded pool, with the same read timeout, as {@link #interact}. A decoy with no
+     * fake story of its own serves the source normally.
+     */
+    protected void feedFake(Socket socket, String sourceIp, int sourcePort,
+                            Consumer<AttackEvent> sink) throws IOException {
+        interact(socket, sourceIp, sourcePort, sink);
+    }
+
+    /** The lure files shown to a fed source (the same ones planted as bait), sorted by path. */
+    protected static Map<String, String> lureFiles() {
+        return Lures.FILES;
+    }
 
     private static void closeWithReset(Socket socket) {
         try {

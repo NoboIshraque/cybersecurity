@@ -34,7 +34,7 @@ are merged into one line. Fix the waves in order.
 - [x] **MEDIUM** · [B-14](B-robustness.md) — Liveness uses the Sensor's own clock, so a skewed laptop gets false "possible tamper" warnings. *Use the Console's receive time.*
 - [x] **MEDIUM** · [B-19](B-robustness.md) — `ProbeReply` treats any "200"/"230" anywhere in the line as ACCESS GRANTED. *Parse the status code at the start of the line.*
 - [x] **MEDIUM** · [B-20](B-robustness.md) — A strategy's runtime error is swallowed by the pool; the shell hangs with no banner (e.g. port 70000). *Catch per strategy, emit an ERROR banner; validate ports.*
-- [ ] **MEDIUM** · [B-09](B-robustness.md) — "Feed fake data" is only a tarpit; no fake-data response exists. *Implement a fake-data reply in the decoys, or rename the action honestly.*
+- [x] **MEDIUM** · [B-09](B-robustness.md) — "Feed fake data" is only a tarpit; no fake-data response exists. *Implement a fake-data reply in the decoys, or rename the action honestly.*
 - [ ] **MEDIUM** · [B-03](B-robustness.md) — "Unblock = clean slate" with auto-response on re-blocks on the next packet and re-records all earlier findings. *Reset only the response memory, not the ledger findings; or suppress auto-response for a grace period after an operator unblock.*
 - [ ] **MEDIUM** · [B-17](B-robustness.md) — Shells lag without bound under load and keep every line forever. *Cap the shell buffer; drop or summarise when the backlog exceeds N.*
 - [ ] **MEDIUM** · [B-28](B-robustness.md) — Rules have no time window, and thresholds sit exactly at what Specter sends. *Sliding windows; thresholds with margin; tests at the boundary.*

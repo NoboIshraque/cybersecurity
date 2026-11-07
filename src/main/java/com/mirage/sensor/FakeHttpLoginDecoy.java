@@ -41,19 +41,11 @@ public final class FakeHttpLoginDecoy extends Decoy {
     @Override
     protected void interact(Socket socket, String sourceIp, int sourcePort,
                             Consumer<AttackEvent> sink) throws IOException {
-        BoundedLineReader in = lines(socket);
-        String credentials = null;
-        String line;
-        int read = 0;
-        while ((line = in.readLine()) != null && !line.isEmpty()) {
-            if (++read > MAX_HEADER_LINES + 1) { // + the request line
-                return; // not a real client; hang up without answering
-            }
-            if (line.regionMatches(true, 0, "Authorization: Basic ", 0, 21)) {
-                credentials = decodeBasic(line.substring(21).trim());
-            }
+        Request request = readRequest(lines(socket));
+        if (request == null) {
+            return; // not a real client; hang up without answering
         }
-
+        String credentials = request.credentials();
         boolean granted = credentials != null && trapCredentials.contains(credentials);
         if (credentials != null) {
             sink.accept(event(sourceIp, sourcePort, Action.LOGIN_ATTEMPT, credentials));
@@ -66,6 +58,68 @@ public final class FakeHttpLoginDecoy extends Decoy {
             writeResponse(socket, "HTTP/1.1 401 Unauthorized\r\n"
                     + "WWW-Authenticate: Basic realm=Router-Admin\r\n\r\n");
         }
+    }
+
+    /**
+     * Fed fake data (B-09): any credential "works" and opens a fake file manager showing the
+     * lure files. Without credentials the page still asks for them, as a real one would. Only
+     * the trap credential counts as a break-in; a wrong password let in by the deception is
+     * just a login attempt.
+     */
+    @Override
+    protected void feedFake(Socket socket, String sourceIp, int sourcePort,
+                            Consumer<AttackEvent> sink) throws IOException {
+        Request request = readRequest(lines(socket));
+        if (request == null) {
+            return;
+        }
+        String credentials = request.credentials();
+        if (credentials == null) {
+            writeResponse(socket, "HTTP/1.1 401 Unauthorized\r\n"
+                    + "WWW-Authenticate: Basic realm=Router-Admin\r\n\r\n");
+            return;
+        }
+        sink.accept(event(sourceIp, sourcePort, Action.LOGIN_ATTEMPT, credentials));
+        if (trapCredentials.contains(credentials)) {
+            sink.accept(event(sourceIp, sourcePort, Action.DECOY_ACCESS, credentials));
+        }
+        writeResponse(socket, fakeFilesPage());
+    }
+
+    /** The request's Basic-auth credentials (null if none); null request if it has too many headers. */
+    private static Request readRequest(BoundedLineReader in) throws IOException {
+        String credentials = null;
+        String line;
+        int read = 0;
+        while ((line = in.readLine()) != null && !line.isEmpty()) {
+            if (++read > MAX_HEADER_LINES + 1) { // + the request line
+                return null;
+            }
+            if (line.regionMatches(true, 0, "Authorization: Basic ", 0, 21)) {
+                credentials = decodeBasic(line.substring(21).trim());
+            }
+        }
+        return new Request(credentials);
+    }
+
+    private record Request(String credentials) {
+    }
+
+    private static String fakeFilesPage() {
+        StringBuilder body = new StringBuilder("<html><head><title>Router Admin</title></head><body>"
+                + "<h1>NovaTel RG-9000 &mdash; File Manager</h1>"
+                + "<p>Welcome, administrator. Firmware 2.1.7.</p>");
+        lureFiles().forEach((path, content) -> body.append("<h2>").append(escape(path)).append("</h2><pre>")
+                .append(escape(content)).append("</pre>"));
+        body.append("</body></html>");
+        return "HTTP/1.1 200 OK\r\n"
+                + "Content-Type: text/html\r\n"
+                + "Content-Length: " + body.toString().getBytes(StandardCharsets.UTF_8).length + "\r\n\r\n"
+                + body;
+    }
+
+    private static String escape(String text) {
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private static String grantedPage() {
