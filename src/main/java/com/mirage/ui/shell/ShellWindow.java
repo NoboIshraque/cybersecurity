@@ -133,8 +133,8 @@ public final class ShellWindow extends JPanel {
     }
 
     private void tick() {
-        int batch = speed.getValue();
-        List<ShellModel.Line> due = model.poll(batch);
+        // B-17: the slider's pace for short bursts, faster when behind, so the shell stays live
+        List<ShellModel.Line> due = model.pollPaced(speed.getValue());
         for (ShellModel.Line line : due) {
             appendToStream(line);
             if (splitToggle.isSelected()) {
@@ -142,10 +142,19 @@ public final class ShellWindow extends JPanel {
             }
         }
         if (!due.isEmpty()) {
+            trimToLastLines();
             refreshStrip();
             status.setText("lines: " + model.totalLines()
                     + "   threads: " + model.lanes().size()
                     + (model.hasPending() ? "   (streaming…)" : ""));
+        }
+    }
+
+    /** Keep each pane to its last {@link ShellDocuments#MAX_LINES} lines (B-17). */
+    private void trimToLastLines() {
+        ShellDocuments.trimHead(stream.getStyledDocument(), ShellDocuments.MAX_LINES);
+        for (JTextPane pane : threadPanes.values()) {
+            ShellDocuments.trimHead(pane.getStyledDocument(), ShellDocuments.MAX_LINES);
         }
     }
 

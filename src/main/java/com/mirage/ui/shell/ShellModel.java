@@ -4,7 +4,10 @@ import com.mirage.common.trace.TraceEvent;
 import com.mirage.common.trace.TraceLevel;
 
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,11 +39,14 @@ public final class ShellModel {
     }
 
     private final Object lock = new Object();
-    private final List<Line> pending = new ArrayList<>();
+    /** Undelivered lines only: a line is let go once the window has taken it (B-17). */
+    private final Deque<Line> pending = new ArrayDeque<>();
     private final Map<String, Integer> colorByThread = new LinkedHashMap<>();
     private final Map<String, State> stateByThread = new LinkedHashMap<>();
-    private int delivered;
     private int total;
+    /** Lines dropped from the backlog since the last poll; reported as one summary line. */
+    private int skipped;
+    private Instant skippedAt;
 
     /** Feed one trace line in (called from worker threads). */
     public void add(TraceEvent event) {
@@ -51,27 +57,80 @@ public final class ShellModel {
             pending.add(new Line(event.time(), thread, event.stage(), event.subject(),
                     event.level(), event.text(), color, banner));
             total++;
+            if (pending.size() > MAX_BACKLOG) {
+                skipOldest();
+            }
             // Activity marks the thread running unless an explicit end marker says otherwise.
             State inferred = inferState(event, stateByThread.get(thread));
             stateByThread.put(thread, inferred);
         }
     }
 
-    /** Take up to {@code max} not-yet-delivered lines, in order. The window calls this on its timer. */
+    /**
+     * Take up to {@code max} not-yet-delivered lines, in order, and let them go. If lines were
+     * skipped to keep up, a "… N lines skipped …" line comes first, where they would have been.
+     */
     public List<Line> poll(int max) {
         synchronized (lock) {
             List<Line> out = new ArrayList<>();
-            while (delivered < pending.size() && out.size() < max) {
-                out.add(pending.get(delivered++));
+            if (skipped > 0 && max > 0) {
+                out.add(new Line(skippedAt, "shell", "shell", null, TraceLevel.WARN,
+                        "… " + skipped + " lines skipped to keep up (the shell fell behind) …", 0, false));
+                skipped = 0;
+                skippedAt = null;
+            }
+            while (!pending.isEmpty() && out.size() < max) {
+                out.add(pending.poll());
             }
             return out;
         }
     }
 
+    /** Most undelivered lines kept; past this the oldest are summarised (B-17). */
+    public static final int MAX_BACKLOG = 2000;
+    /** A backlog is drained within about this many timer ticks (about a second at 45 ms). */
+    public static final int CATCH_UP_TICKS = 20;
+
+    /** Lines the model holds in memory: only the undelivered backlog. */
+    public int held() {
+        synchronized (lock) {
+            return pending.size();
+        }
+    }
+
+    /**
+     * Lines for one timer tick at display speed {@code speed}. A short burst keeps that pace (the
+     * "typed out" effect); a big backlog drains a twentieth of itself per tick, so the shell
+     * catches up with real time within about a second instead of drifting behind (B-17).
+     */
+    public List<Line> pollPaced(int speed) {
+        int backlog;
+        synchronized (lock) {
+            backlog = pending.size();
+        }
+        int catchUp = (backlog + CATCH_UP_TICKS - 1) / CATCH_UP_TICKS;
+        return poll(Math.max(speed, catchUp));
+    }
+
     /** True when there are undelivered lines waiting. */
     public boolean hasPending() {
         synchronized (lock) {
-            return delivered < pending.size();
+            return !pending.isEmpty() || skipped > 0;
+        }
+    }
+
+    /** Drop the oldest line that is not a banner; banners are outcomes and always shown. */
+    private void skipOldest() {
+        Iterator<Line> it = pending.iterator();
+        while (it.hasNext()) {
+            Line oldest = it.next();
+            if (!oldest.banner()) {
+                it.remove();
+                if (skipped++ == 0) {
+                    skippedAt = oldest.time();
+                }
+                return;
+            }
         }
     }
 
