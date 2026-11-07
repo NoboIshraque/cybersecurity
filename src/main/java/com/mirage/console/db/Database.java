@@ -29,6 +29,8 @@ public final class Database implements AutoCloseable {
 
     /** H2 error codes for "this key/user does not open this file" (wrong password, or plain vs encrypted). */
     private static final Set<Integer> WRONG_KEY = Set.of(28000, 90030, 90048, 90049);
+    /** H2's "database may be already in use" (the file is locked by another process). */
+    private static final int ALREADY_OPEN = 90020;
 
     /**
      * Open (or create) the Console database {@code dir/mirage} (A-07). With a password the file
@@ -37,6 +39,7 @@ public final class Database implements AutoCloseable {
      *
      * @throws IllegalArgumentException when the password doesn't match how the file was created,
      *         with a one-line explanation for the operator
+     * @throws IllegalStateException when another process already has the database open (B-12)
      */
     public static Database openFile(Path dir, String password) throws SQLException {
         boolean locked = password != null && !password.isEmpty();
@@ -48,6 +51,11 @@ public final class Database implements AutoCloseable {
                     : DriverManager.getConnection(url);
             return new Database(c);
         } catch (SQLException e) {
+            if (e.getErrorCode() == ALREADY_OPEN) {
+                // B-12: a second Console (or defender) started in the same folder
+                throw new IllegalStateException(file + " is in use: another Mirage Console (or defender) is "
+                        + "already running in this folder. Close it, or start this one from another folder.", e);
+            }
             if (!WRONG_KEY.contains(e.getErrorCode())) {
                 throw e;
             }

@@ -40,11 +40,26 @@ public final class ConsoleMain {
     public static void main(String[] args) throws Exception {
         try {
             start(args);
-        } catch (IllegalArgumentException e) {
-            System.err.println(e.getMessage()); // an unsafe lab range: refuse, as before
-            return;
+        } catch (Exception e) {
+            String problem = startupProblem(e);
+            if (problem == null) {
+                throw e; // a bug: keep the stack trace
+            }
+            System.err.println("Console not started: " + problem); // B-12: one line, exit code 1
+            System.exit(1);
         }
         Thread.currentThread().join();
+    }
+
+    /**
+     * The one line to print for a start-up failure the operator can fix (B-12): an unsafe lab
+     * range or a password mismatch ({@link IllegalArgumentException}), a database already open
+     * in this folder ({@link IllegalStateException}), or a taken port ({@link BindException}).
+     * Anything else is a bug and returns null, so its stack trace is kept.
+     */
+    static String startupProblem(Throwable e) {
+        return e instanceof IllegalArgumentException || e instanceof IllegalStateException
+                || e instanceof BindException ? e.getMessage() : null;
     }
 
     /**
@@ -191,7 +206,8 @@ public final class ConsoleMain {
             port = server.start(config.consolePort());
         } catch (BindException e) {
             BindException taken = new BindException("the Console can't listen on port " + config.consolePort()
-                    + " (" + e.getMessage() + "): is another Console or defender already running?");
+                    + " (" + e.getMessage() + "): is another Console or defender already running? "
+                    + "Close it, or start this one with --console-port <another port>.");
             taken.initCause(e);
             throw taken;
         }
