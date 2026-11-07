@@ -131,13 +131,14 @@ New patterns used (and existing ones extended):
 - [x] Tests: `DecoyAccessRuleTest` (2), `DecoyDeceptionTest` (grant/deny/parallel, 3); existing
       `FtpDecoyTest`/`BlockedDecoyTest` green on the pooled decoy. **77 tests green.**
 
-### Phase 5 — Specter side
-- [ ] Launch opens a `ShellWindow` per campaign, fed by `AttackTrace`.
-- [ ] Banners from real outcomes: `SCAN COMPLETE (n services)`, `ACCESS GRANTED`, `ACCESS REVOKED`
-      (connection dropped after a block), `CONNECTION STALLED` (tarpit), `REFUSED` (out of scope).
-- [ ] Concurrent launch option → split panes, one per strategy thread.
-- [ ] `specter.CounterWatch`: passive listener (default :8080) → `INCOMING` warning shell that lists
-      each incoming connection, its port and its thread. Accept-and-log only.
+### Phase 5 — Specter side ✅
+- [x] Launch opens its own `ShellWindow` popup (own bus + `Attacker`, no cross-talk), fed by `AttackTrace`.
+- [x] Banners from real outcomes: `SCAN COMPLETE — n OPEN`, `ACCESS GRANTED`, `CONNECTION BLOCKED`
+      (dropped), `CONNECTION STALLED` (tarpit), `NO ACCESS`, `REFUSED — OUTSIDE LAB RANGE`.
+- [x] "All at once" checkbox → `launchConcurrent` + the shell opens in split-threads view.
+- [x] `specter.CounterWatch`: passive listener (default :8080) → `INCOMING` banner + per-connection
+      lines (peer, port, thread). Accept-and-log only, never writes back. Shown in its own window.
+- [x] Test: `CounterWatchTest`. **78 tests green.**
 
 ### Phase 6 — Console side
 - [ ] `ThreatPopup`: one per attacker source, escalating banner (`PROBE DETECTED` → `UNDER ATTACK` →
@@ -191,3 +192,4 @@ New patterns used (and existing ones extended):
 | 2026-11-07 | 2 | `common.trace` (TraceBus) + ACK on the wire; Console & Specter emit honest step traces. 65 tests green. |
 | 2026-11-07 | 3 | `ui.shell` ShellModel + ShellWindow (themes, strip, banners, split view, speed). 72 tests green. |
 | 2026-11-07 | 4 | Pooled decoys; trap-credential grant → DECOY_ACCESS + DecoyAccessRule (CRITICAL). 77 tests green. |
+| 2026-11-07 | 5 | Specter per-launch shells + banners + split concurrent view; CounterWatch listener. 78 tests green. |
