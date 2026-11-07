@@ -37,7 +37,7 @@ on a virtual display, so no desktop is needed.
 can't skew it) and drives them through their own buttons: every Specter campaign (one at a time
 and all at once), Tarpit / Feed fake data / Block from the threat popup, Counter-attack and
 Simultaneous counter landing on the counter-watch, Unblock from the dashboard, auto-response
-switched on, and an out-of-range target being refused. It prints `PASS`/`FAIL` for 25 checks
+switched on, and an out-of-range target being refused. It prints `PASS`/`FAIL` for 27 checks
 and exits non-zero if any fail. Windows are rendered straight to PNG (no OS title bar), so other
 windows on the desktop never end up in a figure. It needs a real display; it isn't headless.
 
