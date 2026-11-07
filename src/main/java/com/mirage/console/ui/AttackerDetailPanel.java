@@ -37,6 +37,8 @@ public final class AttackerDetailPanel extends JPanel {
     private final List<JButton> commandButtons;
 
     private String currentSource;
+    /** Event total of the snapshot on screen, so refresh() re-renders only on new activity. */
+    private long shownEvents = -1;
 
     public AttackerDetailPanel(AttackerDirectory directory, OperationRunner runner) {
         super(new BorderLayout());
@@ -53,6 +55,7 @@ public final class AttackerDetailPanel extends JPanel {
 
         commandButtons = collectButtons();
         showSource(null);
+        new javax.swing.Timer(1000, e -> refresh()).start(); // B-18: follow the selected source live
     }
 
     private JPanel buildResponsesTab() {
@@ -112,21 +115,50 @@ public final class AttackerDetailPanel extends JPanel {
             replayArea.setText("");
             return;
         }
+        render(snapshot);
+    }
+
+    /** Credentials listed in full; beyond this only the total and the most recent are shown. */
+    static final int RECENT_CREDENTIALS = 10;
+
+    /**
+     * Re-render the selected source if it has new activity (B-18: the dossier used to be drawn
+     * once, when the source was clicked). Runs on a 1 s timer; call on the EDT.
+     */
+    public void refresh() {
+        if (currentSource == null) {
+            return;
+        }
+        AttackerSnapshot snapshot = directory.snapshot(currentSource);
+        if (snapshot != null && snapshot.totalEvents() != shownEvents) {
+            render(snapshot);
+        }
+    }
+
+    private void render(AttackerSnapshot snapshot) {
+        shownEvents = snapshot.totalEvents();
         dossierArea.setText(renderDossier(AttackerDossier.from(snapshot)));
         dossierArea.setCaretPosition(0);
         replayArea.setText(renderReplay(snapshot));
         replayArea.setCaretPosition(0);
     }
 
-    private static String renderDossier(AttackerDossier d) {
+    String dossierText() {
+        return dossierArea.getText();
+    }
+
+    static String renderDossier(AttackerDossier d) {
         StringBuilder sb = new StringBuilder();
         line(sb, "Source IP", d.sourceIp());
         line(sb, "Active", d.firstSeen() + "  →  " + d.lastSeen());
         line(sb, "Events observed", String.valueOf(d.eventCount()));
         line(sb, "Services probed", joinOrDash(d.servicesProbed()));
         line(sb, "Port probes", String.valueOf(d.portProbes()));
-        line(sb, "Credentials tried", d.credentialsTried().isEmpty() ? "—"
-                : d.credentialsTried().size() + "   " + joinOrDash(d.credentialsTried()));
+        int tried = d.credentialsTried().size();
+        line(sb, "Credentials tried", tried == 0 ? "—"
+                : tried <= RECENT_CREDENTIALS ? tried + "   " + joinOrDash(d.credentialsTried())
+                : tried + "   (last " + RECENT_CREDENTIALS + ": "
+                        + joinOrDash(d.recentCredentials(RECENT_CREDENTIALS)) + ")");
         line(sb, "Passwords tried", joinOrDash(d.passwordsTried()));
         line(sb, "Honeytokens used", joinOrDash(d.honeytokensUsed()));
         line(sb, "Bait files", joinOrDash(d.baitFilesTouched()));

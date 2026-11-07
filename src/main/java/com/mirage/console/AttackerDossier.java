@@ -50,9 +50,13 @@ public final class AttackerDossier {
             String payload = e.payload();
             switch (e.action()) {
                 case LOGIN_ATTEMPT -> { if (payload != null) d.credentialsTried.add(payload); }
-                case HONEYTOKEN_USE -> { if (payload != null) d.honeytokensUsed.add(payload); }
+                // B-18: a trap credential that got in (DECOY_ACCESS) is a honeytoken used
+                case HONEYTOKEN_USE, DECOY_ACCESS -> {
+                    if (payload != null && !d.honeytokensUsed.contains(payload)) d.honeytokensUsed.add(payload);
+                }
                 case FILE_CHANGE -> { if (payload != null) d.baitFilesTouched.add(payload); }
-                case PORT_PROBE -> d.portProbes++;
+                // B-18: decoys report a scan as connections, so every connection is a probe
+                case PORT_PROBE, CONNECT -> d.portProbes++;
                 default -> { }
             }
         }
@@ -72,6 +76,11 @@ public final class AttackerDossier {
     public String sourceIp() { return sourceIp; }
     public List<String> servicesProbed() { return List.copyOf(servicesProbed); }
     public List<String> credentialsTried() { return List.copyOf(credentialsTried); }
+
+    /** The last {@code n} credentials tried, oldest first. */
+    public List<String> recentCredentials(int n) {
+        return List.copyOf(credentialsTried.subList(Math.max(0, credentialsTried.size() - n), credentialsTried.size()));
+    }
     public List<String> honeytokensUsed() { return List.copyOf(honeytokensUsed); }
     public List<String> baitFilesTouched() { return List.copyOf(baitFilesTouched); }
     public int portProbes() { return portProbes; }
