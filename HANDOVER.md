@@ -12,12 +12,10 @@ the feature-complete state below). The full plan and running log is **`BUILD_LOG
 
 - **Build/test:** Maven is **not installed** on the demo laptop — use the committed wrapper:
   `./mvnw -B test` (PowerShell: `.\mvnw.cmd -B test`). First run fetches Maven 3.9.9 into `~/.m2`.
-- **Baseline right now: 81 tests green.** Phases 0–5 done; Phase 6 part 1 (the `AutoResponse`
-  toggle) done.
-- **Next:** Phase 6 parts 2–3 (Console `ThreatPopup` + operator operation shells + the auto-response
-  checkbox + attach shell windows to the `TraceBus` in `ConsoleMain`), then Phase 7 (fat jar +
-  `Launcher` + run scripts + `docs/TWO-LAPTOP-SETUP.md`), Phase 8 (verify + screenshots), Phase 9
-  (docs + draft PR). Exact next steps and class names are in `BUILD_LOG.md`.
+- **Baseline right now: 91 tests green.** Phases 0–6 done (Console threat popups, operation
+  shells, auto-response checkbox, pipeline shell — smoke-tested in the real GUI).
+- **Next:** Phase 7 (fat jar + `Launcher` + run scripts + `docs/TWO-LAPTOP-SETUP.md`), Phase 8
+  (verify + screenshots), Phase 9 (docs + draft PR). Exact next steps are in `BUILD_LOG.md`.
 - **What it adds:** terminal-style "process shells" on both sides that stream each step live (and
   split into one pane per thread for concurrent runs), a decoy that lets a trap credential "in" to a
   fake page, an operator-gated (manual-by-default) response flow, a counter-watch listener on the

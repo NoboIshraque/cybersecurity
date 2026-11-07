@@ -63,6 +63,7 @@ public final class ShellWindow extends JPanel {
     private final JLabel status = new JLabel(" ");
     private final JScrollPane streamScroll;
     private final JScrollPane splitScroll;
+    private final Timer timer;
     private int lastLaneCount = -1;
 
     public ShellWindow(ShellTheme theme, Predicate<TraceEvent> filter) {
@@ -89,7 +90,7 @@ public final class ShellWindow extends JPanel {
         add(streamScroll, BorderLayout.CENTER);
         add(buildControls(), BorderLayout.SOUTH);
 
-        Timer timer = new Timer(45, e -> tick());
+        timer = new Timer(45, e -> tick());
         timer.start();
     }
 
@@ -303,6 +304,11 @@ public final class ShellWindow extends JPanel {
             splitToggle.setSelected(true);
             switchView();
         }
+    }
+
+    /** Stop the paint timer; call when the owning window is disposed. */
+    public void close() {
+        timer.stop();
     }
 
     /** Exposed for the owning window / screenshots. */

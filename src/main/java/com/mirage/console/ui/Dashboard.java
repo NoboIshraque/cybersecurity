@@ -4,13 +4,22 @@ import com.mirage.common.Alert;
 import com.mirage.common.Classification;
 import com.mirage.common.LedgerEntry;
 import com.mirage.common.Severity;
+import com.mirage.common.trace.TraceBacklog;
+import com.mirage.common.trace.TraceEvent;
+import com.mirage.common.trace.TraceLevel;
 import com.mirage.console.AlertLedger;
 import com.mirage.console.AttackerDirectory;
 import com.mirage.console.CounterOffensive;
 import com.mirage.console.ResponseController;
+import com.mirage.console.ShellFilters;
+import com.mirage.console.ThreatLevel;
+import com.mirage.console.ThreatTracker;
+import com.mirage.ui.shell.ShellTheme;
+import com.mirage.ui.shell.ShellWindow;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -25,14 +34,19 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 
 /**
@@ -40,6 +54,11 @@ import java.util.function.IntSupplier;
  * attacker dossier / session-replay / manual-response panel for the selected
  * source, a connection and ledger status line, and a one-click ledger integrity
  * check that highlights a broken link in red.
+ *
+ * <p>With {@link LiveOptions} carrying a trace bus it also drives the live demo:
+ * a {@link ThreatPopup} per source that escalates with its alerts, an operation
+ * shell for every operator action, a full pipeline shell, and the auto-response
+ * switch (when off, the Console records and waits for the operator).
  */
 public final class Dashboard extends JFrame {
 
@@ -47,14 +66,23 @@ public final class Dashboard extends JFrame {
     private final transient IntSupplier connectionCount;
     private final transient AttackerDirectory directory;
     private final transient CounterOffensive counter;
+    private final transient ResponseController responses;
+    private final transient LiveOptions live;
+    private final transient TraceBacklog backlog;
+    private final transient OperationRunner runner;
+    private final transient ThreatTracker threats = new ThreatTracker();
     private final transient Map<String, Classification> latestTechnique = new HashMap<>();
+    private final transient Map<String, ThreatPopup> popups = new HashMap<>();
+    private final transient Map<String, String> latestReason = new HashMap<>();
 
     private final AlertTableModel model = new AlertTableModel();
     private final JLabel status = new JLabel();
     private final NetworkMapPanel map;
     private final AttackerDetailPanel detail;
     private final JTable table = new JTable(model);
+    private final JCheckBox autoBox = new JCheckBox("Auto-response");
     private String ledgerState = "—";
+    private int popupsOpened;
 
     public Dashboard(AlertLedger ledger, IntSupplier connectionCount) {
         this(ledger, connectionCount, new AttackerDirectory(), new ResponseController(
@@ -68,15 +96,41 @@ public final class Dashboard extends JFrame {
 
     public Dashboard(AlertLedger ledger, IntSupplier connectionCount,
                      AttackerDirectory directory, ResponseController responses, CounterOffensive counter) {
+        this(ledger, connectionCount, directory, responses, counter, LiveOptions.none());
+    }
+
+    public Dashboard(AlertLedger ledger, IntSupplier connectionCount, AttackerDirectory directory,
+                     ResponseController responses, CounterOffensive counter, LiveOptions live) {
         super("Mirage Console — live");
         this.ledger = ledger;
         this.connectionCount = connectionCount;
         this.directory = directory;
         this.counter = counter;
+        this.responses = responses;
+        this.live = live == null ? LiveOptions.none() : live;
+        if (this.live.trace() != null) {
+            backlog = new TraceBacklog(5000);
+            this.live.trace().subscribe(backlog);
+            runner = new OperationShells(backlog, this::perform);
+            // A Sensor's ACK of a BLOCK neutralises the source (receive thread -> Swing thread).
+            backlog.attach(this::onTrace, false);
+        } else {
+            backlog = null;
+            runner = (op, ip, onResult) -> onResult.accept(perform(op, ip));
+        }
         this.map = new NetworkMapPanel(this::select);
-        this.detail = new AttackerDetailPanel(directory, responses, this::counterFor, this::counterAllFor);
+        this.detail = new AttackerDetailPanel(directory, runner);
         buildUi();
         new Timer(2000, e -> refreshStatus()).start();
+    }
+
+    /** Do one operator operation (any thread) and return its result line. */
+    private String perform(Operation operation, String sourceIp) {
+        return switch (operation) {
+            case COUNTER -> counterFor(sourceIp);
+            case COUNTER_ALL -> counterAllFor(sourceIp);
+            default -> responses.issue(operation.command(), sourceIp);
+        };
     }
 
     /** Turn the source's own detected technique back on it (lab range only). */
@@ -84,7 +138,10 @@ public final class Dashboard extends JFrame {
         if (counter == null) {
             return "counter-offensive not configured in this view";
         }
-        Classification technique = latestTechnique.get(sourceIp);
+        Classification technique;
+        synchronized (latestTechnique) {
+            technique = latestTechnique.get(sourceIp);
+        }
         if (technique == null) {
             return "no technique observed for " + sourceIp + " yet";
         }
@@ -129,9 +186,24 @@ public final class Dashboard extends JFrame {
         JButton verify = new JButton("Verify ledger");
         verify.addActionListener(e -> verifyLedger());
 
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        if (live.autoResponse() != null) {
+            autoBox.setSelected(live.autoResponse().isEnabled());
+            autoBox.setToolTipText("On: respond to every alert instantly. Off: record it and wait for the operator.");
+            autoBox.addActionListener(e -> setAutoResponse(autoBox.isSelected()));
+            controls.add(autoBox);
+        }
+        if (backlog != null) {
+            JButton pipeline = new JButton("Pipeline shell");
+            pipeline.setToolTipText("Every step the Console takes: receive threads, engine, rules, ledger, responses");
+            pipeline.addActionListener(e -> openPipelineShell());
+            controls.add(pipeline);
+        }
+        controls.add(verify);
+
         JPanel south = new JPanel(new BorderLayout(8, 8));
         south.add(status, BorderLayout.CENTER);
-        south.add(verify, BorderLayout.EAST);
+        south.add(controls, BorderLayout.EAST);
         south.setBorder(BorderFactory.createEmptyBorder(2, 6, 4, 6));
         add(south, BorderLayout.SOUTH);
 
@@ -143,12 +215,83 @@ public final class Dashboard extends JFrame {
 
     /** Called from the engine thread via the AlertBus; hops onto the EDT. */
     public void onAlert(Alert alert) {
+        synchronized (latestTechnique) {
+            latestTechnique.put(alert.sourceIp(), alert.classification());
+        }
+        // Track the level on the engine thread, before any response is dispatched, so a
+        // fast Sensor ACK can never overtake the alert that caused it.
+        Optional<ThreatLevel> change = backlog == null ? Optional.empty() : threats.onAlert(alert);
+        // Mark the escalation in the trace timeline right here, between the ledger line and the
+        // response line, so the popup and pipeline shells show it in order (not on the bus).
+        change.ifPresent(level -> backlog.accept(ThreatPopup.bannerLine(alert.sourceIp(), level)));
+        String reason = alert.classification().label() + " (" + alert.classification().attackTechnique()
+                + ", " + alert.classification().severity() + ")";
         SwingUtilities.invokeLater(() -> {
             model.addAlert(alert);
-            latestTechnique.put(alert.sourceIp(), alert.classification());
+            latestReason.put(alert.sourceIp(), reason);
             rebuildMap();
             refreshStatus();
+            change.ifPresent(level -> showThreat(alert.sourceIp(), level, false));
         });
+    }
+
+    /** Trace lines from the backlog (any thread): only an ACK of a block/unblock matters here. */
+    private void onTrace(TraceEvent event) {
+        threats.onTrace(event).ifPresent(level ->
+                SwingUtilities.invokeLater(() -> showThreat(event.subject(), level, true)));
+    }
+
+    /**
+     * @param ownBanner true when the banner line was not already put in the timeline
+     *                  (ACK-driven changes, which arrive while the backlog is dispatching)
+     */
+    private void showThreat(String sourceIp, ThreatLevel level, boolean ownBanner) {
+        ThreatPopup popup = popups.get(sourceIp);
+        if (popup == null) {
+            popup = new ThreatPopup(sourceIp, backlog, runner, this::inspect);
+            int offset = 36 * (popupsOpened++ % 6);
+            popup.setLocation(80 + offset, 80 + offset);
+            popups.put(sourceIp, popup);
+        }
+        popup.escalate(level, latestReason.get(sourceIp), isAutoResponseOn(), ownBanner);
+    }
+
+    private void inspect(String sourceIp) {
+        select(sourceIp);
+        toFront();
+    }
+
+    private boolean isAutoResponseOn() {
+        return live.autoResponse() != null && live.autoResponse().isEnabled();
+    }
+
+    private void setAutoResponse(boolean on) {
+        live.autoResponse().setEnabled(on);
+        if (live.trace() != null) {
+            live.trace().line("console", "response", null, on ? TraceLevel.WARN : TraceLevel.INFO,
+                    "operator switched auto-response " + (on ? "ON — responding to alerts instantly"
+                            : "OFF — alerts are recorded, the operator responds"));
+        }
+        refreshStatus();
+    }
+
+    private void openPipelineShell() {
+        ShellWindow shell = new ShellWindow(ShellTheme.console(), ShellFilters.pipeline());
+        Consumer<TraceEvent> feed = shell::onTrace;
+        JFrame frame = new JFrame("Mirage — Console pipeline (all sources)");
+        frame.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        frame.add(shell);
+        frame.setSize(940, 600);
+        frame.setLocationByPlatform(true);
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                backlog.detach(feed);
+                shell.close();
+            }
+        });
+        backlog.attach(feed, true);
+        frame.setVisible(true);
     }
 
     private void select(String sourceIp) {
@@ -193,9 +336,17 @@ public final class Dashboard extends JFrame {
     }
 
     private void refreshStatus() {
-        status.setText("Alerts: " + model.getRowCount()
-                + "    |    Sensors connected: " + connectionCount.getAsInt()
-                + "    |    Ledger: " + ledgerState);
+        StringBuilder sb = new StringBuilder();
+        if (live.consoleAddress() != null) {
+            sb.append("Console at ").append(live.consoleAddress()).append("    |    ");
+        }
+        sb.append("Alerts: ").append(model.getRowCount())
+          .append("    |    Sensors connected: ").append(connectionCount.getAsInt());
+        if (live.autoResponse() != null) {
+            sb.append("    |    Auto-response: ").append(isAutoResponseOn() ? "ON" : "OFF (operator)");
+        }
+        sb.append("    |    Ledger: ").append(ledgerState);
+        status.setText(sb.toString());
     }
 
     private static final class SeverityRenderer extends DefaultTableCellRenderer {

@@ -16,6 +16,7 @@ import com.mirage.console.detection.LateralMovementRule;
 import com.mirage.console.detection.PasswordSprayRule;
 import com.mirage.console.detection.PortScanRule;
 import com.mirage.console.ui.Dashboard;
+import com.mirage.console.ui.LiveOptions;
 import com.mirage.specter.Attacker;
 
 import javax.net.ServerSocketFactory;
@@ -91,8 +92,16 @@ public final class ConsoleMain {
                 new BaitFileRule(),
                 new LateralMovementRule());
 
+        // Manual by default when an operator is watching the dashboard; automatic when headless,
+        // because nobody is there to click. The dashboard checkbox flips this shared switch.
+        boolean headless = GraphicsEnvironment.isHeadless();
+        AutoResponse autoResponse = new AutoResponse(headless);
+        System.out.println("Auto-response: " + (headless ? "ON (headless, no operator)"
+                : "OFF - the operator responds from the dashboard / threat popups"));
+
         CorrelationEngine engine = new CorrelationEngine(events, rules, ledger, bus, policy, persistence, directory);
         engine.setTrace(trace);
+        engine.setAutoResponse(autoResponse);
         Thread engineThread = new Thread(engine, "correlation-engine");
         engineThread.setDaemon(true);
         engineThread.start();
@@ -107,11 +116,14 @@ public final class ConsoleMain {
             }
         }, 15, 15, TimeUnit.SECONDS);
 
-        if (GraphicsEnvironment.isHeadless()) {
+        String consoleAddress = LabConfig.primaryLanIp().orElse("127.0.0.1") + ":" + port;
+        if (headless) {
             System.out.println("Headless: dashboard not shown (console logging only).");
         } else {
+            LiveOptions live = new LiveOptions(trace, autoResponse, consoleAddress);
             SwingUtilities.invokeLater(() -> {
-                Dashboard dashboard = new Dashboard(ledger, server::connectionCount, directory, responses, counter);
+                // The dashboard subscribes the threat popups, operation shells and pipeline shell to the TraceBus.
+                Dashboard dashboard = new Dashboard(ledger, server::connectionCount, directory, responses, counter, live);
                 bus.subscribe(dashboard::onAlert);
                 dashboard.setVisible(true);
             });

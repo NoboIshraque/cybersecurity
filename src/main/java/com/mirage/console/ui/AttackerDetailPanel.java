@@ -2,10 +2,8 @@ package com.mirage.console.ui;
 
 import com.mirage.common.AttackEvent;
 import com.mirage.common.AttackerSnapshot;
-import com.mirage.common.CommandType;
 import com.mirage.console.AttackerDirectory;
 import com.mirage.console.AttackerDossier;
-import com.mirage.console.ResponseController;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -19,19 +17,18 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.util.List;
-import java.util.function.Function;
 
 /**
  * The right-hand detail view for the selected source: an attacker dossier, a
  * replay of exactly what the intruder sent at each decoy, and a manual
- * active-response panel (the override). All three update together.
+ * active-response panel (the override). All three update together. Every
+ * button goes through an {@link OperationRunner}, which in the live dashboard
+ * opens an operation shell showing the threads doing the work.
  */
 public final class AttackerDetailPanel extends JPanel {
 
     private final transient AttackerDirectory directory;
-    private final transient ResponseController responses;
-    private final transient Function<String, String> counterFn;
-    private final transient Function<String, String> counterAllFn;
+    private final transient OperationRunner runner;
 
     private final JTextArea dossierArea = readOnlyArea();
     private final JTextArea replayArea = readOnlyArea();
@@ -41,13 +38,10 @@ public final class AttackerDetailPanel extends JPanel {
 
     private String currentSource;
 
-    public AttackerDetailPanel(AttackerDirectory directory, ResponseController responses,
-                               Function<String, String> counterFn, Function<String, String> counterAllFn) {
+    public AttackerDetailPanel(AttackerDirectory directory, OperationRunner runner) {
         super(new BorderLayout());
         this.directory = directory;
-        this.responses = responses;
-        this.counterFn = counterFn;
-        this.counterAllFn = counterAllFn;
+        this.runner = runner;
         dossierArea.setLineWrap(true);
         dossierArea.setWrapStyleWord(true);
 
@@ -74,16 +68,16 @@ public final class AttackerDetailPanel extends JPanel {
 
         JPanel defend = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
         defend.setAlignmentX(LEFT_ALIGNMENT);
-        defend.add(commandButton("Tarpit", CommandType.TARPIT));
-        defend.add(commandButton("Feed fake data", CommandType.FEED_FAKE));
-        defend.add(commandButton("Block", CommandType.BLOCK));
-        defend.add(commandButton("Unblock", CommandType.UNBLOCK));
+        defend.add(operationButton(Operation.TARPIT));
+        defend.add(operationButton(Operation.FEED_FAKE));
+        defend.add(operationButton(Operation.BLOCK));
+        defend.add(operationButton(Operation.UNBLOCK));
         top.add(defend);
 
         JPanel counter = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
         counter.setAlignmentX(LEFT_ALIGNMENT);
-        counter.add(counterButton());
-        counter.add(counterAllButton());
+        counter.add(operationButton(Operation.COUNTER));
+        counter.add(operationButton(Operation.COUNTER_ALL));
         counter.add(new JLabel("turn the attacker's own technique(s) back on them — Specter, lab range only"));
         top.add(counter);
 
@@ -96,31 +90,11 @@ public final class AttackerDetailPanel extends JPanel {
         return panel;
     }
 
-    private JButton commandButton(String text, CommandType type) {
-        JButton b = new JButton(text);
+    private JButton operationButton(Operation operation) {
+        JButton b = new JButton(operation.label());
         b.addActionListener(e -> {
             if (currentSource != null) {
-                responseLog.append(responses.issue(type, currentSource) + "\n");
-            }
-        });
-        return b;
-    }
-
-    private JButton counterButton() {
-        JButton b = new JButton("Counter-attack");
-        b.addActionListener(e -> {
-            if (currentSource != null && counterFn != null) {
-                responseLog.append(counterFn.apply(currentSource) + "\n");
-            }
-        });
-        return b;
-    }
-
-    private JButton counterAllButton() {
-        JButton b = new JButton("Simultaneous counter");
-        b.addActionListener(e -> {
-            if (currentSource != null && counterAllFn != null) {
-                responseLog.append(counterAllFn.apply(currentSource) + "\n");
+                runner.run(operation, currentSource, line -> responseLog.append(line + "\n"));
             }
         });
         return b;
