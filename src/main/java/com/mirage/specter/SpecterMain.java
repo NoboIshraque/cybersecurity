@@ -3,10 +3,7 @@ package com.mirage.specter;
 import com.mirage.common.LabConfig;
 import com.mirage.common.ScopeGuard;
 import com.mirage.common.trace.TraceBus;
-import com.mirage.ui.shell.ShellTheme;
-import com.mirage.ui.shell.ShellWindow;
 
-import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import java.awt.GraphicsEnvironment;
 import java.io.IOException;
@@ -48,11 +45,12 @@ public final class SpecterMain {
     /**
      * A passive listener so this laptop can see when the Console turns a technique back on it.
      * It only accepts and logs; it never reaches out. If the port is taken, Specter still runs.
+     * Closing its window only hides it; the next counter brings it back (FB-19).
      */
     private static void startCounterWatch(LabConfig config) {
         TraceBus bus = new TraceBus();
-        ShellWindow shell = new ShellWindow(ShellTheme.specter(), e -> true);
-        bus.subscribe(shell::onTrace);
+        CounterWatchWindow window = new CounterWatchWindow();
+        bus.subscribe(window::onTrace);
         CounterWatch watch = new CounterWatch(config.counterWatchPort(), bus);
         try {
             watch.start();
@@ -61,11 +59,6 @@ public final class SpecterMain {
                     + " (" + e.getMessage() + "); continuing without it.");
             return;
         }
-        JFrame frame = new JFrame("Specter — counter-watch (incoming)");
-        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frame.add(shell);
-        frame.setSize(760, 440);
-        frame.setLocationByPlatform(true);
-        frame.setVisible(true);
+        window.show();
     }
 }
