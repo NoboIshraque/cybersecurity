@@ -15,3 +15,11 @@ where java >nul 2>nul || (
 )
 if not exist mirage.properties echo No mirage.properties here: running the single-machine defaults ^(127.0.0.1^).
 java -jar "%JAR%" defender %*
+rem FB-08: on a failure, keep a double-clicked window open so the message can be read.
+set "CODE=%ERRORLEVEL%"
+if not "%CODE%"=="0" (
+  echo.
+  echo Mirage exited with an error ^(code %CODE%^). Read the message above, then press a key to close.
+  pause >nul
+)
+exit /b %CODE%

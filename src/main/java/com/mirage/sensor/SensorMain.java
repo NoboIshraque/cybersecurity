@@ -20,14 +20,23 @@ import java.util.function.Consumer;
 public final class SensorMain {
 
     public static void main(String[] args) throws Exception {
+        int code = launch(args);
+        if (code != 0) {
+            System.exit(code); // FB-08: a refused start fails, so scripts can tell
+        }
+        System.out.println("Sensor running. Ctrl+C to stop.");
+        Thread.currentThread().join();
+    }
+
+    /** Start the Sensor; returns the process exit code (0 when it is running, 1 when start-up is refused). */
+    public static int launch(String[] args) throws Exception {
         try {
             start(args);
         } catch (IllegalArgumentException e) {
             System.err.println("Refusing to start: " + e.getMessage()); // e.g. a remote Console without TLS
-            return;
+            return 1;
         }
-        System.out.println("Sensor running. Ctrl+C to stop.");
-        Thread.currentThread().join();
+        return 0;
     }
 
     /**

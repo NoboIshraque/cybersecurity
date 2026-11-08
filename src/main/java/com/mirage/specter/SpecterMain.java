@@ -15,6 +15,14 @@ import java.io.IOException;
 public final class SpecterMain {
 
     public static void main(String[] args) {
+        int code = launch(args);
+        if (code != 0) {
+            System.exit(code); // FB-08: a refused start fails, so scripts and run-attacker.bat can tell
+        }
+    }
+
+    /** Start Specter; returns the process exit code: 1 when start-up is refused, else 0. */
+    public static int launch(String[] args) {
         LabConfig config;
         ScopeGuard guard;
         try {
@@ -22,18 +30,19 @@ public final class SpecterMain {
             guard = config.scopeGuard(); // validates the lab range before anything can be launched
         } catch (IllegalArgumentException e) {
             System.err.println("Refusing to start: " + e.getMessage());
-            return;
+            return 1;
         }
 
         if (GraphicsEnvironment.isHeadless()) {
             System.out.println("Specter is a GUI and needs a display. None detected, so nothing to show.");
             System.out.println("ScopeGuard active: targets outside the lab range are refused.");
-            return;
+            return 0;
         }
         SwingUtilities.invokeLater(() -> {
             new SpecterConsole(guard, config).setVisible(true);
             startCounterWatch(config);
         });
+        return 0;
     }
 
     /**
