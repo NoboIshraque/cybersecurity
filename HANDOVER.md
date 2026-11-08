@@ -1,21 +1,26 @@
 # HANDOVER — Mirage
 
-_Last updated: 2026-11-08 (stress-test fixes complete)_
+_Last updated: 2026-11-08 (PR #12 merged into `master`)_
 
 Start here each session, then read `CLAUDE.md` for conventions.
 
-## ▶ RESUME HERE — stress-test fixes done; rehearse, then merge
+## ▶ RESUME HERE — everything is on `master`; rehearse next
+
+**PR #12 (`feature/live-shells`) is merged into `master`** as merge commit `acfd8ee`
+(2026-11-08), with all its commits kept; CI passed on `master`. The branch still exists but is no
+longer needed: start any new work on a fresh branch off `master`, with a draft PR.
 
 Every line of [`docs/stress-test/CHECKLIST.md`](docs/stress-test/CHECKLIST.md) is ticked (waves
-1–3, 2026-11-07/08), each with a test that failed before its fix, on `feature/live-shells` (draft
-PR #12 to `master`, link at the bottom), all pushed. One commit per checklist line (or tightly
-related group); the commit messages explain each fix and its design choices.
+1–3, 2026-11-07/08), and so are waves 1 and 2 of
+[`docs/feature-check/CHECKLIST.md`](docs/feature-check/CHECKLIST.md) (2026-11-08), each with a
+test that failed before its fix. One commit per checklist line (or tightly related group); the
+commit messages explain each fix and its design choices.
 
-- **Baseline:** `.\mvnw.cmd -B test` (PowerShell) or `./mvnw -B test`: **265 tests green**. Maven is
+- **Baseline:** `.\mvnw.cmd -B test` (PowerShell) or `./mvnw -B test`: **299 tests green**. Maven is
   not installed; always use the wrapper.
-- **GUI dry run:** `tools/screenshots/LiveDemoShot.java`, now **28 checks** (B-09 added "Specter
-  after fake data: ACCESS GRANTED"), all pass; `docs/screenshots/live-*.png` were regenerated from
-  the final code. How-to: `tools/screenshots/README.md`.
+- **GUI dry run:** `tools\screenshots\dry-run.cmd` (Windows; it runs
+  `tools/screenshots/LiveDemoShot.java`), **28 checks**, all pass; `docs/screenshots/live-*.png`
+  were redrawn after the feature-check wave 2 fixes. How-to: `tools/screenshots/README.md`.
 - **What changed for the demo** (DEMO.md is up to date):
   - "Feed fake data" is a real response now (B-09): a fed source is let in to fake files; it
     replaces the tarpit (latest wins), and HIGH auto-response feeds fake data.
@@ -30,11 +35,15 @@ related group); the commit messages explain each fix and its design choices.
 - **Pre-rehearsal feature check (2026-11-08):** two agents re-tested every feature of the running
   program → [`docs/feature-check/CHECKLIST.md`](docs/feature-check/CHECKLIST.md) (details in
   `A-backend.md` / `B-gui.md`, screenshots in `evidence/`). No HIGH findings; 8 MEDIUM, 13 LOW,
-  mostly about what the screens and docs tell the presenter. Wave 1 there is "before the
-  rehearsal".
-- **Left to do (user):**
-  1. The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`; firewall commands run as admin).
-  2. Then mark PR #12 ready and merge.
+  mostly about what the screens and docs tell the presenter. **Waves 1 and 2 are fixed** (plus
+  FC-01 and FC-02, two flaky tests found along the way); **wave 3 (polish: FB-11 to FB-17,
+  FA-02) is still open**.
+- **Left to do:**
+  1. (User) The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`; firewall commands run as
+     admin). Add anything it finds to the feature-check checklist and fix it the same way.
+  2. Optional: feature-check wave 3.
+  3. The report text (`REPORT.md`, `docs/report.html`) still says 265 tests; update and republish
+     it if the number matters.
 - **Not covered by either review** (unchanged): a dependency CVE scan, IPv6, and the real
   two-laptop network.
 
@@ -44,22 +53,21 @@ related group); the commit messages explain each fix and its design choices.
   a new artifact, passing the `screenshots/*.png` files, then update the link here and at the top
   of `REPORT.md`.
 
-## ⚡ LIVE SHELLS & TWO-LAPTOP DEMO — built, in draft PR (branch `feature/live-shells`)
+## ⚡ LIVE SHELLS & TWO-LAPTOP DEMO — built and merged into `master` (PR #12)
 
-All phases (0–9) of the live-shells feature are done on `feature/live-shells`, pushed, with a
-**draft PR** to `master` (link below). Merge it once the real two-laptop rehearsal has been done.
-The phase-by-phase log is **`BUILD_LOG.md`**.
+All phases (0–9) of the live-shells feature were built on `feature/live-shells` and merged into
+`master` through PR #12 (link below) on 2026-11-08. The phase-by-phase log is **`BUILD_LOG.md`**.
 
 - **Build/test:** Maven is **not installed** on the demo laptop. Use the committed wrapper:
-  `./mvnw -B test` (PowerShell: `.\mvnw.cmd -B test`). **265 tests green.**
+  `./mvnw -B test` (PowerShell: `.\mvnw.cmd -B test`). **299 tests green.**
 - **Run:** `.\mvnw.cmd -DskipTests package` → `target/mirage.jar`; `run-defender.bat` (Laptop A:
   Console + Sensor) and `run-attacker.bat` (Laptop B: Specter + counter-watch). Set-up:
   `docs/TWO-LAPTOP-SETUP.md`. Script: `DEMO.md`.
 - **GUI dry run:** `tools/screenshots/LiveDemoShot.java` clicks through the whole demo (28 checks,
   all pass) and regenerates `docs/screenshots/live-*.png`. How-to: `tools/screenshots/README.md`.
-- **Still to do:** the stress-test checklist is done; next is the user's real
-  two-laptop rehearsal (firewall commands are in the setup doc, to run as admin); then mark the PR
-  ready and merge.
+- **Still to do:** the stress-test checklist and feature-check waves 1–2 are done and merged; next
+  is the user's real two-laptop rehearsal (firewall commands are in the setup doc, to run as
+  admin).
 - **Report artifact:** a fresh formatted report with all 14 figures (Figures 1–4 redrawn as
   diagrams, 5–14 screenshots) was published from this account: link below. Its source is
   `docs/report.html` (figures from `docs/screenshots/`), so any account can republish it (see
@@ -75,8 +83,8 @@ The phase-by-phase log is **`BUILD_LOG.md`**.
 
 1. `./mvnw test` — confirm the build is green (use the wrapper; `mvn` is not installed).
 2. Check **Development phases** — all seven are complete, and all four stretch goals are done.
-3. On `master`, the system is feature-complete and documented. The live-shells feature above is the
-   draft PR on `feature/live-shells`.
+3. On `master`, the system is feature-complete and documented, including the live-shells feature
+   above (merged from `feature/live-shells` through PR #12).
 
 ## Development phases
 
@@ -194,10 +202,16 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
   robustness) → `docs/stress-test/A-security.md`, `B-robustness.md` and the ordered fix list
   `CHECKLIST.md`. The user then trimmed the security findings and renumbered them (A-01 to A-09);
   references were reconciled. No source changes yet; fixing is the next job, from another account.
+- **2026-11-08 (stress-test fixes, feature check, merge)** — fixed every stress-test line (265
+  tests). Two agents then re-tested every feature → `docs/feature-check/`; fixed its waves 1 and 2
+  plus two flaky tests (299 tests, dry run 28/28, new `tools\screenshots\dry-run.cmd`), redrew the
+  live figures, republished the report artifact (v3). Merged `master` into the branch (keeping
+  the branch's CLAUDE.md), then merged PR #12 into `master` (`acfd8ee`); CI green.
 
 ## Links
 
-- **Draft PR (live shells + stress-test fixes):** https://github.com/NoboIshraque/cybersecurity/pull/12
+- **PR #12 (live shells + stress-test and feature-check fixes, merged into `master`):** https://github.com/NoboIshraque/cybersecurity/pull/12
+- **Feature-check fix list:** `docs/feature-check/CHECKLIST.md`
 - **Stress-test fix list:** `docs/stress-test/CHECKLIST.md`
 - **Proposal (submission):** https://claude.ai/code/artifact/d5969a4d-9277-473a-8c66-4d32e04716df
   (first account; can't be edited from another account; source `PROPOSAL.md`)

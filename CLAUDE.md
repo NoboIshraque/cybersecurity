@@ -66,13 +66,15 @@ JDK 17+ (CI tests on JDK 17; newer JDKs work too), Maven 3.9+. Language level is
 Optional passwords come from environment variables (`MIRAGE_LEDGER_PASSWORD`,
 `MIRAGE_DB_PASSWORD`, `MIRAGE_TLS_PASSWORD`); the README's table says what each one protects.
 
-> **Live shells & two-laptop demo** were built on branch `feature/live-shells` (draft PR to
-> `master`); the phase-by-phase log is `BUILD_LOG.md`.
+> **Live shells & two-laptop demo** were built on branch `feature/live-shells` and are **merged
+> into `master`** (PR #12, merge commit `acfd8ee`, 2026-11-08); the phase-by-phase log is
+> `BUILD_LOG.md`.
 >
-> **Stress-test fixes: done.** Every line of `docs/stress-test/CHECKLIST.md` is ticked (details
-> in `A-security.md` / `B-robustness.md`): 265 tests green, GUI dry run 28/28. Next: the real
-> two-laptop rehearsal, then mark PR #12 ready and merge it into `master`. Any later fix follows
-> the same rule: a test that fails before and passes after.
+> **Stress-test fixes: done** (`docs/stress-test/CHECKLIST.md`, all ticked). **Feature check:
+> waves 1 and 2 done** (`docs/feature-check/CHECKLIST.md`); wave 3 (polish) is still open.
+> 299 tests green, GUI dry run 28/28 (`tools\screenshots\dry-run.cmd`). Next: the real two-laptop
+> rehearsal; any problem it finds goes on a new branch off `master` with a draft PR. Any later fix
+> follows the same rule: a test that fails before and passes after.
 
 ## Design patterns in use (keep extending these, don't bypass them)
 
