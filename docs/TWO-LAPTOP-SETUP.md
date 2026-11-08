@@ -166,6 +166,7 @@ Tick **Auto-response** on the dashboard to have the Console respond instantly in
 | Console prints the wrong LAN address | It prefers an address inside `lab.cidrs`. Check that the range matches your Wi-Fi network. |
 | `counter-watch could not bind :8080` | Something else uses 8080. Set `counterwatch.port` to a free port in **both** files. |
 | `Defender not started: the Console can't listen on port 8443` | Another Console or defender is still running (an old window). Close it and start again, or change `console.port` in **both** files. |
+| `Defender not started: data\mirage is in use: ...` | A defender or Console is still running in this folder, or one was just force-killed (Task Manager, `Stop-Process -Force`). Start-up waits up to 10 s for a dead run's lock to clear. Close the other window and start again; after a force-kill, wait a few seconds and start again. Never run two defenders from one folder. |
 | `Defender stopped: ... decoy can't listen on port ...` | Something else uses that decoy port (often an old defender). Close it, or change that `decoy.*.port` (and the firewall rule in step 6). |
 | `[link] Console at ... not reachable; retrying` on A | The Console isn't up yet or `console.port` differs. The Sensor keeps retrying and buffers events, and connects as soon as the Console is listening. |
 | `mirage.jar not found` | Build it (step 3) or copy it next to the script. |
