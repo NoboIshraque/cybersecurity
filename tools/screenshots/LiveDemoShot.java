@@ -152,7 +152,7 @@ public class LiveDemoShot {
         check("auto-response checkbox ON", autoBox().isSelected());
         JFrame auto = launch("Honeytoken replay", false, "127.0.0.1");
         waitText(auto, "ACCESS GRANTED", 15_000);
-        check("auto-response: Console blocks by itself → NEUTRALISED",
+        check("auto-response: Console blocks by itself -> NEUTRALISED",
                 waitLevel(ThreatLevel.NEUTRALISED, 15_000));
         click(frame("Mirage Console"), "Pipeline shell");
         JFrame pipeline = waitFrame("Mirage — Console pipeline", 10_000);
@@ -164,7 +164,7 @@ public class LiveDemoShot {
 
         // ---- 6. safety: a target outside the lab range ------------------------------
         JFrame refused = launch("Recon scan", false, "8.8.8.8");
-        check("out-of-range target: REFUSED — OUTSIDE LAB RANGE",
+        check("out-of-range target: REFUSED - OUTSIDE LAB RANGE",
                 waitText(refused, "REFUSED — OUTSIDE LAB RANGE", 10_000));
         shot(refused, "live-specter-refused");
 

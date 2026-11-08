@@ -90,7 +90,7 @@ src/main/java/com/mirage/
   sensor/     Decoy (abstract, pooled) + HTTP/FTP/Telnet decoys, bait-file watcher, SensorMain
   specter/    AttackStrategy + attacks, Attacker, CounterWatch, SpecterConsole, SpecterMain
   ui/shell/   ShellModel + ShellWindow (terminal-style process shell, shared by both sides)
-src/test/java/com/mirage/   unit tests (98)
+src/test/java/com/mirage/   JUnit 5 tests (unit + loopback integration)
 tools/screenshots/          GUI dry run + figure harnesses
 db/schema.sql               H2 database schema
 docs/                       two-laptop setup guide and screenshots

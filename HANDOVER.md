@@ -35,9 +35,6 @@ related group); the commit messages explain each fix and its design choices.
 - **Left to do (user):**
   1. The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`; firewall commands run as admin).
   2. Then mark PR #12 ready and merge.
-  3. `CLAUDE.md` still says the dry run has "27 checks", "built on JDK 21" and "Current work:
-     stress-test fixes"; it is the owner's file, so it was left as is (28 checks; CI tests on
-     JDK 17; the fixes are done).
 - **Not covered by either review** (unchanged): a dependency CVE scan, IPv6, and the real
   two-laptop network.
 

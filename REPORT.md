@@ -301,7 +301,8 @@ rises, so the ledger holds one entry per finding rather than one per packet (Fig
 ![Threat popup at COMPROMISED, waiting for the operator](docs/screenshots/live-threat-popup-compromised.png)
 
 *Figure 10. The Console's threat popup for the intruder: COMPROMISED (stolen credential,
-intruder inside the decoy, T1078, CRITICAL), with the pipeline shell beneath. Auto-response is
+T1078, CRITICAL; the decoy-session rule confirms it without a second alert), with the pipeline
+shell beneath. Auto-response is
 off, so the alert is recorded and the Console waits for the operator.*
 
 **Operator-gated response.** A shared `AutoResponse` switch decides whether the `ResponsePolicy`

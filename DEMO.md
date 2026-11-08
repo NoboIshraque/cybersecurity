@@ -24,7 +24,7 @@ Everything stays inside the lab range. `ScopeGuard` refuses any other address, o
 | Laptop A — defender | Laptop B — attacker |
 | --- | --- |
 | `run-defender.bat` | `run-attacker.bat` |
-| Dashboard opens. Status bar: `Console at 192.168.0.107:8443 · Sensors connected: 1 · Auto-response: OFF (operator)` | Specter opens with the target already set to Laptop A; a *counter-watch (incoming)* window opens and waits |
+| Dashboard opens. Status bar: `Console at 192.168.0.107:8443 \| Alerts: 0 \| Sensors connected: 1 \| Auto-response: OFF (operator) \| Ledger: verified` | Specter opens with the target already set to Laptop A; a *counter-watch (incoming)* window opens and waits |
 
 Put the two screens side by side on the projector (or one each). On Laptop A, click
 **Pipeline shell** to show the Console's own processing as it happens.
@@ -51,7 +51,7 @@ That's why the alert is high-confidence.
 | Who | Does | Audience sees |
 | --- | --- | --- |
 | Attacker | **Honeytoken replay** → Launch | `replay -> 200 OK  ACCESS GRANTED`. The attacker thinks they're in |
-| Defender | (nothing yet) | The popup turns red: **COMPROMISED**: *Stolen credentials used (honeytoken)* and *Intruder inside decoy (honeypot session)*, both CRITICAL, T1078 |
+| Defender | (nothing yet) | The popup turns red: **COMPROMISED**: *Stolen credentials used (honeytoken)*, CRITICAL, T1078. One finding, one alert: the decoy-session rule sees the same thing, and the shell says *DecoyAccessRule also matches … not alerted twice* |
 
 Talking point: the credential was planted bait (a honeytoken), and the "admin page" is fixed
 text served by the decoy. Nothing real sits behind it. The attacker is inside a trap, and the
@@ -80,7 +80,7 @@ answers from the popup.
 | --- | --- | --- |
 | Defender | Popup → **Counter-attack** | A counter shell: the Console mirrors the attacker's own technique back at Laptop B, `in range — mirroring …` |
 | Attacker | (nothing) | The counter-watch window flashes **INCOMING COUNTER-ATTACK** with each connection's source port and payload |
-| Defender | Popup → **Simultaneous counter** | The counter shell splits: one pane per counter thread (`op-port-scan`, `op-mirror-…`, …), all at once. The bounded set of four methods is not a flood |
+| Defender | Popup → **Simultaneous counter** | The counter shell splits: one pane per counter thread (`op-counter-all`, `op-port-scan`, `op-brute-force`, `op-password-spray`, `op-honeytoken-replay`), all at once, next to the earlier single counter's `op-mirror-…` pane. The bounded set of four methods is not a flood |
 | Attacker | (nothing) | More `INCOMING` lines. The probes end in `NO REPLY`, because the counter-watch only listens and logs |
 
 Talking point: every counter goes through the same `ScopeGuard` as everything else. It can
@@ -116,8 +116,8 @@ The individual apps still run on their own too (`java -jar target\mirage.jar con
 specter`, or `java -cp target/classes com.mirage.console.ConsoleMain` and friends after
 `mvnw compile`). In this mode the source shown everywhere is `127.0.0.1`.
 
-**Bait file (either mode):** on Laptop A, edit or delete any file inside the `bait/` folder next
-to the jar. The Sensor plants three lures there on start (`passwords.csv`, `vpn.key`,
+**Bait file (either mode):** on Laptop A, edit or delete any file inside the `bait/` folder in the
+folder the defender was started from (next to `run-defender.bat`, not next to the jar). The Sensor plants three lures there on start (`passwords.csv`, `vpn.key`,
 `config/backup.cfg`, the last one holding the honeytoken), so try `bait/config/backup.cfg`. A
 CRITICAL *Bait file tampered (possible ransomware)* alert (T1485) appears. A change made while
 the defender was closed is reported at its next start, marked *while the Sensor was down*.

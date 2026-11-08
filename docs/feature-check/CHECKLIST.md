@@ -39,7 +39,7 @@ These are the things most likely to confuse or block the rehearsal itself.
 - [x] **MEDIUM** · [FB-03](B-gui.md) + [FB-07](B-gui.md) — In split view only 1 or 2 of the 4–5 thread panes are on screen (the rest need horizontal scrolling); Figure 13 shows this too. Turning on **Split threads** after lines have arrived gives an empty pane, and the counter shell loses the single counter's lines when Simultaneous counter switches it to split view. *Make the split container fit the viewport width (or use a 2×N grid); rebuild the panes from a bounded history kept per thread.*
 - [x] **MEDIUM** · [FB-06](B-gui.md) — DEMO step 4 promises a fake file manager showing `passwords.csv`, `vpn.key` and `backup.cfg`, but no GUI ever shows those files; Specter prints only the first reply line. *Have Specter list the file names from a 200 reply, or reword DEMO step 4.*
 - [x] **LOW** · [FB-10](B-gui.md) — `BLOCK DISPATCHED — AWAITING SENSOR ACK` sometimes appears *after* the Sensor's ACK. It's a race, and it shows in the published Figure 11. *Emit the banner before broadcasting, or drop "awaiting".*
-- [ ] **LOW** · [FB-09](B-gui.md) + [FB-18](B-gui.md) — Doc wording that no longer matches the program:
+- [x] **LOW** · [FB-09](B-gui.md) + [FB-18](B-gui.md) — Doc wording that no longer matches the program:
   - DEMO step 3 and REPORT Figure 10 still promise a second "Intruder inside decoy" CRITICAL alert.
   - The DEMO status-bar text differs from the real one.
   - The DEMO step 5 pane names don't match the real panes.
