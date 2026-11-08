@@ -80,7 +80,7 @@ answers from the popup.
 | --- | --- | --- |
 | Defender | Popup → **Counter-attack** | A counter shell: the Console mirrors the attacker's own technique back at Laptop B, `in range — mirroring …` |
 | Attacker | (nothing) | The counter-watch window flashes **INCOMING COUNTER-ATTACK** with each connection's source port and payload |
-| Defender | Popup → **Simultaneous counter** | The counter shell splits: one pane per counter thread (`op-counter-all`, `op-port-scan`, `op-brute-force`, `op-password-spray`, `op-honeytoken-replay`), all at once, next to the earlier single counter's `op-mirror-…` pane. The bounded set of four methods is not a flood |
+| Defender | Popup → **Simultaneous counter** | The counter shell splits: one pane per counter thread (`op-counter-all`, `op-port-scan`, `op-brute-force`, `op-password-spray`, `op-honeytoken-replay`), all at once, next to the earlier single counter's panes (`op-counter`, `op-mirror-…`). The bounded set of four methods is not a flood |
 | Attacker | (nothing) | More `INCOMING` lines. The probes end in `NO REPLY`, because the counter-watch only listens and logs |
 
 Talking point: every counter goes through the same `ScopeGuard` as everything else. It can
