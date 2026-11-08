@@ -14,6 +14,10 @@ Everything stays inside the lab range. `ScopeGuard` refuses any other address, o
 - **Run time:** about 8 minutes. Rehearse once with the
   [automated dry run](tools/screenshots/README.md#live-shells-dry-run-livedemoshotjava) if you
   change anything.
+- **Start clean:** the dashboard opens with the alerts saved by earlier runs (that's what lets
+  a tampered alert show up red in step 7). So after the rehearsal, close the defender and
+  delete the `data` folder it was started from (next to `run-defender.bat`). The feed and the
+  map then start empty for the audience.
 
 ## 0. Start (before you begin talking)
 

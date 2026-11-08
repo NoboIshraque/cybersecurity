@@ -133,7 +133,19 @@ public final class Dashboard extends JFrame {
         this.map = new NetworkMapPanel(this::select);
         this.detail = new AttackerDetailPanel(directory, runner);
         buildUi();
+        showStoredAlerts();
         new Timer(2000, e -> refreshStatus()).start();
+    }
+
+    /**
+     * FB-02: the alerts saved by earlier runs go in the feed and on the map, and the chain is
+     * checked once now. So an alert edited in the database while the Console was down is red as
+     * the dashboard opens. They raise no popup: those are for what happens in this run.
+     */
+    private void showStoredAlerts() {
+        ledger.storedAlerts().forEach(model::addAlert);
+        rebuildMap();
+        verifyLedger();
     }
 
     /** Do one operator operation (any thread) and return its result line. */

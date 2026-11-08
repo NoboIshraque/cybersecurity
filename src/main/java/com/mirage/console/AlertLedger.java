@@ -21,6 +21,8 @@ public final class AlertLedger {
 
     private final List<LedgerEntry> chain = new ArrayList<>();
     private final LedgerSigner signer;
+    /** The alerts of the stored chain this ledger continues (empty for a new one); immutable. */
+    private final List<Alert> stored;
     private String lastHash = GENESIS;
 
     public AlertLedger() {
@@ -28,7 +30,7 @@ public final class AlertLedger {
     }
 
     public AlertLedger(LedgerSigner signer) {
-        this.signer = signer;
+        this(signer, List.of());
     }
 
     /**
@@ -37,7 +39,8 @@ public final class AlertLedger {
      * too, so an edit made to the database between runs shows up at start-up.
      */
     public AlertLedger(LedgerSigner signer, List<LedgerEntry> stored) {
-        this(signer);
+        this.signer = signer;
+        this.stored = stored.stream().map(LedgerEntry::alert).toList();
         chain.addAll(stored);
         if (!stored.isEmpty()) {
             lastHash = stored.get(stored.size() - 1).hash();
@@ -92,6 +95,14 @@ public final class AlertLedger {
 
     public synchronized List<LedgerEntry> entries() {
         return Collections.unmodifiableList(new ArrayList<>(chain));
+    }
+
+    /**
+     * The alerts loaded from storage when this ledger was made (FB-02), not the ones appended
+     * since. The dashboard shows them as it opens, so an alert edited between runs can be seen.
+     */
+    public List<Alert> storedAlerts() {
+        return stored;
     }
 
     public synchronized int size() {

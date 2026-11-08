@@ -61,6 +61,11 @@ public final class NetworkMapPanel extends JPanel {
         repaint();
     }
 
+    /** The nodes shown now (for tests). */
+    List<Node> nodes() {
+        return List.copyOf(nodes);
+    }
+
     public void setSelected(String sourceIp) {
         this.selected = sourceIp;
         repaint();
