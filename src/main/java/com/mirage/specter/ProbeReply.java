@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ConnectException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
@@ -21,8 +22,10 @@ import java.util.regex.Pattern;
  *   <li>{@code ACCEPTED} — the decoy returned a success line (it let us "in").</li>
  *   <li>{@code REJECTED} — the decoy answered with a normal failure (401/530/...).</li>
  *   <li>{@code DROPPED}  — the connection was reset (an active block: a blocked decoy rejects
- *       with a TCP reset, like a firewall), or could not be used at all
- *       ({@link #connectFailed()}).</li>
+ *       with a TCP reset, like a firewall).</li>
+ *   <li>{@code UNREACHABLE} — no usable connection at all: refused (nothing listening), timed
+ *       out (host down, or a firewall silently dropping packets) or no route. Not a block: on
+ *       two laptops this usually means a set-up problem, so it must not read as one (FB-01).</li>
  *   <li>{@code NO_REPLY} — the other side closed quietly without answering (nothing there that
  *       speaks the protocol, e.g. the attacker's accept-and-log counter-watch).</li>
  *   <li>{@code STALLED}  — no reply before the timeout (a tarpit holding the line).</li>
@@ -34,33 +37,41 @@ import java.util.regex.Pattern;
  */
 final class ProbeReply {
 
-    enum Outcome { ACCEPTED, REJECTED, DROPPED, NO_REPLY, STALLED }
+    enum Outcome { ACCEPTED, REJECTED, DROPPED, NO_REPLY, STALLED, UNREACHABLE }
+
+    /**
+     * How long to wait for a connection. Without it a silent host (wrong IP, a firewall dropping
+     * packets) hangs for the OS default, about 21 s on Windows and minutes on Linux (FB-01).
+     */
+    static final int CONNECT_TIMEOUT_MS = 3000;
 
     final Outcome outcome;
     final String firstLine;
-    private final boolean connectFailed;
+    /** Why an {@code UNREACHABLE} probe failed, in plain words; empty otherwise. */
+    final String reason;
 
     private ProbeReply(Outcome outcome, String firstLine) {
-        this(outcome, firstLine, false);
+        this(outcome, firstLine, "");
     }
 
-    private ProbeReply(Outcome outcome, String firstLine, boolean connectFailed) {
+    private ProbeReply(Outcome outcome, String firstLine, String reason) {
         this.outcome = outcome;
         this.firstLine = firstLine;
-        this.connectFailed = connectFailed;
+        this.reason = reason;
     }
 
     /** True when the probe never got a usable connection (refused, unreachable, ...), not a reset. */
     boolean connectFailed() {
-        return connectFailed;
+        return outcome == Outcome.UNREACHABLE;
     }
 
     /** Connect, send {@code request}, read the reply; every failure on the way is classified. */
     static ProbeReply probe(Target target, byte[] request, int timeoutMillis) {
-        Socket socket;
+        Socket socket = new Socket();
         try {
-            socket = new Socket(target.host(), target.port());
+            socket.connect(new InetSocketAddress(target.host(), target.port()), CONNECT_TIMEOUT_MS);
         } catch (IOException e) {
+            closeQuietly(socket);
             return failure(e);
         }
         try (socket) {
@@ -85,7 +96,30 @@ final class ProbeReply {
     /** A probe that failed before any reply: a reset or abort is a block, anything else a failed connection. */
     static ProbeReply failure(IOException e) {
         return isReset(e) ? new ProbeReply(Outcome.DROPPED, "")
-                : new ProbeReply(Outcome.DROPPED, "", true);
+                : new ProbeReply(Outcome.UNREACHABLE, "", reasonFor(e));
+    }
+
+    /** A short, plain reason for a failed connection, so the presenter can tell set-up problems apart. */
+    static String reasonFor(IOException e) {
+        String message = e.getMessage() == null ? "" : e.getMessage().toLowerCase(Locale.ROOT);
+        if (e instanceof SocketTimeoutException || message.contains("timed out")) {
+            return "timed out: host down, or a firewall dropping packets";
+        }
+        if (message.contains("refused")) {
+            return "refused: nothing listening on that port";
+        }
+        if (message.contains("unreachable") || message.contains("no route")) {
+            return "no route to that host";
+        }
+        return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+    }
+
+    private static void closeQuietly(Socket socket) {
+        try {
+            socket.close();
+        } catch (IOException ignored) {
+            // nothing was connected
+        }
     }
 
     /** The peer reset or aborted the connection (Windows and Linux/JDK wordings). */

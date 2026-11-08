@@ -27,7 +27,7 @@ public final class PasswordSprayAttack implements AttackStrategy {
                 break;
             }
             if (last == ProbeReply.Outcome.DROPPED || last == ProbeReply.Outcome.STALLED
-                    || last == ProbeReply.Outcome.NO_REPLY) {
+                    || last == ProbeReply.Outcome.NO_REPLY || last == ProbeReply.Outcome.UNREACHABLE) {
                 break;
             }
         }

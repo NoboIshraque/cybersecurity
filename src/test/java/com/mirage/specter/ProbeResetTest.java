@@ -60,7 +60,7 @@ class ProbeResetTest {
                 new SocketException("Network is unreachable"),
                 new IOException("something else")}) {
             ProbeReply reply = ProbeReply.failure(e);
-            assertEquals("connection failed", BruteForceAttack.describe(reply), e.getMessage());
+            assertTrue(BruteForceAttack.describe(reply).startsWith("connection failed ("), e.getMessage());
             assertTrue(reply.connectFailed());
         }
     }

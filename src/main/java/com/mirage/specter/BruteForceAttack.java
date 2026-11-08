@@ -33,8 +33,8 @@ public final class BruteForceAttack implements AttackStrategy {
                 break;
             }
             if (last == ProbeReply.Outcome.DROPPED || last == ProbeReply.Outcome.STALLED
-                    || last == ProbeReply.Outcome.NO_REPLY) {
-                break; // blocked, tarpitted or nothing answering — no point hammering further
+                    || last == ProbeReply.Outcome.NO_REPLY || last == ProbeReply.Outcome.UNREACHABLE) {
+                break; // blocked, tarpitted, unreachable or nothing answering — no point hammering further
             }
         }
         if (last == ProbeReply.Outcome.REJECTED) {
@@ -59,7 +59,7 @@ public final class BruteForceAttack implements AttackStrategy {
         return switch (outcome) {
             case ACCEPTED -> TraceLevel.GOOD;
             case REJECTED -> TraceLevel.INFO;
-            case NO_REPLY -> TraceLevel.WARN;
+            case NO_REPLY, UNREACHABLE -> TraceLevel.WARN;
             case DROPPED, STALLED -> TraceLevel.BAD;
         };
     }
@@ -68,7 +68,8 @@ public final class BruteForceAttack implements AttackStrategy {
         return switch (reply.outcome) {
             case ACCEPTED -> "200 OK  ACCESS GRANTED";
             case REJECTED -> reply.firstLine.isEmpty() ? "rejected" : reply.firstLine;
-            case DROPPED -> reply.connectFailed() ? "connection failed" : "connection reset (blocked)";
+            case DROPPED -> "connection reset (blocked)";
+            case UNREACHABLE -> "connection failed (" + reply.reason + ")";
             case NO_REPLY -> "closed without a reply (nothing answering)";
             case STALLED -> "no reply (tarpit)";
         };
@@ -80,6 +81,7 @@ public final class BruteForceAttack implements AttackStrategy {
             case ACCEPTED -> "ACCESS GRANTED";
             case REJECTED -> "NO ACCESS";
             case DROPPED -> "CONNECTION BLOCKED";
+            case UNREACHABLE -> "CONNECTION FAILED";
             case NO_REPLY -> "NO REPLY";
             case STALLED -> "CONNECTION STALLED";
         };

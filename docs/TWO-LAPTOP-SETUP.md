@@ -161,7 +161,8 @@ Tick **Auto-response** on the dashboard to have the Console respond instantly in
 | --- | --- |
 | `Refusing to start: lab range ...` | `lab.cidrs` must be private/loopback and `/16` or narrower. |
 | Specter says `REFUSED — OUTSIDE LAB RANGE` | The target IP isn't in `lab.cidrs`. Fix the range or `console.host`. |
-| Specter connections time out | Firewall on A (step 6), a Java block rule, a Public network profile, or Wi-Fi client isolation (use a hotspot). |
+| Specter says `CONNECTION FAILED (timed out ...)` | Nothing answered within 3 s: a wrong target IP, the firewall on A (step 6), a Java block rule, a Public network profile, or Wi-Fi client isolation (use a hotspot). This is a set-up problem, not the defender blocking you: a real block reads `CONNECTION BLOCKED`. |
+| Specter says `CONNECTION FAILED (refused ...)` | A answered, but nothing listens on that port: the defender isn't running, or the decoy ports differ between the two `mirage.properties` files. |
 | Console prints the wrong LAN address | It prefers an address inside `lab.cidrs`. Check that the range matches your Wi-Fi network. |
 | `counter-watch could not bind :8080` | Something else uses 8080. Set `counterwatch.port` to a free port in **both** files. |
 | `Defender not started: the Console can't listen on port 8443` | Another Console or defender is still running (an old window). Close it and start again, or change `console.port` in **both** files. |
