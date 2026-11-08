@@ -198,8 +198,9 @@ class PersistenceTablesTest {
         }
     }
 
+    /** Polls until a row appears; the 10 s ceiling only matters on a loaded machine (FC-01: 3 s timed out once). */
     private void awaitRows(String sql) throws Exception {
-        long deadline = System.currentTimeMillis() + 3000;
+        long deadline = System.currentTimeMillis() + 10_000;
         while (rows(sql).isEmpty()) {
             if (System.currentTimeMillis() > deadline) {
                 fail("no row for: " + sql + "; sensor table: " + rows("SELECT * FROM sensor"));

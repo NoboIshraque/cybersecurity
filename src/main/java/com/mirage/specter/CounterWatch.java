@@ -43,6 +43,11 @@ public final class CounterWatch {
     /** "INCOMING" lines shown per source per log window. */
     public static final int LOG_PER_WINDOW = 10;
     static final long LOG_WINDOW_MILLIS = 5000;
+    /**
+     * Connections the OS may queue while the accept thread is busy (the default is 50). Past it,
+     * Windows refuses new connections outright, so a burst of counters read as "refused" (FC-01).
+     */
+    static final int BACKLOG = 256;
 
     private final int port;
     private final TraceSink trace;
@@ -66,7 +71,7 @@ public final class CounterWatch {
 
     /** Bind the listener and start accepting (returns the bound port; 0 binds an ephemeral one). */
     public int start() throws IOException {
-        server = new ServerSocket(port);
+        server = new ServerSocket(port, BACKLOG);
         running = true;
         int bound = server.getLocalPort();
         Thread t = new Thread(this::acceptLoop, "counter-watch-" + bound);

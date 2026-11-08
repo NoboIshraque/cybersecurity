@@ -174,16 +174,20 @@ public abstract class Decoy {
 
     private void serve(Socket socket, String src, int srcPort, Consumer<AttackEvent> sink, boolean fake) {
         try (Socket s = socket) {
-            s.setSoTimeout((int) Math.min(Integer.MAX_VALUE, limits.readTimeout().toMillis()));
-            if (fake) {
-                feedFake(s, src, srcPort, sink);
-            } else {
-                interact(s, src, srcPort, sink);
+            try {
+                s.setSoTimeout((int) Math.min(Integer.MAX_VALUE, limits.readTimeout().toMillis()));
+                if (fake) {
+                    feedFake(s, src, srcPort, sink);
+                } else {
+                    interact(s, src, srcPort, sink);
+                }
+            } catch (LineTooLongException e) {
+                // B-08: cut off instead of buffering; worth reporting, it's not a normal client.
+                // Reported while the socket is still open: a try-with-resources closes before
+                // its own catch runs, so the hang-up could be seen before the report (FC-01).
+                sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT,
+                        "refused: " + e.getMessage(), Instant.now()));
             }
-        } catch (LineTooLongException e) {
-            // B-08: cut off instead of buffering; worth reporting, it's not a normal client
-            sink.accept(new AttackEvent(src, srcPort, type, Action.CONNECT,
-                    "refused: " + e.getMessage(), Instant.now()));
         } catch (IOException e) {
             // read timeout, client gone or decoy stopped; this connection is done
         } finally {
