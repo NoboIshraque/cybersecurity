@@ -116,18 +116,25 @@ public final class OperationShells implements OperationRunner {
 
     /** A closing banner for this shell only (not broadcast on the bus). */
     private static TraceEvent banner(Operation operation, String sourceIp, String result) {
-        String text;
-        if (result.contains("REFUSED")) {
-            text = "REFUSED — OUTSIDE LAB RANGE";
-        } else if (result.startsWith("failed") || result.startsWith("no ")
-                || result.contains("not configured") || result.contains("  no counter mapped")) {
-            text = operation.label().toUpperCase(Locale.ROOT) + " — NOT SENT";
-        } else if (operation.isCounter()) {
-            text = operation == Operation.COUNTER_ALL ? "COUNTERS LAUNCHED (CONCURRENT)" : "COUNTER LAUNCHED";
-        } else {
-            text = operation.label().toUpperCase(Locale.ROOT) + " DISPATCHED — AWAITING SENSOR ACK";
-        }
         return new TraceEvent(Instant.now(), "op", Thread.currentThread().getName(),
-                operation.isCounter() ? "counter" : "command", sourceIp, TraceLevel.BANNER, text);
+                operation.isCounter() ? "counter" : "command", sourceIp, TraceLevel.BANNER,
+                bannerText(operation, result));
+    }
+
+    /** The closing banner's text for an operation and its result line. */
+    static String bannerText(Operation operation, String result) {
+        if (result.contains("REFUSED")) {
+            return "REFUSED — OUTSIDE LAB RANGE";
+        }
+        if (result.startsWith("failed") || result.startsWith("no ")
+                || result.contains("not configured") || result.contains("  no counter mapped")) {
+            return operation.label().toUpperCase(Locale.ROOT) + " — NOT SENT";
+        }
+        if (operation.isCounter()) {
+            return operation == Operation.COUNTER_ALL ? "COUNTERS LAUNCHED (CONCURRENT)" : "COUNTER LAUNCHED";
+        }
+        // FB-10: written once the work returns, while the Sensor's ACK arrives on its own thread,
+        // so the ACK can be shown first. "Awaiting" would then be false; the ACK line confirms.
+        return operation.label().toUpperCase(Locale.ROOT) + " DISPATCHED";
     }
 }
