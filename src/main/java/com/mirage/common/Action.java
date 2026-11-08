@@ -6,5 +6,7 @@ public enum Action {
     PORT_PROBE,
     LOGIN_ATTEMPT,
     FILE_CHANGE,
-    HONEYTOKEN_USE
+    HONEYTOKEN_USE,
+    /** The decoy let the intruder "in" (a trap credential worked) — a honeypot session began. */
+    DECOY_ACCESS
 }

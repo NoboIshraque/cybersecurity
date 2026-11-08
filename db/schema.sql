@@ -1,6 +1,7 @@
 -- Mirage embedded database schema (H2). Loaded by the Console on startup.
 -- Documented copy; the runtime loads src/main/resources/schema.sql (kept in sync).
 
+-- sensor: one row per Sensor (hostname = its id), upserted on every heartbeat.
 CREATE TABLE IF NOT EXISTS sensor (
     id             BIGINT AUTO_INCREMENT PRIMARY KEY,
     hostname       VARCHAR(255) NOT NULL,
@@ -9,14 +10,7 @@ CREATE TABLE IF NOT EXISTS sensor (
     last_heartbeat TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS decoy (
-    id        BIGINT AUTO_INCREMENT PRIMARY KEY,
-    sensor_id BIGINT REFERENCES sensor(id),
-    type      VARCHAR(32) NOT NULL,
-    port      INT NOT NULL,
-    status    VARCHAR(32) NOT NULL
-);
-
+-- attacker_profile: one row per source, updated whenever it raises an alert.
 CREATE TABLE IF NOT EXISTS attacker_profile (
     src_ip      VARCHAR(45) PRIMARY KEY,
     first_seen  TIMESTAMP,
@@ -27,16 +21,19 @@ CREATE TABLE IF NOT EXISTS attacker_profile (
     state       VARCHAR(32)
 );
 
+-- attack_event: every event a Sensor reported, with the decoy type and the reporting Sensor.
 CREATE TABLE IF NOT EXISTS attack_event (
-    id        BIGINT AUTO_INCREMENT PRIMARY KEY,
-    sensor_id BIGINT REFERENCES sensor(id),
-    decoy_id  BIGINT REFERENCES decoy(id),
-    src_ip    VARCHAR(45),
-    ts        TIMESTAMP,
-    action    VARCHAR(32),
-    payload   CLOB
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    sensor_id  BIGINT REFERENCES sensor(id),
+    src_ip     VARCHAR(45),
+    ts         TIMESTAMP,
+    action     VARCHAR(32),
+    payload    CLOB,
+    decoy_type VARCHAR(32)
 );
 
+-- alert: the hash-chained, ECDSA-signed ledger. key_id names the signing key (rows without one
+-- predate the saved key and are not checked); alert_ts is the exact timestamp that was hashed.
 CREATE TABLE IF NOT EXISTS alert (
     id               BIGINT AUTO_INCREMENT PRIMARY KEY,
     src_ip           VARCHAR(45),
@@ -46,9 +43,12 @@ CREATE TABLE IF NOT EXISTS alert (
     severity         VARCHAR(16),
     prev_hash        CHAR(64),
     hash             CHAR(64),
-    signature        VARCHAR(512)
+    signature        VARCHAR(512),
+    key_id           VARCHAR(32),
+    alert_ts         VARCHAR(40)
 );
 
+-- honeytoken: the planted bait credentials, and when one was first used.
 CREATE TABLE IF NOT EXISTS honeytoken (
     id               BIGINT AUTO_INCREMENT PRIMARY KEY,
     token_value      VARCHAR(255) NOT NULL,
@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS honeytoken (
     used_ts          TIMESTAMP
 );
 
+-- block_rule: every response command sent (scope = BLOCK, TARPIT or FEED_FAKE); an UNBLOCK
+-- closes the source's active rows.
 CREATE TABLE IF NOT EXISTS block_rule (
     id         BIGINT AUTO_INCREMENT PRIMARY KEY,
     src_ip     VARCHAR(45) NOT NULL,
@@ -64,3 +66,8 @@ CREATE TABLE IF NOT EXISTS block_rule (
     scope      VARCHAR(32),
     active     BOOLEAN DEFAULT TRUE
 );
+
+-- Upgrades for databases created before these columns existed (no-ops on a new one).
+ALTER TABLE attack_event ADD COLUMN IF NOT EXISTS decoy_type VARCHAR(32);
+ALTER TABLE alert ADD COLUMN IF NOT EXISTS key_id VARCHAR(32);
+ALTER TABLE alert ADD COLUMN IF NOT EXISTS alert_ts VARCHAR(40);

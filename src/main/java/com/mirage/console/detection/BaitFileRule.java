@@ -12,8 +12,7 @@ public final class BaitFileRule implements DetectionRule {
 
     @Override
     public Optional<Classification> classify(AttackerProfile profile) {
-        boolean tampered = profile.events().stream()
-                .anyMatch(e -> e.action() == Action.FILE_CHANGE);
+        boolean tampered = profile.count(Action.FILE_CHANGE) > 0;
         return tampered
                 ? Optional.of(new Classification(
                         "Bait file tampered (possible ransomware)", "T1485", Severity.CRITICAL))

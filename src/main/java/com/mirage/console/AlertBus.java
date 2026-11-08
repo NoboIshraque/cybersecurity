@@ -14,7 +14,17 @@ public final class AlertBus {
         listeners.add(listener);
     }
 
+    /**
+     * Deliver to every listener. One listener's exception (say, a dashboard bug) is reported and
+     * does not reach the others or the publisher, which is the engine thread (B-33, as TraceBus).
+     */
     public void publish(Alert alert) {
-        listeners.forEach(l -> l.accept(alert));
+        for (Consumer<Alert> listener : listeners) {
+            try {
+                listener.accept(alert);
+            } catch (RuntimeException e) {
+                System.err.println("[alert-bus] a listener failed on " + alert.canonical() + ": " + e);
+            }
+        }
     }
 }

@@ -28,7 +28,7 @@ public final class ResponsePolicy {
         guard.require(sourceIp); // safety boundary
         return switch (classification.severity()) {
             case LOW, MEDIUM -> List.of(new TarpitAction(sink, sourceIp));
-            case HIGH        -> List.of(new TarpitAction(sink, sourceIp), new FeedFakeDataAction(sink, sourceIp));
+            case HIGH        -> List.of(new FeedFakeDataAction(sink, sourceIp)); // B-09: let in, show lures
             case CRITICAL    -> List.of(new BlockSourceAction(sink, sourceIp));
         };
     }

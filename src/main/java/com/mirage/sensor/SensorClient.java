@@ -1,14 +1,13 @@
 package com.mirage.sensor;
 
 import com.mirage.common.AttackEvent;
+import com.mirage.common.BoundedLineReader;
 import com.mirage.common.JsonCodec;
 import com.mirage.common.ResponseCommand;
 import com.mirage.common.SensorMessage;
 
 import javax.net.SocketFactory;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.Socket;
@@ -41,26 +40,42 @@ public final class SensorClient implements AutoCloseable {
         writeLine(JsonCodec.encode(SensorMessage.heartbeat(sensorId)));
     }
 
+    /** Confirm to the Console that a response command has been applied on this Sensor. */
+    public synchronized void sendAck(ResponseCommand applied) throws IOException {
+        writeLine(JsonCodec.encode(SensorMessage.ack(sensorId, applied)));
+    }
+
     /** Start a background thread that applies each command the Console sends. */
     public void startReceiving(Consumer<ResponseCommand> handler) {
-        Thread t = new Thread(() -> receiveLoop(handler), "sensor-client-rx");
+        Thread t = new Thread(() -> {
+            try {
+                receive(handler);
+            } catch (IOException e) {
+                // link closed
+            }
+        }, "sensor-client-rx");
         t.setDaemon(true);
         t.start();
     }
 
-    private void receiveLoop(Consumer<ResponseCommand> handler) {
-        try (BufferedReader in = new BufferedReader(
-                new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = in.readLine()) != null) {
-                if (!line.isBlank()) {
-                    handler.accept(JsonCodec.decodeCommand(line));
-                }
+    /**
+     * Apply each command the Console sends, on the calling thread, until the link closes
+     * (returns) or fails (throws). A line that can't be decoded or applied is skipped, so one
+     * bad or newer-format command doesn't end the link (B-13).
+     */
+    public void receive(Consumer<ResponseCommand> handler) throws IOException {
+        // Bounded: a line past the cap throws LineTooLongException, the link drops and reconnects.
+        BoundedLineReader in = new BoundedLineReader(socket.getInputStream(), JsonCodec.MAX_LINE_BYTES);
+        String line;
+        while ((line = in.readLine()) != null) {
+            if (line.isBlank()) {
+                continue;
             }
-        } catch (IOException e) {
-            // link closed
-        } catch (RuntimeException e) {
-            // malformed command; ignore
+            try {
+                handler.accept(JsonCodec.decodeCommand(line));
+            } catch (RuntimeException e) {
+                System.out.println("[link] skipped a command the Sensor could not apply: " + e.getMessage());
+            }
         }
     }
 

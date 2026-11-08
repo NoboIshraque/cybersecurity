@@ -14,16 +14,24 @@ target/
 .DS_Store
 Thumbs.db
 
-# Lab TLS material — never commit keystores
+# Lab TLS material and private keys — never commit them (NoSecretsCommittedTest checks, A-09)
 *.jks
 *.p12
+*.pfx
+*.pem
+*.key
+*.keystore
 certs/*.jks
 certs/*.p12
 
-# Runtime bait-file directory
+# Runtime bait-file directory and its integrity baseline
 bait/
+bait.sha256
 
 # H2 database files
 data/
 *.mv.db
 *.trace.db
+
+# Local demo settings (copy mirage.properties.example)
+mirage.properties

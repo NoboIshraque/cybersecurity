@@ -9,17 +9,24 @@ import com.mirage.common.Severity;
 import com.mirage.console.db.AlertDao;
 import com.mirage.console.db.Database;
 import com.mirage.console.db.EventDao;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.RepeatedTest;
+
+import java.util.UUID;
 
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Also B-25: run twice in one JVM, as an IDE "rerun" or a suite runner would; each run must start
+ * from an empty database.
+ */
 class PersistenceDaoTest {
 
-    @Test
+    @RepeatedTest(2)
     void appliesSchemaAndPersistsEventsAndAlerts() throws Exception {
-        try (Database db = new Database("jdbc:h2:mem:mirage_test;DB_CLOSE_DELAY=-1")) {
+        // A fresh, private database per run; it disappears when the connection closes (B-25).
+        try (Database db = new Database("jdbc:h2:mem:dao-" + UUID.randomUUID())) {
             EventDao events = new EventDao(db);
             AlertDao alerts = new AlertDao(db);
 

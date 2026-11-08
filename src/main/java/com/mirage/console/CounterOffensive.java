@@ -2,6 +2,8 @@ package com.mirage.console;
 
 import com.mirage.common.Classification;
 import com.mirage.common.ScopeGuard;
+import com.mirage.common.trace.TraceLevel;
+import com.mirage.common.trace.TraceSink;
 import com.mirage.specter.Attacker;
 import com.mirage.specter.Campaign;
 import com.mirage.specter.Target;
@@ -29,11 +31,17 @@ public final class CounterOffensive {
     private final CounterStrategy strategy;
     private final int targetPort;
     private final List<String> log = new ArrayList<>();
+    private volatile TraceSink trace = TraceSink.NONE;
 
     public CounterOffensive(Attacker attacker, CounterStrategy strategy, int targetPort) {
         this.attacker = attacker;
         this.strategy = strategy;
         this.targetPort = targetPort;
+    }
+
+    /** Narrate counter summaries to the operation shell (the Attacker traces each step itself). */
+    public void setTrace(TraceSink trace) {
+        this.trace = trace == null ? TraceSink.NONE : trace;
     }
 
     /** Turn the source's own technique back on it; returns (and logs) the result line. */
@@ -42,13 +50,22 @@ public final class CounterOffensive {
         String line;
         if (campaign.isEmpty()) {
             line = Instant.now() + "  no counter mapped for " + technique.label();
+            trace.line("op", "counter", sourceIp, TraceLevel.WARN, line);
         } else {
+            trace.line("op", "counter", sourceIp, TraceLevel.COMMAND,
+                    "operator: counter " + sourceIp + " with " + campaign.get().name()
+                            + " (" + technique.attackTechnique() + ")");
             try {
                 attacker.launch(campaign.get(), new Target(sourceIp, targetPort));
                 line = Instant.now() + "  COUNTER '" + campaign.get().name() + "' ("
                         + technique.attackTechnique() + ")  →  " + sourceIp;
+                trace.line("op", "counter", sourceIp, TraceLevel.GOOD,
+                        "in range — mirroring " + campaign.get().name() + " back at " + sourceIp);
             } catch (SecurityException e) {
                 line = Instant.now() + "  REFUSED counter  →  " + sourceIp + "  (" + e.getMessage() + ")";
+                trace.line("op", "counter", sourceIp, TraceLevel.BAD, "REFUSED: " + e.getMessage());
+            } catch (IllegalArgumentException e) {
+                line = badTarget(sourceIp, e);
             }
         }
         log.add(line);
@@ -62,15 +79,28 @@ public final class CounterOffensive {
     public synchronized String counterAll(String sourceIp) {
         Campaign campaign = strategy.fullCounter();
         String line;
+        trace.line("op", "counter", sourceIp, TraceLevel.COMMAND,
+                "operator: simultaneous counter (" + campaign.strategies().size() + " methods) at " + sourceIp);
         try {
             attacker.launchConcurrent(campaign, new Target(sourceIp, targetPort));
             line = Instant.now() + "  COUNTER-ALL (" + campaign.strategies().size()
                     + " methods, concurrent)  →  " + sourceIp;
+            trace.line("op", "counter", sourceIp, TraceLevel.GOOD,
+                    "in range — " + campaign.strategies().size() + " methods launched concurrently at " + sourceIp);
         } catch (SecurityException e) {
             line = Instant.now() + "  REFUSED counter  →  " + sourceIp + "  (" + e.getMessage() + ")";
+            trace.line("op", "counter", sourceIp, TraceLevel.BAD, "REFUSED: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            line = badTarget(sourceIp, e);
         }
         log.add(line);
         return line;
+    }
+
+    /** The configured counter port is not a real port (B-20): say so instead of throwing at the operator. */
+    private String badTarget(String sourceIp, IllegalArgumentException e) {
+        trace.line("op", "counter", sourceIp, TraceLevel.BAD, "ERROR: bad counter target: " + e.getMessage());
+        return Instant.now() + "  ERROR counter  →  " + sourceIp + "  (" + e.getMessage() + ")";
     }
 
     public synchronized List<String> log() {

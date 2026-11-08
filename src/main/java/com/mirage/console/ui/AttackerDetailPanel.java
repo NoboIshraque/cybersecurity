@@ -2,12 +2,11 @@ package com.mirage.console.ui;
 
 import com.mirage.common.AttackEvent;
 import com.mirage.common.AttackerSnapshot;
-import com.mirage.common.CommandType;
 import com.mirage.console.AttackerDirectory;
 import com.mirage.console.AttackerDossier;
-import com.mirage.console.ResponseController;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -19,19 +18,18 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.util.List;
-import java.util.function.Function;
 
 /**
  * The right-hand detail view for the selected source: an attacker dossier, a
  * replay of exactly what the intruder sent at each decoy, and a manual
- * active-response panel (the override). All three update together.
+ * active-response panel (the override). All three update together. Every
+ * button goes through an {@link OperationRunner}, which in the live dashboard
+ * opens an operation shell showing the threads doing the work.
  */
 public final class AttackerDetailPanel extends JPanel {
 
     private final transient AttackerDirectory directory;
-    private final transient ResponseController responses;
-    private final transient Function<String, String> counterFn;
-    private final transient Function<String, String> counterAllFn;
+    private final transient OperationRunner runner;
 
     private final JTextArea dossierArea = readOnlyArea();
     private final JTextArea replayArea = readOnlyArea();
@@ -40,14 +38,13 @@ public final class AttackerDetailPanel extends JPanel {
     private final List<JButton> commandButtons;
 
     private String currentSource;
+    /** Event total of the snapshot on screen, so refresh() re-renders only on new activity. */
+    private long shownEvents = -1;
 
-    public AttackerDetailPanel(AttackerDirectory directory, ResponseController responses,
-                               Function<String, String> counterFn, Function<String, String> counterAllFn) {
+    public AttackerDetailPanel(AttackerDirectory directory, OperationRunner runner) {
         super(new BorderLayout());
         this.directory = directory;
-        this.responses = responses;
-        this.counterFn = counterFn;
-        this.counterAllFn = counterAllFn;
+        this.runner = runner;
         dossierArea.setLineWrap(true);
         dossierArea.setWrapStyleWord(true);
 
@@ -59,6 +56,7 @@ public final class AttackerDetailPanel extends JPanel {
 
         commandButtons = collectButtons();
         showSource(null);
+        new javax.swing.Timer(1000, e -> refresh()).start(); // B-18: follow the selected source live
     }
 
     private JPanel buildResponsesTab() {
@@ -72,55 +70,36 @@ public final class AttackerDetailPanel extends JPanel {
         targetLabel.setAlignmentX(LEFT_ALIGNMENT);
         top.add(targetLabel);
 
-        JPanel defend = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        // FB-04: the rows wrap and the notes wrap, so a narrow window keeps every button and
+        // every word (they used to set a ~760 px minimum width and fall off the edge).
+        JPanel defend = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
         defend.setAlignmentX(LEFT_ALIGNMENT);
-        defend.add(commandButton("Tarpit", CommandType.TARPIT));
-        defend.add(commandButton("Feed fake data", CommandType.FEED_FAKE));
-        defend.add(commandButton("Block", CommandType.BLOCK));
-        defend.add(commandButton("Unblock", CommandType.UNBLOCK));
+        defend.add(operationButton(Operation.TARPIT));
+        defend.add(operationButton(Operation.FEED_FAKE));
+        defend.add(operationButton(Operation.BLOCK));
+        defend.add(operationButton(Operation.UNBLOCK));
         top.add(defend);
 
-        JPanel counter = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        JPanel counter = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
         counter.setAlignmentX(LEFT_ALIGNMENT);
-        counter.add(counterButton());
-        counter.add(counterAllButton());
-        counter.add(new JLabel("turn the attacker's own technique(s) back on them — Specter, lab range only"));
+        counter.add(operationButton(Operation.COUNTER));
+        counter.add(operationButton(Operation.COUNTER_ALL));
         top.add(counter);
 
-        JLabel note = new JLabel("Every command — defensive or counter — is checked by ScopeGuard before it leaves.");
-        note.setAlignmentX(LEFT_ALIGNMENT);
-        top.add(note);
+        top.add(new WrappingNote("turn the attacker's own technique(s) back on them — Specter, lab range only"));
+        top.add(Box.createVerticalStrut(4));
+        top.add(new WrappingNote("Every command — defensive or counter — is checked by ScopeGuard before it leaves."));
 
         panel.add(top, BorderLayout.NORTH);
         panel.add(new JScrollPane(responseLog), BorderLayout.CENTER);
         return panel;
     }
 
-    private JButton commandButton(String text, CommandType type) {
-        JButton b = new JButton(text);
+    private JButton operationButton(Operation operation) {
+        JButton b = new JButton(operation.label());
         b.addActionListener(e -> {
             if (currentSource != null) {
-                responseLog.append(responses.issue(type, currentSource) + "\n");
-            }
-        });
-        return b;
-    }
-
-    private JButton counterButton() {
-        JButton b = new JButton("Counter-attack");
-        b.addActionListener(e -> {
-            if (currentSource != null && counterFn != null) {
-                responseLog.append(counterFn.apply(currentSource) + "\n");
-            }
-        });
-        return b;
-    }
-
-    private JButton counterAllButton() {
-        JButton b = new JButton("Simultaneous counter");
-        b.addActionListener(e -> {
-            if (currentSource != null && counterAllFn != null) {
-                responseLog.append(counterAllFn.apply(currentSource) + "\n");
+                runner.run(operation, currentSource, line -> responseLog.append(line + "\n"));
             }
         });
         return b;
@@ -138,21 +117,50 @@ public final class AttackerDetailPanel extends JPanel {
             replayArea.setText("");
             return;
         }
+        render(snapshot);
+    }
+
+    /** Credentials listed in full; beyond this only the total and the most recent are shown. */
+    static final int RECENT_CREDENTIALS = 10;
+
+    /**
+     * Re-render the selected source if it has new activity (B-18: the dossier used to be drawn
+     * once, when the source was clicked). Runs on a 1 s timer; call on the EDT.
+     */
+    public void refresh() {
+        if (currentSource == null) {
+            return;
+        }
+        AttackerSnapshot snapshot = directory.snapshot(currentSource);
+        if (snapshot != null && snapshot.totalEvents() != shownEvents) {
+            render(snapshot);
+        }
+    }
+
+    private void render(AttackerSnapshot snapshot) {
+        shownEvents = snapshot.totalEvents();
         dossierArea.setText(renderDossier(AttackerDossier.from(snapshot)));
         dossierArea.setCaretPosition(0);
         replayArea.setText(renderReplay(snapshot));
         replayArea.setCaretPosition(0);
     }
 
-    private static String renderDossier(AttackerDossier d) {
+    String dossierText() {
+        return dossierArea.getText();
+    }
+
+    static String renderDossier(AttackerDossier d) {
         StringBuilder sb = new StringBuilder();
         line(sb, "Source IP", d.sourceIp());
         line(sb, "Active", d.firstSeen() + "  →  " + d.lastSeen());
         line(sb, "Events observed", String.valueOf(d.eventCount()));
         line(sb, "Services probed", joinOrDash(d.servicesProbed()));
         line(sb, "Port probes", String.valueOf(d.portProbes()));
-        line(sb, "Credentials tried", d.credentialsTried().isEmpty() ? "—"
-                : d.credentialsTried().size() + "   " + joinOrDash(d.credentialsTried()));
+        int tried = d.credentialsTried().size();
+        line(sb, "Credentials tried", tried == 0 ? "—"
+                : tried <= RECENT_CREDENTIALS ? tried + "   " + joinOrDash(d.credentialsTried())
+                : tried + "   (last " + RECENT_CREDENTIALS + ": "
+                        + joinOrDash(d.recentCredentials(RECENT_CREDENTIALS)) + ")");
         line(sb, "Passwords tried", joinOrDash(d.passwordsTried()));
         line(sb, "Honeytokens used", joinOrDash(d.honeytokensUsed()));
         line(sb, "Bait files", joinOrDash(d.baitFilesTouched()));

@@ -1,8 +1,7 @@
 package com.mirage.specter;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.Socket;
+import com.mirage.common.trace.TraceLevel;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -23,19 +22,84 @@ public final class BruteForceAttack implements AttackStrategy {
     }
 
     @Override
-    public void run(Target target) {
+    public void run(Target target, AttackTrace trace) {
+        trace.line(TraceLevel.COMMAND, "hydra -l " + username + " -P passwords.txt "
+                + target.host() + ":" + target.port() + " http-get");
+        ProbeReply.Outcome last = ProbeReply.Outcome.REJECTED;
         for (String password : passwords) {
-            try (Socket socket = new Socket(target.host(), target.port())) {
-                String creds = Base64.getEncoder()
-                        .encodeToString((username + ":" + password).getBytes(StandardCharsets.UTF_8));
-                String request = "GET / HTTP/1.0\r\nAuthorization: Basic " + creds + "\r\n\r\n";
-                OutputStream out = socket.getOutputStream();
-                out.write(request.getBytes(StandardCharsets.UTF_8));
-                out.flush();
-            } catch (IOException ignored) {
-                // decoy may close the socket; move on to the next password
+            last = attempt(target, username, password, trace);
+            if (last == ProbeReply.Outcome.ACCEPTED) {
+                trace.line(TraceLevel.GOOD, "valid credential found: " + username + ":" + password);
+                break;
+            }
+            if (last == ProbeReply.Outcome.DROPPED || last == ProbeReply.Outcome.STALLED
+                    || last == ProbeReply.Outcome.NO_REPLY || last == ProbeReply.Outcome.UNREACHABLE) {
+                break; // blocked, tarpitted, unreachable or nothing answering — no point hammering further
             }
         }
+        if (last == ProbeReply.Outcome.REJECTED) {
+            trace.line(TraceLevel.WARN, "password list exhausted, no valid credential");
+        }
+        trace.line(TraceLevel.BANNER, bannerFor(last));
+    }
+
+    private ProbeReply.Outcome attempt(Target target, String user, String pass, AttackTrace trace) {
+        ProbeReply reply = ProbeReply.probe(target, basicAuthRequest(user + ":" + pass), 1500);
+        trace.line(levelFor(reply.outcome), "try " + user + ":" + pass + "  ->  " + describe(reply));
+        showListing(reply, trace);
+        return reply.outcome;
+    }
+
+    /**
+     * FB-06: what a granted page shows, ls-style, so the audience sees the "loot" (the real
+     * admin page's files, or the lure files when the Console feeds fake data).
+     */
+    static void showListing(ProbeReply reply, AttackTrace trace) {
+        if (reply.outcome != ProbeReply.Outcome.ACCEPTED || reply.listing.isEmpty()) {
+            return;
+        }
+        trace.line(TraceLevel.GOOD, "page lists " + reply.listing.size() + " file(s):");
+        for (String name : reply.listing) {
+            trace.line(TraceLevel.GOOD, "  ls  " + name);
+        }
+    }
+
+    /** {@code GET /} with a Basic {@code Authorization} header for {@code credentials} ("user:pass"). */
+    static byte[] basicAuthRequest(String credentials) {
+        String encoded = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+        return ("GET / HTTP/1.0\r\nAuthorization: Basic " + encoded + "\r\n\r\n").getBytes(StandardCharsets.UTF_8);
+    }
+
+    static TraceLevel levelFor(ProbeReply.Outcome outcome) {
+        return switch (outcome) {
+            case ACCEPTED -> TraceLevel.GOOD;
+            case REJECTED -> TraceLevel.INFO;
+            case NO_REPLY, UNREACHABLE -> TraceLevel.WARN;
+            case DROPPED, STALLED -> TraceLevel.BAD;
+        };
+    }
+
+    static String describe(ProbeReply reply) {
+        return switch (reply.outcome) {
+            case ACCEPTED -> "200 OK  ACCESS GRANTED";
+            case REJECTED -> reply.firstLine.isEmpty() ? "rejected" : reply.firstLine;
+            case DROPPED -> "connection reset (blocked)";
+            case UNREACHABLE -> "connection failed (" + reply.reason + ")";
+            case NO_REPLY -> "closed without a reply (nothing answering)";
+            case STALLED -> "no reply (tarpit)";
+        };
+    }
+
+    /** The end-of-run banner text for an outcome, shared by the credential strategies. */
+    static String bannerFor(ProbeReply.Outcome outcome) {
+        return switch (outcome) {
+            case ACCEPTED -> "ACCESS GRANTED";
+            case REJECTED -> "NO ACCESS";
+            case DROPPED -> "CONNECTION BLOCKED";
+            case UNREACHABLE -> "CONNECTION FAILED";
+            case NO_REPLY -> "NO REPLY";
+            case STALLED -> "CONNECTION STALLED";
+        };
     }
 
     @Override

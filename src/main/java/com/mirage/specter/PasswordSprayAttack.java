@@ -1,10 +1,7 @@
 package com.mirage.specter;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import com.mirage.common.trace.TraceLevel;
+
 import java.util.List;
 
 /** Tries one password across many usernames against a Basic-auth login decoy. */
@@ -19,23 +16,33 @@ public final class PasswordSprayAttack implements AttackStrategy {
     }
 
     @Override
-    public void run(Target target) {
+    public void run(Target target, AttackTrace trace) {
+        trace.line(TraceLevel.COMMAND, "spray --pass '" + password + "' --users "
+                + String.join(",", usernames) + "  " + target.host() + ":" + target.port());
+        ProbeReply.Outcome last = ProbeReply.Outcome.REJECTED;
         for (String user : usernames) {
-            attempt(target, user, password);
+            last = attempt(target, user, password, trace);
+            if (last == ProbeReply.Outcome.ACCEPTED) {
+                trace.line(TraceLevel.GOOD, "valid credential found: " + user + ":" + password);
+                break;
+            }
+            if (last == ProbeReply.Outcome.DROPPED || last == ProbeReply.Outcome.STALLED
+                    || last == ProbeReply.Outcome.NO_REPLY || last == ProbeReply.Outcome.UNREACHABLE) {
+                break;
+            }
         }
+        if (last == ProbeReply.Outcome.REJECTED) {
+            trace.line(TraceLevel.WARN, "spray complete, no account accepted the password");
+        }
+        trace.line(TraceLevel.BANNER, BruteForceAttack.bannerFor(last));
     }
 
-    private void attempt(Target target, String user, String pass) {
-        try (Socket socket = new Socket(target.host(), target.port())) {
-            String creds = Base64.getEncoder()
-                    .encodeToString((user + ":" + pass).getBytes(StandardCharsets.UTF_8));
-            String request = "GET / HTTP/1.0\r\nAuthorization: Basic " + creds + "\r\n\r\n";
-            OutputStream out = socket.getOutputStream();
-            out.write(request.getBytes(StandardCharsets.UTF_8));
-            out.flush();
-        } catch (IOException ignored) {
-            // decoy may close the socket; move on
-        }
+    private ProbeReply.Outcome attempt(Target target, String user, String pass, AttackTrace trace) {
+        ProbeReply reply = ProbeReply.probe(target, BruteForceAttack.basicAuthRequest(user + ":" + pass), 1500);
+        trace.line(BruteForceAttack.levelFor(reply.outcome),
+                "try " + user + ":" + pass + "  ->  " + BruteForceAttack.describe(reply));
+        BruteForceAttack.showListing(reply, trace);
+        return reply.outcome;
     }
 
     @Override

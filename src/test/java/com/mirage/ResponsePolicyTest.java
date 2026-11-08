@@ -32,6 +32,19 @@ class ResponsePolicyTest {
         assertEquals("10.10.0.5", sent.get(0).targetIp());
     }
 
+    /** B-09: tarpit and fake data now exclude each other, so HIGH sends one clear instruction. */
+    @Test
+    void highFeedsFakeDataOnly() {
+        List<ResponseCommand> sent = new ArrayList<>();
+        ResponsePolicy policy = new ResponsePolicy(new ScopeGuard(List.of("10.10.0.0/24")), sent::add);
+
+        policy.actionsFor("10.10.0.5",
+                new Classification("Credential brute-force", "T1110", Severity.HIGH))
+                .forEach(ResponseAction::execute);
+
+        assertEquals(List.of(new ResponseCommand(CommandType.FEED_FAKE, "10.10.0.5")), sent);
+    }
+
     @Test
     void outOfScopeTargetIsRefused() {
         ResponsePolicy policy = new ResponsePolicy(new ScopeGuard(List.of("10.10.0.0/24")), CommandSink.NONE);

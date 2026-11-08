@@ -10,10 +10,10 @@ public final class BruteForceRule implements DetectionRule {
 
     @Override
     public Optional<Classification> classify(AttackerProfile profile) {
-        long attempts = profile.events().stream()
-                .filter(e -> e.action() == Action.LOGIN_ATTEMPT)
-                .count();
-        if (attempts >= THRESHOLD) {
+        // B-28: different passwords against ONE account within a minute. A spray (one password,
+        // many accounts) plus a later typo is not guessing, nor is a client retrying one password,
+        // nor five attempts spread over a week. Specter's demo sends 8, so one lost attempt is fine.
+        if (profile.recentPasswordsOnOneAccount() >= THRESHOLD) {
             return Optional.of(new Classification(
                     "Credential brute-force", "T1110", Severity.HIGH));
         }

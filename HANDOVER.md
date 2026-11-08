@@ -1,15 +1,82 @@
 # HANDOVER — Mirage
 
-_Last updated: 2026-10-14_
+_Last updated: 2026-11-08 (stress-test fixes complete)_
 
 Start here each session, then read `CLAUDE.md` for conventions.
 
-## How to resume in 60 seconds
+## ▶ RESUME HERE — stress-test fixes done; rehearse, then merge
 
-1. `mvn test` — confirm the build is green.
+Every line of [`docs/stress-test/CHECKLIST.md`](docs/stress-test/CHECKLIST.md) is ticked (waves
+1–3, 2026-11-07/08), each with a test that failed before its fix, on `feature/live-shells` (draft
+PR #12 to `master`, link at the bottom), all pushed. One commit per checklist line (or tightly
+related group); the commit messages explain each fix and its design choices.
+
+- **Baseline:** `.\mvnw.cmd -B test` (PowerShell) or `./mvnw -B test`: **265 tests green**. Maven is
+  not installed; always use the wrapper.
+- **GUI dry run:** `tools/screenshots/LiveDemoShot.java`, now **28 checks** (B-09 added "Specter
+  after fake data: ACCESS GRANTED"), all pass; `docs/screenshots/live-*.png` were regenerated from
+  the final code. How-to: `tools/screenshots/README.md`.
+- **What changed for the demo** (DEMO.md is up to date):
+  - "Feed fake data" is a real response now (B-09): a fed source is let in to fake files; it
+    replaces the tarpit (latest wins), and HIGH auto-response feeds fake data.
+  - Unblock gives a real clean slate (B-03); one honeytoken break-in is one alert and one BLOCK
+    (B-04); the demo campaign records 4 alerts, not 5.
+  - Rules count within time windows (B-28): brute force = 5 passwords on one account in 60 s,
+    spray = one password on 3 accounts in 10 min, scan = 2 services in 60 s. Specter's brute force
+    sends 8.
+  - Sensor ids are `sensor-<host>-<http port>` (B-11), settable with `--sensor-id`.
+  - Unknown flags and impossible ports are refused (B-32); `--lab-cidrs` also works.
+  - Optional `MIRAGE_DB_PASSWORD` encrypts the database (A-07); see the README table.
+- **Pre-rehearsal feature check (2026-11-08):** two agents re-tested every feature of the running
+  program → [`docs/feature-check/CHECKLIST.md`](docs/feature-check/CHECKLIST.md) (details in
+  `A-backend.md` / `B-gui.md`, screenshots in `evidence/`). No HIGH findings; 8 MEDIUM, 13 LOW,
+  mostly about what the screens and docs tell the presenter. Wave 1 there is "before the
+  rehearsal".
+- **Left to do (user):**
+  1. The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`; firewall commands run as admin).
+  2. Then mark PR #12 ready and merge.
+- **Not covered by either review** (unchanged): a dependency CVE scan, IPv6, and the real
+  two-laptop network.
+
+**Things to know when continuing from another account:**
+- The formatted report's source is `docs/report.html` (figures from `docs/screenshots/`). If the
+  report artifact (link at the bottom) can't be edited from the account you are on, publish it as
+  a new artifact, passing the `screenshots/*.png` files, then update the link here and at the top
+  of `REPORT.md`.
+
+## ⚡ LIVE SHELLS & TWO-LAPTOP DEMO — built, in draft PR (branch `feature/live-shells`)
+
+All phases (0–9) of the live-shells feature are done on `feature/live-shells`, pushed, with a
+**draft PR** to `master` (link below). Merge it once the real two-laptop rehearsal has been done.
+The phase-by-phase log is **`BUILD_LOG.md`**.
+
+- **Build/test:** Maven is **not installed** on the demo laptop. Use the committed wrapper:
+  `./mvnw -B test` (PowerShell: `.\mvnw.cmd -B test`). **265 tests green.**
+- **Run:** `.\mvnw.cmd -DskipTests package` → `target/mirage.jar`; `run-defender.bat` (Laptop A:
+  Console + Sensor) and `run-attacker.bat` (Laptop B: Specter + counter-watch). Set-up:
+  `docs/TWO-LAPTOP-SETUP.md`. Script: `DEMO.md`.
+- **GUI dry run:** `tools/screenshots/LiveDemoShot.java` clicks through the whole demo (28 checks,
+  all pass) and regenerates `docs/screenshots/live-*.png`. How-to: `tools/screenshots/README.md`.
+- **Still to do:** the stress-test checklist is done; next is the user's real
+  two-laptop rehearsal (firewall commands are in the setup doc, to run as admin); then mark the PR
+  ready and merge.
+- **Report artifact:** a fresh formatted report with all 14 figures (Figures 1–4 redrawn as
+  diagrams, 5–14 screenshots) was published from this account: link below. Its source is
+  `docs/report.html` (figures from `docs/screenshots/`), so any account can republish it (see
+  RESUME HERE above for how).
+- **What it adds:** terminal-style "process shells" on both sides that stream each step live (and
+  split into one pane per thread for concurrent runs), a decoy that lets a trap credential "in" to a
+  fake page, an operator-gated (manual-by-default) response flow, a counter-watch listener on the
+  attacker laptop, and a one-jar launcher so the two sides can run on two laptops over a private LAN.
+- **Safety unchanged:** everything still routes through `ScopeGuard`; the configurable lab range is
+  additionally forced to be private/loopback and ≤ /16 by `ScopeGuard.requireLabRange`.
+
+## How to resume the ORIGINAL (merged) project in 60 seconds
+
+1. `./mvnw test` — confirm the build is green (use the wrapper; `mvn` is not installed).
 2. Check **Development phases** — all seven are complete, and all four stretch goals are done.
-3. The system is feature-complete and documented. Next work is polish: write the student
-   **reflection** in the Conclusion, rehearse the `DEMO.md` walkthrough, and prepare slides.
+3. On `master`, the system is feature-complete and documented. The live-shells feature above is the
+   draft PR on `feature/live-shells`.
 
 ## Development phases
 
@@ -69,6 +136,13 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
 
 ## Decisions log
 
+- **Live shells (2026-11-07):** Specter "gets in" by decoy deception (a trap credential opens a
+  canned fake admin page); responses are operator-gated with an auto-response switch (off with the
+  GUI, on headless); Specter notices counters passively (`CounterWatch`, accept-and-log only);
+  threads shown both as a tagged stream and as split panes. Lab range configurable but forced
+  private/loopback and ≤ /16. Each rule alerts once per source (again on higher severity or after
+  an Unblock). A blocked decoy rejects with a TCP reset (so "blocked" ≠ "no reply").
+
 - **Topic:** deception-based IDS ("Mirage"), two-sided (blue Console + red Specter).
 - **Safety:** all offence/active-defence gated by `ScopeGuard` to a lab CIDR; non-IP sources refused.
 - **"Counter-attack":** trap + slow (tarpit) + mislead (fake data) + block, plus an
@@ -109,8 +183,25 @@ Regenerate with `mvn compile && tools/screenshots/capture.sh` (needs Xvfb + Imag
   each on its own thread (bounded, `ScopeGuard`-gated), showcasing multithreading. Added the
   concurrency proof test + Figure 7 now shows the `COUNTER-ALL` line. 48 tests green.
 
+- **2026-11-07 (live shells, Phases 0–9)** — Maven wrapper; configurable lab range +
+  `requireLabRange`; `TraceBus` trace plumbing + Sensor ACK; `ShellModel`/`ShellWindow`; pooled
+  decoys + decoy-access deception; Specter shells + `CounterWatch`; Console `ThreatPopup`,
+  `OperationShells`, auto-response switch, pipeline shell; fat jar + `Launcher` + run scripts +
+  two-laptop guide; automated GUI dry run (27/27) + 13 figures; alert de-duplication and the
+  reset-vs-silent-close fix; DEMO/README/CLAUDE/REPORT §5.5 updated; draft PR opened. 98 tests green.
+- **2026-11-07 (report + stress test)** — published a fresh formatted report (`docs/report.html`,
+  14 figures; Figures 1–4 redrawn as diagrams). Ran two parallel stress-test agents (security;
+  robustness) → `docs/stress-test/A-security.md`, `B-robustness.md` and the ordered fix list
+  `CHECKLIST.md`. The user then trimmed the security findings and renumbered them (A-01 to A-09);
+  references were reconciled. No source changes yet; fixing is the next job, from another account.
+
 ## Links
 
+- **Draft PR (live shells + stress-test fixes):** https://github.com/NoboIshraque/cybersecurity/pull/12
+- **Stress-test fix list:** `docs/stress-test/CHECKLIST.md`
 - **Proposal (submission):** https://claude.ai/code/artifact/d5969a4d-9277-473a-8c66-4d32e04716df
-- **Report (detailed):** https://claude.ai/code/artifact/f578aa80-d25b-4514-8adf-f03f27562c3b
+  (first account; can't be edited from another account; source `PROPOSAL.md`)
+- **Report (detailed, current):** https://claude.ai/artifact/7Hf6qAtuzF3i9TdU72jJgg (published from
+  the second account; source `docs/report.html`, republish from a new account as a new artifact)
+- Report (original, first account): https://claude.ai/code/artifact/f578aa80-d25b-4514-8adf-f03f27562c3b
 - In-repo copies: `PROPOSAL.md` (proposal), `REPORT.md` (report), `DEMO.md` (demo script)

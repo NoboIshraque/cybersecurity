@@ -20,7 +20,7 @@ public final class AttackerDirectory {
 
     /** Called on the engine thread whenever a source's profile changes. */
     public void update(AttackerProfile profile) {
-        snapshots.put(profile.sourceIp(), new AttackerSnapshot(profile.sourceIp(), profile.events()));
+        snapshots.put(profile.sourceIp(), AttackerSnapshot.of(profile)); // recent history + lifetime totals
     }
 
     /** The latest snapshot for a source, or {@code null} if none has been seen. */

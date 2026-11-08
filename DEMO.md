@@ -1,51 +1,131 @@
 # Mirage — Demo Script
 
-A self-contained demonstration on one machine (or a small lab). All traffic stays on `127.0.0.1`
-(or the configured lab range); `ScopeGuard` refuses anything else.
+Two presenters, two laptops. **Laptop A (defender)** runs the Console and the Sensor (the
+decoys live on the protected host). **Laptop B (attacker)** runs Specter and its counter-watch.
+Every step streams live in terminal-style shells on both screens, so the audience sees the
+attack land and the defence answer it in real time.
 
-## Build
+Everything stays inside the lab range. `ScopeGuard` refuses any other address, on both sides.
+
+- **Set-up (once, before the audience arrives):** follow
+  [`docs/TWO-LAPTOP-SETUP.md`](docs/TWO-LAPTOP-SETUP.md): same network, `mirage.properties` on both
+  laptops, firewall rules, connectivity check.
+- **Fallback:** the same script runs on one laptop. See [One-laptop run](#one-laptop-run) below.
+- **Run time:** about 8 minutes. Rehearse once with the
+  [automated dry run](tools/screenshots/README.md#live-shells-dry-run-livedemoshotjava) if you
+  change anything.
+- **Start clean:** the dashboard opens with the alerts saved by earlier runs (that's what lets
+  a tampered alert show up red in step 7). So after the rehearsal, close the defender and
+  delete the `data` folder it was started from (next to `run-defender.bat`). The feed and the
+  map then start empty for the audience.
+
+## 0. Start (before you begin talking)
+
+| Laptop A — defender | Laptop B — attacker |
+| --- | --- |
+| `run-defender.bat` | `run-attacker.bat` |
+| Dashboard opens. Status bar: `Console at 192.168.0.107:8443 \| Alerts: 0 \| Sensors connected: 1 \| Auto-response: OFF (operator) \| Ledger: verified` | Specter opens with the target already set to Laptop A; a *counter-watch (incoming)* window opens and waits |
+
+Put the two screens side by side on the projector (or one each). On Laptop A, click
+**Pipeline shell** to show the Console's own processing as it happens.
+
+## 1. Reconnaissance
+
+| Who | Does | Audience sees |
+| --- | --- | --- |
+| Attacker | Campaign **Recon scan** → **Launch** | Specter shell types out an `nmap`-style sweep and ends with `SCAN COMPLETE — 3 OPEN` (the decoys) |
+| Defender | (nothing) | A **threat popup** appears for Laptop B's IP: amber **PROBE DETECTED**. Its shell shows the receive thread → correlation engine → `PortScanRule MATCH … T1046` → ledger entry `#0 sha256=… signed (ECDSA)` → *auto-response OFF, waiting for the operator* |
+
+Talking point: the decoys are services nobody legitimate uses, so any touch is an intruder.
+That's why the alert is high-confidence.
+
+## 2. Credential attacks
+
+| Who | Does | Audience sees |
+| --- | --- | --- |
+| Attacker | **Password spray** → Launch, then **Brute force** → Launch | Each try scrolls by (`try admin:Password123! -> 401`), ending in `NO ACCESS` |
+| Defender | (nothing) | The popup escalates to orange **UNDER ATTACK** (T1110.003 / T1110, HIGH). Rules that already fired say *still match, already alerted — no new alert*: one ledger entry per finding |
+
+## 3. The break-in (that is actually a trap)
+
+| Who | Does | Audience sees |
+| --- | --- | --- |
+| Attacker | **Honeytoken replay** → Launch | `replay -> 200 OK  ACCESS GRANTED`. The attacker thinks they're in |
+| Defender | (nothing yet) | The popup turns red: **COMPROMISED**: *Stolen credentials used (honeytoken)*, CRITICAL, T1078. One finding, one alert: the decoy-session rule sees the same thing, and the shell says *DecoyAccessRule also matches … not alerted twice* |
+
+Talking point: the credential was planted bait (a honeytoken), and the "admin page" is fixed
+text served by the decoy. Nothing real sits behind it. The attacker is inside a trap, and the
+Console knows exactly who and how.
+
+**Optional:** tick **All at once (split threads)** in Specter and launch **Full campaign**. The
+shell splits into one pane per attack thread, all running at once.
+
+## 4. The operator responds
+
+Auto-response is **off**, so the Console has recorded everything and is waiting. The operator
+answers from the popup.
+
+| Who | Does | Audience sees |
+| --- | --- | --- |
+| Defender | Popup → **Tarpit** | An **operation shell** opens: `$ operator: TARPIT …` → `ScopeGuard.require(…)` → `in range — dispatching` → `broadcast TARPIT … to 1 sensor(s)` → `sensor-… confirms: TARPIT … applied` (each line tagged with the thread doing it: `op-tarpit`, `rx-sensor-…`) |
+| Attacker | **Honeytoken replay** → Launch | `no reply (tarpit)` → **CONNECTION STALLED**: the attacker is held on the line |
+| Defender | Popup → **Feed fake data** | Op shell: `op-feed-fake` → broadcast → `sensor-… confirms: FEED_FAKE … applied`. Fake data replaces the tarpit (the latest of the two wins) |
+| Attacker | **Brute force** → Launch | The first guess already reads **ACCESS GRANTED**: the decoy lets any password "in" to a fake file manager, and Specter lists what it "got": `page lists 3 file(s):` → `ls  config/backup.cfg`, `ls  passwords.csv`, `ls  vpn.key`, all worthless. The fake `backup.cfg` holds the honeytoken, so using it later gives the attacker away |
+| Defender | Popup → **Block** | Op shell: `op-block` → broadcast → Sensor ACK; the popup turns green: **NEUTRALISED** — *Sensor confirmed the block, the source is cut off* |
+| Attacker | **Honeytoken replay** → Launch | `connection reset (blocked)` → **CONNECTION BLOCKED** |
+
+## 5. Turning it around (lab range only)
+
+| Who | Does | Audience sees |
+| --- | --- | --- |
+| Defender | Popup → **Counter-attack** | A counter shell: the Console mirrors the attacker's own technique back at Laptop B, `in range — mirroring …` |
+| Attacker | (nothing) | The counter-watch window flashes **INCOMING COUNTER-ATTACK** with each connection's source port and payload |
+| Defender | Popup → **Simultaneous counter** | The counter shell splits: one pane per counter thread (`op-counter-all`, `op-port-scan`, `op-brute-force`, `op-password-spray`, `op-honeytoken-replay`), all at once, next to the earlier single counter's panes (`op-counter`, `op-mirror-…`). The bounded set of four methods is not a flood |
+| Attacker | (nothing) | More `INCOMING` lines. The probes end in `NO REPLY`, because the counter-watch only listens and logs |
+
+Talking point: every counter goes through the same `ScopeGuard` as everything else. It can
+reach Laptop B because Laptop B is inside the lab range, and it cannot reach anything outside it.
+
+## 6. Hands-off mode
+
+| Who | Does | Audience sees |
+| --- | --- | --- |
+| Defender | Popup → **Inspect in dashboard** → **Responses** tab → **Unblock**, then tick **Auto-response** | The popup drops back to COMPROMISED; the status bar reads `Auto-response: ON` |
+| Attacker | **Honeytoken replay** → Launch | It gets in for an instant, then is cut off |
+| Defender | (nothing) | The pipeline shell shows `auto-response: block …` and the Sensor's ACK. The popup goes **NEUTRALISED** with no click |
+
+## 7. Tamper evidence and the safety boundary
+
+| Who | Does | Audience sees |
+| --- | --- | --- |
+| Defender | **Verify ledger** | Status bar: `Ledger: verified`. Every alert is hash-chained and ECDSA-signed; altering any stored alert turns this to `BROKEN (entry n)` with the row in red |
+| Attacker | Type `8.8.8.8` as the target → **Recon scan** → Launch | **REFUSED — OUTSIDE LAB RANGE**. Nothing leaves the laptop |
+
+## One-laptop run
+
+Everything above works on one machine over `127.0.0.1`. With no `mirage.properties`, the
+defaults are the single-machine lab:
 
 ```bash
-mvn -q -DskipTests package   # or: mvn test  (to also run the suite)
+.\mvnw.cmd -DskipTests package      # once; ./mvnw on macOS/Linux
+run-defender.bat                    # window 1: Console + Sensor
+run-attacker.bat                    # window 2: Specter + counter-watch
 ```
 
-## Run (three processes)
+The individual apps still run on their own too (`java -jar target\mirage.jar console | sensor |
+specter`, or `java -cp target/classes com.mirage.console.ConsoleMain` and friends after
+`mvnw compile`). In this mode the source shown everywhere is `127.0.0.1`.
 
-**1. Console (blue team)** — opens the live dashboard, listens on 8443, persists to `./data/mirage`:
-```bash
-java -cp target/classes com.mirage.console.ConsoleMain
-```
-
-**2. Sensor** — starts the decoys (http-login:8081, ftp:8021, telnet:8023) and the bait-file watcher
-(`./bait`), connects to the Console, sends heartbeats:
-```bash
-java -cp target/classes com.mirage.sensor.SensorMain
-```
-
-**3. Specter (red team)** — opens the attack console (target `127.0.0.1`, port `8081`):
-```bash
-java -cp target/classes com.mirage.specter.SpecterMain
-```
-
-## The story to show
-
-1. **Recon scan** — in Specter pick *Recon scan* and Launch. The dashboard fills with connection
-   alerts across the decoys, and a *Port / service scan* (T1046) alert appears.
-2. **Brute force / spray** — pick *Password spray* (or *Brute force*) and Launch. A *Password spraying*
-   (T1110.003) or *Credential brute-force* (T1110) alert appears (HIGH), and the Console broadcasts a
-   tarpit / feed-fakes response to the Sensors.
-3. **Honeytoken** — pick *Honeytoken replay* and Launch. A **CRITICAL** *Stolen credentials used
-   (honeytoken)* (T1078) alert appears and the Console broadcasts a **network-wide BLOCK**. Launch any
-   campaign again: the source is now dropped by the decoys.
-4. **Bait file** — edit or delete any file inside `./bait`. A **CRITICAL** *Bait file tampered* (T1485)
-   alert appears.
-5. **Tamper-evidence** — click **Verify ledger** on the dashboard: it reports *verified*. (If a stored
-   alert had been altered, it would report *BROKEN*.)
-
-Use the **stealth slider** in Specter to switch between fast-and-loud and low-and-slow.
+**Bait file (either mode):** on Laptop A, edit or delete any file inside the `bait/` folder in the
+folder the defender was started from (next to `run-defender.bat`, not next to the jar). The Sensor plants three lures there on start (`passwords.csv`, `vpn.key`,
+`config/backup.cfg`, the last one holding the honeytoken), so try `bait/config/backup.cfg`. A
+CRITICAL *Bait file tampered (possible ransomware)* alert (T1485) appears. A change made while
+the defender was closed is reported at its next start, marked *while the Sensor was down*.
 
 ## Safety
 
-Everything is confined to the lab range by `ScopeGuard`. Specter refuses any target outside the
-authorised range, and the Console only ever dispatches responses for in-range sources. Mirage never
-touches external systems. Run it on isolated host-only VMs or a lab VLAN.
+Everything is confined to the lab range by `ScopeGuard`, which refuses to even start on a
+public or over-wide range (it must be private or loopback, `/16` or narrower). Specter refuses any target
+outside the range; the Console only responds to, or counters, in-range sources. The decoy's
+"admin page" is canned text, and the counter-watch only accepts and logs. Mirage never touches
+external systems.
