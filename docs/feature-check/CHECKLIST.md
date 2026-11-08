@@ -48,6 +48,7 @@ These are the things most likely to confuse or block the rehearsal itself.
   - HANDOVER "Left to do" item 3 about CLAUDE.md is stale (CLAUDE.md already says 28 checks and JDK 17).
 
   *Doc edits; regenerate Figures 10, 11 and 13 after the Wave 2 code fixes.*
+- [x] **LOW** · FC-02 (found while checking wave 2) — `PersistenceTablesTest.theConsoleServerRecordsSensorsAsTheyConnectAndLeave` failed in 2 of 6 full-suite runs: the Sensor's row never read `OFFLINE` within 10 s, yet the failure dump showed it `OFFLINE`. Timing it showed the server's write landed at once; the test's own repeated query kept returning a stale empty result from H2's query cache (a different query, or a new connection, saw the row). A test artefact: the Console reads and writes through one connection. *Open the test's database with `QUERY_CACHE_SIZE=0`* (a timing loop inside the full suite: 4 slow of 600 before, 0 of 800 after).
 
 ## Wave 3 — polish (fix if time allows)
 

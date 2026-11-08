@@ -59,7 +59,10 @@ class PersistenceTablesTest {
 
     @BeforeEach
     void open() throws Exception {
-        url = "jdbc:h2:mem:tables-" + UUID.randomUUID();
+        // FC-02: no query cache. awaitRows polls with the same SQL text, and H2 may keep a cached
+        // result computed while the server's write was landing: the poll then sees the old answer
+        // until another write, though the row is there (a different query, or connection, sees it).
+        url = "jdbc:h2:mem:tables-" + UUID.randomUUID() + ";QUERY_CACHE_SIZE=0";
         db = new Database(url);
         persistence = new H2Persistence(db, "test-key");
         check = DriverManager.getConnection(url); // a second connection to read what was written
@@ -198,7 +201,7 @@ class PersistenceTablesTest {
         }
     }
 
-    /** Polls until a row appears; the 10 s ceiling only matters on a loaded machine (FC-01: 3 s timed out once). */
+    /** Polls until a row appears (it returns as soon as it does; the ceiling only bounds a failure). */
     private void awaitRows(String sql) throws Exception {
         long deadline = System.currentTimeMillis() + 10_000;
         while (rows(sql).isEmpty()) {
