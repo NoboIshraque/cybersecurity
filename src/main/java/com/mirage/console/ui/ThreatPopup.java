@@ -72,7 +72,7 @@ public final class ThreatPopup extends JFrame {
         add(shell, BorderLayout.CENTER);
         add(buildActions(runner, inspect), BorderLayout.SOUTH);
 
-        setSize(920, 600);
+        setSize(WindowSizing.forScreen(920, 600)); // FB-04: smaller on a small screen
         this.backlog = backlog;
         this.feed = shell::onTrace;
         backlog.attach(feed, true); // the lines that led to this popup, then live ones
@@ -89,7 +89,7 @@ public final class ThreatPopup extends JFrame {
     private JPanel buildActions(OperationRunner runner, Consumer<String> inspect) {
         JPanel south = new JPanel(new BorderLayout(6, 2));
         south.setBorder(BorderFactory.createEmptyBorder(4, 8, 6, 8));
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        JPanel buttons = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 2)); // FB-04: wraps, never cut off
         for (Operation op : ACTIONS) {
             JButton b = new JButton(op.label());
             b.addActionListener(e -> {

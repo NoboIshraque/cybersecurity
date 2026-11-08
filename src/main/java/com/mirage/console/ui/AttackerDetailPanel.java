@@ -6,6 +6,7 @@ import com.mirage.console.AttackerDirectory;
 import com.mirage.console.AttackerDossier;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -69,7 +70,9 @@ public final class AttackerDetailPanel extends JPanel {
         targetLabel.setAlignmentX(LEFT_ALIGNMENT);
         top.add(targetLabel);
 
-        JPanel defend = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        // FB-04: the rows wrap and the notes wrap, so a narrow window keeps every button and
+        // every word (they used to set a ~760 px minimum width and fall off the edge).
+        JPanel defend = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
         defend.setAlignmentX(LEFT_ALIGNMENT);
         defend.add(operationButton(Operation.TARPIT));
         defend.add(operationButton(Operation.FEED_FAKE));
@@ -77,16 +80,15 @@ public final class AttackerDetailPanel extends JPanel {
         defend.add(operationButton(Operation.UNBLOCK));
         top.add(defend);
 
-        JPanel counter = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        JPanel counter = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
         counter.setAlignmentX(LEFT_ALIGNMENT);
         counter.add(operationButton(Operation.COUNTER));
         counter.add(operationButton(Operation.COUNTER_ALL));
-        counter.add(new JLabel("turn the attacker's own technique(s) back on them — Specter, lab range only"));
         top.add(counter);
 
-        JLabel note = new JLabel("Every command — defensive or counter — is checked by ScopeGuard before it leaves.");
-        note.setAlignmentX(LEFT_ALIGNMENT);
-        top.add(note);
+        top.add(new WrappingNote("turn the attacker's own technique(s) back on them — Specter, lab range only"));
+        top.add(Box.createVerticalStrut(4));
+        top.add(new WrappingNote("Every command — defensive or counter — is checked by ScopeGuard before it leaves."));
 
         panel.add(top, BorderLayout.NORTH);
         panel.add(new JScrollPane(responseLog), BorderLayout.CENTER);

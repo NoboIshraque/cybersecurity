@@ -76,7 +76,15 @@ public final class Dashboard extends JFrame {
     private final transient Map<String, String> latestReason = new HashMap<>();
 
     private final AlertTableModel model = new AlertTableModel();
-    private final JLabel status = new JLabel();
+    /** Between status items; on a narrow window the items wrap onto more lines (FB-04). */
+    private static final String SEPARATOR = "    |    ";
+    private final JPanel status = new JPanel(new WrapLayout(FlowLayout.LEFT, 0, 5));
+    private final JLabel consoleStatus = new JLabel();
+    private final JLabel alertStatus = new JLabel();
+    private final JLabel sensorStatus = new JLabel();
+    private final JLabel autoStatus = new JLabel();
+    /** On its own, so the value DEMO step 7 reads out is never cut off (FB-04). */
+    private final JLabel ledgerStatus = new JLabel();
     private final NetworkMapPanel map;
     private final AttackerDetailPanel detail;
     private final JTable table = new JTable(model);
@@ -212,9 +220,8 @@ public final class Dashboard extends JFrame {
         JScrollPane feed = new JScrollPane(table);
         feed.setBorder(BorderFactory.createTitledBorder("Alert feed"));
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, feed, detail);
-        split.setResizeWeight(0.5);
-        split.setDividerLocation(560);
+        // Half each, at any window width (FB-04: a divider pinned at 560 px squeezed one side).
+        JSplitPane split = new ProportionalSplitPane(feed, detail, 0.5);
         add(split, BorderLayout.CENTER);
 
         JButton verify = new JButton("Verify ledger");
@@ -235,15 +242,19 @@ public final class Dashboard extends JFrame {
         }
         controls.add(verify);
 
+        status.add(consoleStatus);
+        status.add(alertStatus);
+        status.add(sensorStatus);
+        status.add(autoStatus);
+        status.add(ledgerStatus);
         JPanel south = new JPanel(new BorderLayout(8, 8));
         south.add(status, BorderLayout.CENTER);
         south.add(controls, BorderLayout.EAST);
         south.setBorder(BorderFactory.createEmptyBorder(2, 6, 4, 6));
         add(south, BorderLayout.SOUTH);
 
-        setSize(1120, 680);
+        setSize(WindowSizing.forScreen(1120, 680)); // smaller on a 1024x768 projector or a scaled laptop
         setLocationRelativeTo(null);
-        split.setDividerLocation(560); // pin the feed/detail split so the layout is deterministic
         refreshStatus();
     }
 
@@ -371,17 +382,13 @@ public final class Dashboard extends JFrame {
     }
 
     private void refreshStatus() {
-        StringBuilder sb = new StringBuilder();
-        if (live.consoleAddress() != null) {
-            sb.append("Console at ").append(live.consoleAddress()).append("    |    ");
-        }
-        sb.append("Alerts: ").append(model.getRowCount())
-          .append("    |    Sensors connected: ").append(connectionCount.getAsInt());
-        if (live.autoResponse() != null) {
-            sb.append("    |    Auto-response: ").append(isAutoResponseOn() ? "ON" : "OFF (operator)");
-        }
-        sb.append("    |    Ledger: ").append(ledgerState);
-        status.setText(sb.toString());
+        consoleStatus.setVisible(live.consoleAddress() != null);
+        consoleStatus.setText("Console at " + live.consoleAddress() + SEPARATOR);
+        alertStatus.setText("Alerts: " + model.getRowCount() + SEPARATOR);
+        sensorStatus.setText("Sensors connected: " + connectionCount.getAsInt() + SEPARATOR);
+        autoStatus.setVisible(live.autoResponse() != null);
+        autoStatus.setText("Auto-response: " + (isAutoResponseOn() ? "ON" : "OFF (operator)") + SEPARATOR);
+        ledgerStatus.setText("Ledger: " + ledgerState);
     }
 
     private static final class SeverityRenderer extends DefaultTableCellRenderer {
