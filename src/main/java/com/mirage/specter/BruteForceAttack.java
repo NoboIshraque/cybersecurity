@@ -46,7 +46,22 @@ public final class BruteForceAttack implements AttackStrategy {
     private ProbeReply.Outcome attempt(Target target, String user, String pass, AttackTrace trace) {
         ProbeReply reply = ProbeReply.probe(target, basicAuthRequest(user + ":" + pass), 1500);
         trace.line(levelFor(reply.outcome), "try " + user + ":" + pass + "  ->  " + describe(reply));
+        showListing(reply, trace);
         return reply.outcome;
+    }
+
+    /**
+     * FB-06: what a granted page shows, ls-style, so the audience sees the "loot" (the real
+     * admin page's files, or the lure files when the Console feeds fake data).
+     */
+    static void showListing(ProbeReply reply, AttackTrace trace) {
+        if (reply.outcome != ProbeReply.Outcome.ACCEPTED || reply.listing.isEmpty()) {
+            return;
+        }
+        trace.line(TraceLevel.GOOD, "page lists " + reply.listing.size() + " file(s):");
+        for (String name : reply.listing) {
+            trace.line(TraceLevel.GOOD, "  ls  " + name);
+        }
     }
 
     /** {@code GET /} with a Basic {@code Authorization} header for {@code credentials} ("user:pass"). */

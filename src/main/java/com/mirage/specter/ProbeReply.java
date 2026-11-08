@@ -10,6 +10,8 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -45,19 +47,33 @@ final class ProbeReply {
      */
     static final int CONNECT_TIMEOUT_MS = 3000;
 
+    /** Most of a granted page that is read for its file list (FB-06). */
+    static final int MAX_PAGE_CHARS = 16_384;
+    /** Most file names taken from one page. */
+    static final int MAX_LISTED = 20;
+    /** A file entry on a granted page: a {@code <h2>} heading or a {@code <li>} item. */
+    private static final Pattern PAGE_ITEM = Pattern.compile("<(h2|li)>([^<]{1,200})</\\1>");
+
     final Outcome outcome;
     final String firstLine;
     /** Why an {@code UNREACHABLE} probe failed, in plain words; empty otherwise. */
     final String reason;
+    /** The file names a granted HTTP page shows (FB-06); empty for anything else. */
+    final List<String> listing;
 
     private ProbeReply(Outcome outcome, String firstLine) {
-        this(outcome, firstLine, "");
+        this(outcome, firstLine, "", List.of());
     }
 
     private ProbeReply(Outcome outcome, String firstLine, String reason) {
+        this(outcome, firstLine, reason, List.of());
+    }
+
+    private ProbeReply(Outcome outcome, String firstLine, String reason, List<String> listing) {
         this.outcome = outcome;
         this.firstLine = firstLine;
         this.reason = reason;
+        this.listing = listing;
     }
 
     /** True when the probe never got a usable connection (refused, unreachable, ...), not a reset. */
@@ -151,6 +167,41 @@ final class ProbeReply {
         return code.matches() && code.group(1).equals("230");
     }
 
+    /**
+     * FB-06: the file names on a granted page (the rest of the reply after its status line), so
+     * the attack shell can show what the attacker "got". The read is bounded and best-effort:
+     * the outcome is already ACCEPTED, so a page cut short or a stall only shortens the list.
+     */
+    static List<String> listing(BufferedReader in) {
+        StringBuilder page = new StringBuilder();
+        char[] buffer = new char[2048];
+        try {
+            int read;
+            while (page.length() < MAX_PAGE_CHARS && (read = in.read(buffer)) > 0) {
+                page.append(buffer, 0, read);
+                if (page.indexOf("</html>") >= 0) {
+                    break; // the decoy's pages end here; don't wait for the close
+                }
+            }
+        } catch (IOException e) {
+            // keep what arrived
+        }
+        return listing(page.length() > MAX_PAGE_CHARS ? page.substring(0, MAX_PAGE_CHARS) : page.toString());
+    }
+
+    /** The {@code <h2>} / {@code <li>} entries of an HTML page, unescaped, at most {@link #MAX_LISTED}. */
+    static List<String> listing(String page) {
+        List<String> names = new ArrayList<>();
+        Matcher m = PAGE_ITEM.matcher(page);
+        while (m.find() && names.size() < MAX_LISTED) {
+            String name = m.group(2).replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").strip();
+            if (!name.isEmpty()) {
+                names.add(name);
+            }
+        }
+        return List.copyOf(names);
+    }
+
     static ProbeReply read(Socket socket, int timeoutMillis) {
         try {
             socket.setSoTimeout(timeoutMillis);
@@ -161,7 +212,11 @@ final class ProbeReply {
                 return new ProbeReply(Outcome.NO_REPLY, ""); // orderly close, nothing said
             }
             String trimmed = line.trim();
-            return new ProbeReply(isSuccessLine(trimmed) ? Outcome.ACCEPTED : Outcome.REJECTED, trimmed);
+            if (!isSuccessLine(trimmed)) {
+                return new ProbeReply(Outcome.REJECTED, trimmed);
+            }
+            List<String> listing = HTTP_STATUS.matcher(trimmed).matches() ? listing(in) : List.of();
+            return new ProbeReply(Outcome.ACCEPTED, trimmed, "", listing);
         } catch (SocketTimeoutException e) {
             return new ProbeReply(Outcome.STALLED, "");
         } catch (IOException e) {

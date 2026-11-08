@@ -18,6 +18,7 @@ public final class HoneytokenReplayAttack implements AttackStrategy {
                 + target.host() + ":" + target.port());
         ProbeReply reply = ProbeReply.probe(target, BruteForceAttack.basicAuthRequest(credentials), 1500);
         trace.line(BruteForceAttack.levelFor(reply.outcome), "replay -> " + BruteForceAttack.describe(reply));
+        BruteForceAttack.showListing(reply, trace); // the "admin page" (canned text on the decoy)
         trace.line(TraceLevel.BANNER, BruteForceAttack.bannerFor(reply.outcome));
     }
 

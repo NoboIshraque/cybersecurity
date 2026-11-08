@@ -70,7 +70,7 @@ answers from the popup.
 | Defender | Popup → **Tarpit** | An **operation shell** opens: `$ operator: TARPIT …` → `ScopeGuard.require(…)` → `in range — dispatching` → `broadcast TARPIT … to 1 sensor(s)` → `sensor-… confirms: TARPIT … applied` (each line tagged with the thread doing it: `op-tarpit`, `rx-sensor-…`) |
 | Attacker | **Honeytoken replay** → Launch | `no reply (tarpit)` → **CONNECTION STALLED**: the attacker is held on the line |
 | Defender | Popup → **Feed fake data** | Op shell: `op-feed-fake` → broadcast → `sensor-… confirms: FEED_FAKE … applied`. Fake data replaces the tarpit (the latest of the two wins) |
-| Attacker | **Brute force** → Launch | The first guess already reads **ACCESS GRANTED**: the decoy lets any password "in" to a fake file manager showing `passwords.csv`, `vpn.key` and `config/backup.cfg`, all worthless. The fake `backup.cfg` holds the honeytoken, so using it later gives the attacker away |
+| Attacker | **Brute force** → Launch | The first guess already reads **ACCESS GRANTED**: the decoy lets any password "in" to a fake file manager, and Specter lists what it "got": `page lists 3 file(s):` → `ls  config/backup.cfg`, `ls  passwords.csv`, `ls  vpn.key`, all worthless. The fake `backup.cfg` holds the honeytoken, so using it later gives the attacker away |
 | Defender | Popup → **Block** | Op shell: `op-block` → broadcast → Sensor ACK; the popup turns green: **NEUTRALISED** — *Sensor confirmed the block, the source is cut off* |
 | Attacker | **Honeytoken replay** → Launch | `connection reset (blocked)` → **CONNECTION BLOCKED** |
 

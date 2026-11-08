@@ -41,6 +41,7 @@ public final class PasswordSprayAttack implements AttackStrategy {
         ProbeReply reply = ProbeReply.probe(target, BruteForceAttack.basicAuthRequest(user + ":" + pass), 1500);
         trace.line(BruteForceAttack.levelFor(reply.outcome),
                 "try " + user + ":" + pass + "  ->  " + BruteForceAttack.describe(reply));
+        BruteForceAttack.showListing(reply, trace);
         return reply.outcome;
     }
 
