@@ -27,6 +27,11 @@ related group); the commit messages explain each fix and its design choices.
   - Sensor ids are `sensor-<host>-<http port>` (B-11), settable with `--sensor-id`.
   - Unknown flags and impossible ports are refused (B-32); `--lab-cidrs` also works.
   - Optional `MIRAGE_DB_PASSWORD` encrypts the database (A-07); see the README table.
+- **Pre-rehearsal feature check (2026-11-08):** two agents re-tested every feature of the running
+  program → [`docs/feature-check/CHECKLIST.md`](docs/feature-check/CHECKLIST.md) (details in
+  `A-backend.md` / `B-gui.md`, screenshots in `evidence/`). No HIGH findings; 8 MEDIUM, 13 LOW,
+  mostly about what the screens and docs tell the presenter. Wave 1 there is "before the
+  rehearsal".
 - **Left to do (user):**
   1. The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`; firewall commands run as admin).
   2. Then mark PR #12 ready and merge.
