@@ -41,16 +41,46 @@ switched on, and an out-of-range target being refused. It prints `PASS`/`FAIL` f
 and exits non-zero if any fail. Windows are rendered straight to PNG (no OS title bar), so other
 windows on the desktop never end up in a figure. It needs a real display; it isn't headless.
 
-Windows (PowerShell or Git Bash), from the repo root, after `.\mvnw.cmd compile`:
+**Windows, the easy way:** run `tools\screenshots\dry-run.cmd` from the repo root (Command
+Prompt or PowerShell; in PowerShell type `.\tools\screenshots\dry-run.cmd`), or double-click it
+in Explorer. It builds the classes with the Maven Wrapper, gets the classpath from Maven,
+compiles `LiveDemoShot` into a fresh `target\dryrun`, runs it there and writes the figures to
+`docs\screenshots`. It exits with LiveDemoShot's code (0 = all checks passed) and, on a
+failure, keeps the window open. `dry-run.cmd --compile-only` stops after compiling, without
+starting the demo (a quick check that the build works).
+
+The same by hand, from the repo root. Each runs `LiveDemoShot` in an empty folder, because it
+creates `data/` (H2) and `bait/` in the working directory.
+
+Windows, Git Bash: `$PWD` there is `/e/...`, which Java can't read, so the Windows paths come
+from `pwd -W` (`E:/...`):
 
 ```bash
-./mvnw -q dependency:build-classpath -Dmdep.outputFile=target/cp.txt
-mkdir -p /tmp/mirage-dry && CP="$PWD/target/classes;$(cat target/cp.txt)"   # use ':' on macOS/Linux
-javac -encoding UTF-8 -cp "$CP" -d /tmp/mirage-dry/out tools/screenshots/LiveDemoShot.java
-(cd /tmp/mirage-dry && java -cp "out;$CP" LiveDemoShot "$OLDPWD/docs/screenshots")
+./mvnw -q -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/cp.txt
+ROOT="$(pwd -W)"; CP="$ROOT/target/classes;$(cat target/cp.txt)"
+rm -rf target/dryrun && mkdir -p target/dryrun
+javac -encoding UTF-8 -cp "$CP" -d target/dryrun/out tools/screenshots/LiveDemoShot.java
+(cd target/dryrun && java -cp "out;$CP" LiveDemoShot "$ROOT/docs/screenshots")
 ```
 
-Run it from an empty folder as shown: it creates `data/` (H2) and `bait/` in the working directory.
+Windows PowerShell: (5.1 has no `&&`; the `-D…` argument is quoted so PowerShell doesn't split it)
+
+```powershell
+.\mvnw.cmd -B -q -DskipTests compile dependency:build-classpath "-Dmdep.outputFile=target\cp.txt"
+$root = (Get-Location).Path; $cp = "$root\target\classes;" + (Get-Content target\cp.txt -Raw).Trim()
+Remove-Item -Recurse -Force target\dryrun -ErrorAction SilentlyContinue; New-Item -ItemType Directory target\dryrun | Out-Null
+javac -encoding UTF-8 -cp $cp -d target\dryrun\out tools\screenshots\LiveDemoShot.java
+if ($LASTEXITCODE -eq 0) { Push-Location target\dryrun; java -cp "out;$cp" LiveDemoShot "$root\docs\screenshots"; "exit code $LASTEXITCODE"; Pop-Location }
+```
+
+macOS / Linux (`:` separates the classpath there):
+
+```bash
+./mvnw -q -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/cp.txt
+mkdir -p /tmp/mirage-dry && CP="$PWD/target/classes:$(cat target/cp.txt)"
+javac -encoding UTF-8 -cp "$CP" -d /tmp/mirage-dry/out tools/screenshots/LiveDemoShot.java
+(cd /tmp/mirage-dry && java -cp "out:$CP" LiveDemoShot "$OLDPWD/docs/screenshots")
+```
 
 | Figure | Shows |
 | --- | --- |

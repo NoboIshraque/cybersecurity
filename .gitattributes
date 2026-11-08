@@ -4,4 +4,5 @@ mvnw text eol=lf
 
 # Run scripts: Windows batch files need CRLF, shell scripts need LF
 *.bat text eol=crlf
+*.cmd text eol=crlf
 *.sh text eol=lf
