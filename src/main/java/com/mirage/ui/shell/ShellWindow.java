@@ -13,6 +13,9 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSlider;
 import javax.swing.JTextPane;
+import javax.swing.JViewport;
+import javax.swing.Scrollable;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.text.BadLocationException;
@@ -25,10 +28,12 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.Rectangle;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayDeque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,8 +61,13 @@ public final class ShellWindow extends JPanel {
 
     private final JTextPane stream = new JTextPane();
     private final JPanel strip = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 2));
-    private final JPanel splitContainer = new JPanel(new GridLayout(1, 0, 4, 0));
+    private final SplitGrid splitContainer = new SplitGrid();
     private final Map<String, JTextPane> threadPanes = new LinkedHashMap<>();
+    /**
+     * FB-07: the lines shown so far (the last {@link ShellDocuments#MAX_LINES}), so turning on
+     * split view, by hand or by a concurrent launch, gives every thread its pane with its lines.
+     */
+    private final ArrayDeque<ShellModel.Line> history = new ArrayDeque<>();
     private final JCheckBox splitToggle = new JCheckBox("Split threads");
     private final JSlider speed = new JSlider(1, 20, 3);
     private final JLabel status = new JLabel(" ");
@@ -137,6 +147,7 @@ public final class ShellWindow extends JPanel {
         // B-17: the slider's pace for short bursts, faster when behind, so the shell stays live
         List<ShellModel.Line> due = model.pollPaced(speed.getValue());
         for (ShellModel.Line line : due) {
+            remember(line);
             appendToStream(line);
             if (splitToggle.isSelected()) {
                 appendToThreadPane(line);
@@ -148,6 +159,13 @@ public final class ShellWindow extends JPanel {
             status.setText("lines: " + model.totalLines()
                     + "   threads: " + model.lanes().size()
                     + (model.hasPending() ? "   (streaming…)" : ""));
+        }
+    }
+
+    private void remember(ShellModel.Line line) {
+        history.addLast(line);
+        if (history.size() > ShellDocuments.MAX_LINES) {
+            history.removeFirst();
         }
     }
 
@@ -202,8 +220,10 @@ public final class ShellWindow extends JPanel {
                     BorderFactory.createLineBorder(theme.palette[line.colorIndex() % theme.palette.length]),
                     line.thread()));
             threadPanes.put(line.thread(), pane);
-            splitContainer.add(new JScrollPane(pane));
-            splitContainer.revalidate();
+            JScrollPane scroll = new JScrollPane(pane);
+            scroll.setPreferredSize(new Dimension(SplitGrid.PANE_WIDTH, SplitGrid.PANE_HEIGHT));
+            splitContainer.add(scroll);
+            splitContainer.fitColumns();
         }
         StyledDocument doc = pane.getStyledDocument();
         try {
@@ -241,13 +261,27 @@ public final class ShellWindow extends JPanel {
     private void switchView() {
         remove(streamScroll);
         remove(splitScroll);
+        if (splitToggle.isSelected()) {
+            rebuildThreadPanes();
+        }
         add(splitToggle.isSelected() ? splitScroll : streamScroll, BorderLayout.CENTER);
         revalidate();
         repaint();
     }
 
+    /** FB-07: one pane per thread, filled with the lines already shown. */
+    private void rebuildThreadPanes() {
+        threadPanes.clear();
+        splitContainer.removeAll();
+        for (ShellModel.Line line : history) {
+            appendToThreadPane(line);
+        }
+        splitContainer.fitColumns();
+    }
+
     private void clearStream() {
         stream.setText("");
+        history.clear();
         threadPanes.clear();
         splitContainer.removeAll();
         splitContainer.revalidate();
@@ -335,5 +369,75 @@ public final class ShellWindow extends JPanel {
     /** Exposed for the owning window / screenshots. */
     public ShellModel model() {
         return model;
+    }
+
+    /**
+     * FB-03: the split view's panes in a grid that fits the window's width: up to three side by
+     * side, then two rows (4 → 2×2, 5 → 3+2, 6 → 3×2, 7–8 → 4+4). Rows fill the height while
+     * they fit; with many threads the view scrolls down, never sideways.
+     */
+    private static final class SplitGrid extends JPanel implements Scrollable {
+
+        static final int PANE_WIDTH = 220;
+        static final int PANE_HEIGHT = 140;
+        private static final int GAP = 4;
+
+        SplitGrid() {
+            super(new GridLayout(1, 1, GAP, GAP));
+        }
+
+        /** Re-pick the columns for the number of panes now. */
+        void fitColumns() {
+            int n = Math.max(1, getComponentCount());
+            int columns = n <= 3 ? n : (n + 1) / 2;
+            setLayout(new GridLayout(0, columns, GAP, GAP));
+            revalidate();
+            repaint();
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+            return orientation == SwingConstants.VERTICAL ? visible.height : visible.width;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true; // never wider than the window: no sideways scrolling
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return getParent() instanceof JViewport view && view.getHeight() >= getPreferredSize().height;
+        }
+    }
+
+    /** Tests: show every pending line now, as the timer would over the next ticks. Call on the EDT. */
+    void drain() {
+        while (model.hasPending()) {
+            tick();
+        }
+        tick();
+    }
+
+    /** Tests: each thread pane's text, by thread. Call on the EDT. */
+    Map<String, String> threadPaneTexts() {
+        Map<String, String> out = new LinkedHashMap<>();
+        threadPanes.forEach((thread, pane) -> out.put(thread, pane.getText()));
+        return out;
+    }
+
+    /** Tests: the scroll pane that holds the split view. */
+    JScrollPane splitView() {
+        return splitScroll;
     }
 }
