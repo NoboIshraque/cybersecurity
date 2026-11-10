@@ -44,6 +44,10 @@ commit messages explain each fix and its design choices.
   2. Optional: feature-check wave 3.
   3. The report text (`REPORT.md`, `docs/report.html`) still says 265 tests; update and republish
      it if the number matters.
+  4. (User) Voice-over for the demo video. The video is recorded and edited (1:41, 1080p,
+     `D:\Mirage demo video.mp4`, Clipchamp project "Mirage demo video"); status, cue sheet and how
+     to redo it: [`docs/DEMO-VIDEO-PROGRESS.md`](docs/DEMO-VIDEO-PROGRESS.md). The self-playing
+     demo driver is `tools/video/` (`run-demo-video.cmd`).
 - **Not covered by either review** (unchanged): a dependency CVE scan, IPv6, and the real
   two-laptop network.
 
