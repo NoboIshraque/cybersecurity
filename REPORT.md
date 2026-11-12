@@ -184,7 +184,7 @@ public void require(String ip) {
 }
 ```
 
-The full, compiling sources (265 JUnit tests passing) are the authoritative reference.
+The full, compiling sources (299 JUnit tests passing) are the authoritative reference.
 
 ## 5. Result
 
@@ -343,7 +343,7 @@ and each counter technique on its own thread, all running concurrently.*
 *Figure 14. Laptop B's counter-watch: every incoming connection, its source port and the first
 line it carried, on its own thread. It is accept-and-log only.*
 
-**Verification.** Besides 265 unit tests, the whole demo is exercised by an automated GUI dry run
+**Verification.** Besides 299 unit tests, the whole demo is exercised by an automated GUI dry run
 (`tools/screenshots/LiveDemoShot.java`). It starts the real Console, Sensor and Specter, presses
 their buttons the way the presenters would, and checks 28 outcomes: every campaign, every
 operator action (including fake data letting the attacker "in" to worthless files), auto-response

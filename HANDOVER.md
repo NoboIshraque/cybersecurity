@@ -42,8 +42,8 @@ commit messages explain each fix and its design choices.
   1. (User) The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`; firewall commands run as
      admin). Add anything it finds to the feature-check checklist and fix it the same way.
   2. Optional: feature-check wave 3.
-  3. The report text (`REPORT.md`, `docs/report.html`) still says 265 tests; update and republish
-     it if the number matters.
+  3. ~~Report test count~~ Done (2026-11-12): `REPORT.md` and `docs/report.html` say 299 tests,
+     and the report artifact is republished (v4, same link). PR #13 (demo video driver) is merged.
   4. (User) Voice-over for the demo video. Current video is **v2** (1:48, 1080p, drawn pointer,
      part titles and cards built in): `D:\Mirage demo video v2.mp4`, on the timeline of the
      Clipchamp project "Mirage demo video v2" ready for narration. Status, cue sheet and how to redo it:
