@@ -39,8 +39,9 @@ commit messages explain each fix and its design choices.
   FC-01 and FC-02, two flaky tests found along the way); **wave 3 (polish: FB-11 to FB-17,
   FA-02) is still open**.
 - **Left to do:**
-  1. (User) The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`; firewall commands run as
-     admin). Add anything it finds to the feature-check checklist and fix it the same way.
+  1. (User) The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`, rewritten 2026-11-17 as 18
+     numbered steps with a check after each, a fill-in sheet and a day-of checklist; firewall
+     commands run as admin). Add anything it finds to the feature-check checklist and fix it the same way.
   2. Optional: feature-check wave 3.
   3. The report text (`REPORT.md`, `docs/report.html`) still says 265 tests; update and republish
      it if the number matters.
