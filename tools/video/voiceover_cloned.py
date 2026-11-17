@@ -1,13 +1,15 @@
 """Voice-over for the v3 video in Nobo's voice: XTTS-v2 fine-tuned on his recording.
 
-usage: python voiceover_cloned.py REPO_DIR XTTS_DIR CHECKPOINT REFS_DIR OUT.wav [--takes N]
+usage: python voiceover_cloned.py REPO_DIR XTTS_DIR CHECKPOINT REFS_DIR OUT_DIR SOURCE_V1.mp4 [--takes N]
 
 XTTS_DIR holds the base XTTS-v2 files (config.json, vocab.json, speakers_xtts.pth, model.pth);
 CHECKPOINT is the fine-tuned model (best_model_*.pth from the GPT trainer, or "base");
 REFS_DIR holds Nobo's clean reference clips (*.wav). Lines come from narration_v3.txt, one per
-annotation, each placed 0.25 s after its annotation starts. For every line several takes are made;
-the kept take is the one Whisper understands (>= 0.85 word match) that is closest to Nobo's voice
-(ECAPA speaker similarity) and fits before the next line. The result is then matched to the
+annotation, each starting 0.25 s after its annotation. For every line up to N takes are made; the
+kept take is the one Whisper understands (>= 0.85 word match) that is closest to Nobo's voice
+(ECAPA speaker similarity). Nothing is sped up: where a line needs more room than its step, that
+step's still holds are lengthened (annotate_video.py --stretch) and the line is laid at the step's
+new start time. The result is then matched to the
 recording's microphone (a smooth EQ curve) and laid on a quiet bed of his room tone, so it sounds
 like the same recording rather than studio-clean synthesis.
 
@@ -19,6 +21,7 @@ import importlib.util
 import json
 import os
 import re
+import subprocess
 import sys
 
 os.environ["COQUI_TOS_AGREED"] = "1"
@@ -31,16 +34,17 @@ from speechbrain.inference.speaker import EncoderClassifier
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 
-REPO, M, CKPT, REFS, OUT = sys.argv[1:6]
-TAKES = int(sys.argv[sys.argv.index("--takes") + 1]) if "--takes" in sys.argv else 5
-ECAPA = os.environ.get("ECAPA_DIR", os.path.join(os.path.dirname(os.path.abspath(OUT)), "ecapa"))
+REPO, M, CKPT, REFS, OUTDIR, SRC_VIDEO = sys.argv[1:7]
+TAKES = int(sys.argv[sys.argv.index("--takes") + 1]) if "--takes" in sys.argv else 8
+ECAPA = os.environ["ECAPA_DIR"]
+os.makedirs(f"{OUTDIR}/lines", exist_ok=True)
 torch.set_num_threads(4)
 SR = 24000
 
 spec = importlib.util.spec_from_file_location("a", f"{REPO}/tools/video/annotate_video.py")
 av = importlib.util.module_from_spec(spec); spec.loader.exec_module(av)
-_, ann = av.build_timeline()
-TOTAL = len(_) / av.FPS
+base_src, ann = av.build_timeline()
+TOTAL = len(base_src) / av.FPS
 starts = [0.0] + [f0 / av.FPS for f0, f1, a in ann]
 lines = [l.strip() for l in open(f"{REPO}/tools/video/narration_v3.txt", encoding="utf-8") if l.strip()]
 assert len(lines) == len(starts)
@@ -89,33 +93,60 @@ def trim(audio):
 
 
 # ---------------------------------------------------------------- the lines
-track = np.zeros(int((TOTAL + 1) * SR), dtype=np.float32)
-LEAD = 0.25
-report = []
-for i, (t0, line) in enumerate(zip(starts, lines)):
-    t_end = starts[i + 1] if i + 1 < len(starts) else TOTAL - 0.9
-    window = t_end - t0 - LEAD - 0.15
+LEAD, GAP = 0.25, 0.35
+report, clips = [], []
+for i, line in enumerate(lines):
+    cache = f"{OUTDIR}/lines/{i:02d}.wav"
+    if os.path.exists(cache) and os.path.exists(cache + ".json"):
+        r = json.load(open(cache + ".json"))
+        clips.append(sf.read(cache, dtype="float32")[0]); report.append(r)
+        continue
     spoken = line
     for x, y in SAY.items():
         spoken = spoken.replace(x, y)
     takes = []
     for k in range(TAKES):
-        speed = 1.0 if k < TAKES - 1 else 1.12
         torch.manual_seed(1000 * i + k)
-        out = model.inference(spoken, "en", gpt, spk, temperature=0.7, speed=speed)
+        out = model.inference(spoken, "en", gpt, spk, temperature=0.6)
         audio = trim(np.array(out["wav"], dtype=np.float32))
         words, voice, heard = judge(audio, line.replace("…", ""))
-        takes.append(dict(audio=audio, dur=len(audio) / SR, words=words, voice=voice, heard=heard, speed=speed))
-    ok = [t for t in takes if t["words"] >= 0.85 and t["dur"] <= window] or \
-         [t for t in takes if t["dur"] <= window] or takes
-    best = max(ok, key=lambda t: (t["words"] >= 0.85, t["voice"]))
-    s = int((t0 + LEAD) * SR)
-    track[s:s + len(best["audio"])] += best["audio"]
-    report.append(dict(i=i, line=line, heard=best["heard"], words=round(best["words"], 2),
-                       voice=round(best["voice"], 3), dur=round(best["dur"], 2), window=round(window, 2),
-                       fits=best["dur"] <= window, speed=best["speed"]))
-    print(i, report[-1]["fits"], report[-1]["words"], report[-1]["voice"], "|", best["heard"], flush=True)
+        takes.append(dict(audio=audio, words=words, voice=voice, heard=heard))
+        if words >= 0.9 and voice >= 0.65:
+            break
+    good = [t for t in takes if t["words"] >= 0.85]
+    best = max(good, key=lambda t: t["voice"]) if good else max(takes, key=lambda t: (t["words"], t["voice"]))
+    r = dict(i=i, line=line, heard=best["heard"], words=round(best["words"], 2), voice=round(best["voice"], 3),
+             dur=round(len(best["audio"]) / SR, 2), takes=len(takes))
+    sf.write(cache, best["audio"], SR); json.dump(r, open(cache + ".json", "w"))
+    clips.append(best["audio"]); report.append(r)
+    print(i, r["words"], r["voice"], r["dur"], f"({len(takes)} takes) |", best["heard"], flush=True)
 
+# ---------------------------------------------------------------- make room: stretch the video where needed
+play_spans, t = [], 0.0
+for kind, a, b, _a in av.EDIT:
+    n = (b - a) if kind == "play" else b
+    if kind == "play":
+        play_spans.append((t, t + n))
+    t += n
+sections = []
+for i in range(len(lines)):
+    s0, s1 = starts[i], (starts[i + 1] if i + 1 < len(starts) else TOTAL)
+    play = sum(max(0.0, min(e, s1) - max(b, s0)) for b, e in play_spans)
+    hold = (s1 - s0) - play
+    need = LEAD + len(clips[i]) / SR + GAP
+    fac = max(1.0, (need - play) / hold) if hold > 0.05 else 1.0
+    if fac > 1.0:
+        sections.append((round(s0, 3), round(s1, 3), round(fac, 4)))
+tail = max(0.0, LEAD + len(clips[-1]) / SR + 1.2 - (av.warp_time(sections, TOTAL) - av.warp_time(sections, starts[-1])))
+NEW_TOTAL = av.warp_time(sections, TOTAL) + tail
+json.dump({"sections": sections, "tail": round(tail, 2)}, open(f"{OUTDIR}/stretch.json", "w"), indent=1)
+track = np.zeros(int((NEW_TOTAL + 1) * SR), dtype=np.float32)
+for i, clip in enumerate(clips):
+    at = av.warp_time(sections, starts[i]) + LEAD
+    report[i]["at"] = round(at, 2)
+    s = int(at * SR)
+    track[s:s + len(clip)] += clip[: max(0, len(track) - s)]
+TOTAL = NEW_TOTAL
 
 # ---------------------------------------------------------------- sound like the same recording
 def avg_spectrum(x, sr, n=2048):
@@ -152,8 +183,14 @@ for k in range(0, len(bed), int(1.8 * SR)):
 track = track / np.abs(track).max() * 0.89
 bed = bed / (np.sqrt(np.mean(bed ** 2)) + 1e-9) * 10 ** (-58 / 20)       # about -58 dBFS
 track = track + bed
-sf.write(OUT, track[: int(TOTAL * SR)], SR)
-json.dump(report, open(OUT + ".json", "w"), indent=1)
-print("voice similarity mean", round(float(np.mean([r["voice"] for r in report])), 3),
-      "| lines not understood:", [r["i"] for r in report if r["words"] < 0.85],
-      "| overflow:", [r["i"] for r in report if not r["fits"]])
+wav = f"{OUTDIR}/narration.wav"
+sf.write(wav, track[: int(TOTAL * SR)], SR)
+json.dump(report, open(f"{OUTDIR}/narration.json", "w"), indent=1)
+silent = f"{OUTDIR}/video_silent.mp4"
+subprocess.run([sys.executable, f"{REPO}/tools/video/annotate_video.py", SRC_VIDEO, silent,
+                "--stretch", f"{OUTDIR}/stretch.json", "--cues", f"{OUTDIR}/cues.md"], check=True)
+subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", silent, "-i", wav, "-map", "0:v", "-map", "1:a", "-c:v", "copy",
+                "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-c:a", "aac", "-b:a", "160k", "-ac", "2",
+                "-shortest", "-movflags", "+faststart", f"{OUTDIR}/Mirage_demo_video_nobo_voice.mp4"], check=True)
+print("video %.1f s | voice similarity mean %.3f | lines not understood: %s"
+      % (TOTAL, float(np.mean([r["voice"] for r in report])), [r["i"] for r in report if r["words"] < 0.85]))
