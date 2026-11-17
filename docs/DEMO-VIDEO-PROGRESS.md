@@ -1,13 +1,93 @@
 # Demo video — progress log
 
-Goal: a demo video of **under 2 minutes**, edited in **Clipchamp** (or another online editor).
+Goal: a demo video (v1/v2: **under 2 minutes**; v3: about **2:30**), edited in **Clipchamp** (or another online editor).
 The user adds the voice-over afterwards. The Claude "glowing edges" (computer-use overlay) must
 not be in it. This file is the hand-over: a new session (or a new account) reads it and carries
 on from the first unticked step.
 
-**Current version: v2** (2026-11-10/11). v1 (below, superseded) was a Snipping Tool recording;
+**Latest: v3** (2026-11-17), the annotated cut of the v1 recording (section below). **v2**
+(2026-11-10/11) is the self-recorded version. v1 (below, superseded) was a Snipping Tool recording;
 the user found its pointer movement unnatural and asked for one like the UHID project's video
 (`D:\UHID demo video.mp4`, made by `E:\hospital-management-system\video\`).
+
+## v3 — annotated, 2:30 (2026-11-17)
+
+The user asked for the v1 video (`D:\Mirage demo video.mp4`, 1:41) to be about **2:30**, with a
+**red circle and an arrow** on each thing that is about to be clicked or shown, kept in step with
+the cue sheet.
+
+How it is made: `tools/video/annotate_video.py` post-processes the v1 file (Pillow + ffmpeg). The
+v1 recording is mostly still holds between steps, so the new cut is an edit list of PLAY (a source
+range at 1x) and HOLD (one source frame for N seconds) segments:
+
+- **before each click** the frame is held and the control is circled (Campaign + Launch, Tarpit,
+  Feed fake data, Block, Counter-attack, Simultaneous counter, Verify ledger, the Target field);
+- **after each step** the results are circled one after another (banner in the shell, the popup
+  header with the ATT&CK id, op-shell ScopeGuard lines and the sensor confirmation, …);
+- each annotation draws in (the outline sweeps clockwise, then the arrow grows from a red label),
+  holds, and fades; the last 0.8 s fades to black. Silent AAC track kept for the voice-over.
+
+```
+pip install pillow
+set FFMPEG=C:\Users\noboi\AppData\Local\Programs\Python\Python312\Lib\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v9.0.2.exe
+python tools\video\annotate_video.py "D:\Mirage demo video.mp4" "D:\Mirage demo video v3.mp4" --cues cues-v3.md
+```
+
+`--stills DIR` writes one fully drawn still per annotation instead of the video (to check
+placement). The coordinates are in the 1920x1080 v1 frame, so the edit list fits only that file.
+
+- [x] 2026-11-17 Rendered: **2:30.3**, 1920x1080, 30 fps, 8.3 MB (under the 10 MB upload cap),
+      41 annotations; every annotation checked on a still, and sample frames of the rendered
+      video checked.
+- [ ] (User) Save it as `D:\Mirage demo video v3.mp4`, add the voice-over (Clipchamp as before),
+      export 1080p. Keep the narration within 2:30.
+
+### Voice-over cue sheet — v3 (times in the 2:30 video; each row is when that annotation starts)
+
+| Time | Annotation on screen | Talking point (from the cue sheet) |
+| --- | --- | --- |
+| 0:07.4 | ATTACKER Specter (red team) | Left: Specter, the built-in attacker (red team) |
+| 0:10.1 | DEFENDER Mirage Console (blue team) | Right: the Mirage Console that watches the decoys and responds |
+| 0:12.7 | Step 1: Recon scan → Launch | Step 1: Specter launches a recon scan |
+| 0:17.5 | Scan finds 3 open decoy ports | Scan finds 3 open decoy ports |
+| 0:21.1 | Alert: PROBE DETECTED port scan · T1046 · MEDIUM | Popup PROBE DETECTED (T1046): any touch on a decoy is high-confidence |
+| 0:24.8 | Step 2: Brute force → Launch | Step 2: Specter brute-forces the decoy login |
+| 0:28.8 | Every password rejected | Every password rejected |
+| 0:31.9 | Alert: UNDER ATTACK brute force · T1110 · HIGH | Popup UNDER ATTACK (T1110): one alert per finding, into the signed ledger |
+| 0:35.3 | Step 3: Honeytoken replay → Launch | Step 3: Specter replays a stolen credential |
+| 0:40.5 | Replays a stolen credential… | Replays a stolen credential… |
+| 0:43.3 | …which was planted bait (a honeytoken) | ACCESS GRANTED, but the credential was bait and the admin page is fake |
+| 0:46.3 | COMPROMISED · T1078 · CRITICAL waiting for the operator | Popup COMPROMISED (T1078); auto-response is off, the operator decides |
+| 0:49.4 | Step 4: operator clicks Tarpit | Step 4: operator presses Tarpit |
+| 0:54.3 | ScopeGuard checks the target first | Op shell: ScopeGuard.require, in range, dispatching |
+| 0:57.3 | Sensor confirms: TARPIT applied | Sensor confirms: TARPIT applied |
+| 1:00.1 | The attacker's replay is stuck on the line | Specter: CONNECTION STALLED — the attacker is held on the line |
+| 1:03.0 | Step 5: operator clicks Feed fake data | Step 5: operator presses Feed fake data |
+| 1:07.1 | Fake data armed on the Sensor | Op shell: FEED FAKE DATA DISPATCHED, sensor confirms |
+| 1:09.2 | Brute force again → Launch | Brute force again → Launch |
+| 1:12.8 | The attacker "gets in"… | Brute force now 'gets in' — ACCESS GRANTED |
+| 1:15.6 | …to fake files: backup.cfg holds another honeytoken | …to fake files; the fake backup.cfg holds another honeytoken |
+| 1:18.9 | Step 6: operator clicks Block | Step 6: operator presses Block |
+| 1:22.5 | NEUTRALISED | Popup turns NEUTRALISED: Sensor confirmed the block |
+| 1:25.3 | Sensor confirms: BLOCK applied | Sensor confirms: BLOCK applied |
+| 1:29.3 | Replay the credential again | Specter tries the stolen credential again |
+| 1:32.5 | Connection reset: the source is cut off | CONNECTION BLOCKED — the source is cut off |
+| 1:35.3 | Step 7: operator clicks Counter-attack (lab range only) | Step 7: operator presses Counter-attack (lab range only, through ScopeGuard) |
+| 1:39.5 | The attacker's laptop sees the counter | Counter-watch: INCOMING COUNTER-ATTACK |
+| 1:42.3 | Their own technique, mirrored back | The mirror counter replays the attacker's own technique back |
+| 1:45.3 | Operator clicks Simultaneous counter | Simultaneous counter: several techniques at once |
+| 1:49.8 | One pane per thread: 4 methods at once | One pane per thread — a bounded set, not a flood |
+| 1:53.1 | Each arrives as its own connection | Each arrives as its own connection |
+| 1:57.6 | Source 127.0.0.1: CRITICAL, 3 alerts | Dashboard: the network map marks the source CRITICAL |
+| 2:00.2 | 3 alerts, one per technique | Alert feed: three alerts, one per ATT&CK technique |
+| 2:03.0 | Attacker dossier | Attacker dossier: services probed, passwords tried, honeytokens used |
+| 2:05.9 | Step 8: Verify ledger | Step 8: Verify ledger |
+| 2:09.2 | Hash-chained + signed ledger: verified | Ledger: verified — every alert hash-chained and ECDSA-signed; tampering shows as BROKEN |
+| 2:12.9 | Step 9: type a target outside the lab range: 8.8.8.8 | Step 9: Specter is pointed at 8.8.8.8, outside the lab range |
+| 2:17.0 | 8.8.8.8 → Launch | 8.8.8.8 → Launch |
+| 2:20.6 | REFUSED: outside the lab range | REFUSED — OUTSIDE LAB RANGE |
+| 2:24.9 | ScopeGuard: nothing leaves the lab range | ScopeGuard is the safety boundary: every response goes through it |
+| 2:30.3 | End | |
 
 ## How v2 is made (so any account can redo it)
 
