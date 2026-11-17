@@ -10,13 +10,13 @@ Adil Akhtab Abir, Noria Khan Sroti · Last updated 17 November 2026
 
 ## How to use this guide
 
-- **New to the project?** Read parts 1 to 3 in order. They explain the idea, how to run it and
-  how one attack moves through the system.
-- **Preparing for a viva or a code question?** Part 5 is the core. It takes each OODP topic
+- **New to the project?** Read parts 1 to 4 in order. They explain the idea, how to run it, which
+  languages and tools were chosen (and why), and how one attack moves through the system.
+- **Preparing for a viva or a code question?** Part 6 is the core. It takes each OODP topic
   (classes, inheritance, interfaces, threads, Swing, JDBC, patterns and so on) and shows the exact
-  classes that use it and why that choice was made. Part 13 has likely questions with short
+  classes that use it and why that choice was made. Part 14 has likely questions with short
   answers.
-- **Looking for a class?** Part 4 is a package-by-package map.
+- **Looking for a class?** Part 5 is a package-by-package map.
 
 All class names are relative to `src/main/java/com/mirage/`. For example, `sensor.Decoy` is
 `src/main/java/com/mirage/sensor/Decoy.java`.
@@ -105,7 +105,121 @@ keystores).
 
 ---
 
-## Part 3. The architecture and the life of one attack
+## Part 3. Languages, tools and technology choices
+
+This part answers "what did we build it with, and why that and not something else?".
+
+### 3.1 Every language and file format in the repository
+
+| Language / format | Files | Used for |
+| --- | --- | --- |
+| **Java** | 211 `.java` files: 116 in the app, 91 tests, 4 tools | All three applications (Console, Sensor, Specter), the tests, the GUI dry run and the video recorder |
+| **SQL** | `db/schema.sql` (runtime copy `src/main/resources/schema.sql`) | Creates the six database tables |
+| **XML** | `pom.xml` | The Maven build: Java version, libraries, plugins |
+| **YAML** | `.github/workflows/ci.yml` | GitHub Actions: build and test every pull request |
+| **Shell script** | `run-defender.sh`, `run-attacker.sh`, `mvnw` | Start the apps on Linux or macOS |
+| **Batch / CMD** | `run-defender.bat`, `run-attacker.bat`, `mvnw.cmd`, `tools/*/…cmd` | Double-click start on Windows (the demo laptops) |
+| **Java properties** | `mirage.properties.example` | Settings for the two-laptop set-up |
+| **JSON** | (on the network, not in files) | The messages between Sensor and Console |
+| **Markdown** | `README.md`, `DEMO.md`, this guide, … | Documentation that GitHub renders |
+| **HTML + Mermaid** | `docs/report.html` | The formatted report and its diagrams |
+
+### 3.2 Why Java (and not Python, C++, C# or JavaScript)
+
+- **The course is Java.** ICE-2206 teaches OODP in Java, so every course topic (classes,
+  interfaces, threads, Swing, JDBC) is shown in the language it is taught in.
+- **Object orientation is built in.** Abstract classes, interfaces, `final`, records and enums
+  map directly onto the design patterns in Part 6.
+- **The standard library already has almost everything:** sockets, TLS (JSSE), thread pools and
+  concurrent collections, the Swing GUI, JDBC, SHA-256 and ECDSA, and file watching. Mirage needs
+  only **three** outside libraries.
+- **Real parallel threads.** Decoys, Sensors and attacks run at the same time on several CPU
+  cores. Python's global interpreter lock lets only one thread run Python code at a time, and
+  JavaScript runs one thread with an event loop.
+- **Memory safety.** Mirage reads input written by attackers. In C or C++ a parsing mistake can
+  become a buffer overflow; Java checks every array access, so the same mistake becomes an
+  exception.
+- **Runs anywhere.** The same `mirage.jar` runs on the Windows demo laptops and on Linux in CI.
+  C# also has these strengths, but it is not the course language.
+- **Static typing.** Type errors are caught when compiling, not in the middle of a demo.
+
+**Why Java 17:** it is a long-term-support (LTS) version, and it has the modern features the code
+uses: **records** (all value types), **switch expressions** (`ResponsePolicy`, `Launcher`),
+**text blocks** (the lure files in `sensor.Lures`) and **pattern matching for `instanceof`**
+(`ShellWindow`, `AttackerDetailPanel`). CI tests on 17; newer JDKs (21, 25) work too.
+
+### 3.3 Why Maven, and the Maven Wrapper
+
+**Maven** builds the project from one file, `pom.xml`:
+
+- **Dependencies:** it downloads Jackson, H2 and JUnit at the exact versions listed, from Maven
+  Central. Nobody copies `.jar` files around by hand.
+- **Standard layout:** `src/main/java` for code, `src/test/java` for tests,
+  `src/main/resources` for `schema.sql`. Every Java IDE opens it as it is.
+- **One command per job:** `compile`, `test` (the **Surefire** plugin runs all JUnit tests),
+  `package` (the **Shade** plugin builds `target/mirage.jar`, a "fat jar" with the libraries
+  inside, so the demo laptops need only Java and one file).
+
+**The Maven Wrapper** (`mvnw`, `mvnw.cmd`, `.mvn/wrapper/`): Maven is not installed on the demo
+laptops. The wrapper downloads Maven 3.9.9 once into `~/.m2/wrapper`, so every machine builds with
+the same Maven version.
+
+**Why not the alternatives?** *Gradle* would work equally well; Maven was chosen because its
+declarative `pom.xml` is simpler to read and is the most widely taught. *Ant* has no dependency
+management. Plain `javac` would mean typing class paths by hand and has no test runner.
+
+### 3.4 The three libraries
+
+| Library | Version | What it does here | Why this one |
+| --- | --- | --- | --- |
+| **Jackson** (`jackson-databind` + `jackson-datatype-jsr310`) | 2.17.1 | Turns `SensorMessage` and `ResponseCommand` records into one-line JSON and back (`common.JsonCodec`) | The standard Java JSON library; maps records automatically; the `jsr310` module handles `Instant` timestamps |
+| **H2** | 2.2.224 | The embedded SQL database (`console.db`) | Pure Java and embedded: the database is a file, no server to install on the demo laptop. It speaks standard SQL through JDBC and can encrypt the file with AES |
+| **JUnit 5** (`junit-jupiter`, test only) | 5.10.2 | The 299 tests | The standard Java test framework; `@TempDir`, timeouts and assumptions are used throughout |
+
+**Why H2 and not MySQL, PostgreSQL or SQLite?** MySQL and PostgreSQL need a separate server
+installed and running on the demo laptop. SQLite needs a native driver. H2 is one jar and starts
+inside the Console.
+
+### 3.5 Technology choices inside Java
+
+| Need | Chosen | Instead of | Why |
+| --- | --- | --- | --- |
+| Desktop GUI | **Swing** | JavaFX | Swing ships with the JDK and is in the course syllabus. JavaFX has not been part of the JDK since Java 11 and would be an extra download |
+| Database access | **Plain JDBC + DAO classes** | JPA / Hibernate | Six simple tables. Plain JDBC shows the SQL, needs no extra library and makes the JDBC topic visible |
+| Network messages | **TCP sockets + one JSON line per message** | HTTP/REST frameworks, Java RMI | Full control over timeouts, resets and the tarpit. The decoys must speak raw FTP and Telnet anyway, so sockets are needed regardless |
+| Message format | **JSON** | Java object serialisation, binary formats | JSON is readable in logs. Java serialisation is unsafe with untrusted input, because deserialising attacker data can run attacker-chosen code |
+| Encryption and signatures | **JSSE TLS, `MessageDigest`, `Signature`** | Outside crypto libraries | Standard, widely reviewed and already in the JDK |
+| Concurrency | **`java.util.concurrent`** (pools, queues, atomics) | Hand-written `Thread` + `wait/notify` | Tested building blocks; fewer chances for subtle bugs |
+| Settings | **`.properties` file + command-line flags** | YAML or JSON config | Read with `java.util.Properties`, built in, so no parser library |
+| TLS certificates | **`keytool`** (comes with the JDK) | OpenSSL | Already installed wherever Java is |
+
+### 3.6 The other languages, and why they are there
+
+- **SQL** (`schema.sql`): H2 speaks standard SQL. The schema is applied at start-up, so a
+  fresh laptop gets the tables automatically, and the file documents the database.
+- **XML** (`pom.xml`): this is simply Maven's format.
+- **YAML** (`ci.yml`): GitHub Actions' format. It checks out the code, sets up JDK 17 (Temurin)
+  on Ubuntu, and runs `mvn verify` on every push to `master` and every pull request.
+- **Batch and shell scripts:** the demo laptops run Windows, so `run-defender.bat` and
+  `run-attacker.bat` start the right role with a double-click, check that Java is installed, find
+  the jar, and keep the window open if start-up fails. The `.sh` versions do the same on Linux and
+  macOS.
+- **Markdown** renders on GitHub without any tool. **HTML with Mermaid** draws the report's
+  diagrams from text, so they can be edited like code.
+
+### 3.7 Tools used while building
+
+| Tool | Used for |
+| --- | --- |
+| **Git + GitHub** | Version control; one branch per phase; pull requests keep a reviewed history |
+| **GitHub Actions** | CI: the full build and test suite on every pull request |
+| **JUnit + the GUI dry run** (`tools/screenshots/LiveDemoShot.java`, Java) | Automated checks of the logic and of the whole demo |
+| **The video driver** (`tools/video/DemoVideo.java`, Java + ffmpeg) | Records the demo video from the app's own windows |
+| **`keytool`** | Makes the TLS keystores for two laptops |
+
+---
+
+## Part 4. The architecture and the life of one attack
 
 ![System architecture](guide/architecture.png)
 
@@ -153,7 +267,7 @@ In the GUI demo it is **off**, so the operator decides from the popup.
 
 ---
 
-## Part 4. Package-by-package map
+## Part 5. Package-by-package map
 
 116 source files, about 10,000 lines.
 
@@ -190,12 +304,12 @@ In the GUI demo it is **off**, so the operator decides from the popup.
 
 ---
 
-## Part 5. OODP concepts: where and why
+## Part 6. OODP concepts: where and why
 
 Each section answers three questions: **what is it, where is it in Mirage, and why was it used
 there.**
 
-### 5.1 Classes, objects and encapsulation
+### 6.1 Classes, objects and encapsulation
 
 **What:** a class bundles data with the methods that act on it, and hides the data
 (`private`) so other code can only use the public methods.
@@ -213,7 +327,7 @@ there.**
 - Almost every class is `final` (it cannot be subclassed) unless it was designed for inheritance.
   This keeps behaviour predictable. `Decoy` is the planned exception.
 
-### 5.2 Inheritance and abstract classes
+### 6.2 Inheritance and abstract classes
 
 **What:** a subclass `extends` a parent class, reuses its code and overrides some methods. An
 `abstract` class cannot be created on its own; it leaves some methods for subclasses.
@@ -244,7 +358,7 @@ public abstract class Decoy {
 
 `start()` is `final`, so no subclass can break the safety and limit logic.
 
-### 5.3 Interfaces and polymorphism
+### 6.3 Interfaces and polymorphism
 
 **What:** an interface is a contract (method signatures). Many classes can implement it, and
 code that holds the interface type works with any of them. Calling the same method on different
@@ -281,7 +395,7 @@ for (DetectionRule rule : rules) {               // 7 different classes, one loo
 Adding an eighth rule means writing one class and adding it to the list in `ConsoleMain`. The
 engine does not change: this is the **open/closed principle**.
 
-### 5.4 Records and immutability
+### 6.4 Records and immutability
 
 **What:** a Java `record` is a short way to write an immutable data class. Its fields are final
 and it gets a constructor, getters, `equals`, `hashCode` and `toString` for free.
@@ -300,7 +414,7 @@ and it gets a constructor, getters, `equals`, `hashCode` and `toString` for free
 - The dashboard reads `AttackerSnapshot` records, immutable copies of a profile, so the GUI
   thread never sees a profile half-way through an update.
 
-### 5.5 Enums and switch expressions
+### 6.5 Enums and switch expressions
 
 **What:** an `enum` is a fixed set of named constants. Switch expressions (`case X -> …`) choose
 by value, and the compiler warns if a case is missing.
@@ -329,14 +443,14 @@ return switch (classification.severity()) {
 };
 ```
 
-### 5.6 Generics and collections
+### 6.6 Generics and collections
 
 **What:** generic types (`List<T>`, `Map<K,V>`) hold any type safely. The collections framework
 gives ready-made data structures.
 
 **Where and why:**
 
-- `BlockingQueue<AttackEvent>`: the hand-off between network threads and the engine (5.13).
+- `BlockingQueue<AttackEvent>`: the hand-off between network threads and the engine (6.13).
 - `List<DetectionRule>`: the rule list the engine loops over.
 - `Map<String, AttackerProfile>`: one profile per source IP (only the engine touches it).
 - `ConcurrentHashMap` (in `AttackerDirectory`, `Decoy`, `DefenceState`): maps that many threads
@@ -348,7 +462,7 @@ gives ready-made data structures.
   lure files).
 - `Consumer<AttackEvent>`: a generic functional interface used as the decoys' "sink".
 
-### 5.7 Exceptions and error handling
+### 6.7 Exceptions and error handling
 
 **What:** exceptions signal errors; `try/catch` handles them; `try-with-resources` closes
 resources automatically.
@@ -369,7 +483,7 @@ resources automatically.
   implement `AutoCloseable`. Every JDBC `PreparedStatement` is opened in a `try (…)` block, so it
   is closed even when an error happens.
 
-### 5.8 Lambdas, functional interfaces and method references
+### 6.8 Lambdas, functional interfaces and method references
 
 **What:** a lambda (`x -> …`) is a short anonymous function. It fits any interface with one
 abstract method.
@@ -386,7 +500,7 @@ abstract method.
   "make a new profile for this IP if there is none".
 - `SwingUtilities.invokeLater(() -> …)`: hand GUI work to the Swing thread.
 
-### 5.9 Optional and streams
+### 6.9 Optional and streams
 
 - **`Optional<Classification>`** is what every `DetectionRule.classify` returns: either a
   verdict or "no match". It makes "no match" explicit and avoids returning `null`.
@@ -395,7 +509,7 @@ abstract method.
   `store.all().stream().anyMatch(...)` in `HoneytokenUseRule`. The hot path of the engine uses
   plain loops for speed and clarity.
 
-### 5.10 Files and NIO
+### 6.10 Files and NIO
 
 - **`WatchService`** (`sensor.BaitFileWatcher`): the operating system notifies Mirage when a bait
   file is created, changed or deleted. No polling loop is needed, and a change is reported at
@@ -404,7 +518,7 @@ abstract method.
 - **`Path` / `Files`**: the database folder, the bait folder, the saved ledger key and the TLS
   keystores.
 
-### 5.11 Networking with sockets
+### 6.11 Networking with sockets
 
 **What:** `ServerSocket` waits for connections; `Socket` is one connection; each side reads and
 writes streams.
@@ -421,7 +535,7 @@ writes streams.
   sends a TCP reset. Specter can then tell "blocked" (reset) from "no reply" (silence) and from
   "stalled" (tarpit, reads time out).
 
-### 5.12 Security APIs: TLS, hashing and signatures
+### 6.12 Security APIs: TLS, hashing and signatures
 
 - **TLS (JSSE):** `common.TlsFactories` builds an `SSLServerSocketFactory` (Console) and an
   `SSLSocketFactory` (Sensor) from a keystore. Between two machines the link uses **mutual TLS**:
@@ -436,7 +550,7 @@ writes streams.
   key is saved (password-protected if `MIRAGE_LEDGER_PASSWORD` is set) so the chain can be
   checked again after a restart.
 
-### 5.13 Multithreading and concurrency
+### 6.13 Multithreading and concurrency
 
 This is the biggest OODP topic in Mirage. Many things happen at once: several Sensors report,
 attacks run in parallel, the operator clicks buttons, and the GUI must stay smooth.
@@ -472,7 +586,7 @@ classes of race conditions cannot happen. Other threads ask for changes by queui
 - `volatile`: flags read by another thread, such as a decoy's `running` flag.
 - `AtomicBoolean`: the shared **Auto-response** switch (`console.AutoResponse`), flipped by the
   GUI and read by the engine.
-- `ConcurrentHashMap` and `CopyOnWriteArrayList`: shared maps and listener lists (5.6).
+- `ConcurrentHashMap` and `CopyOnWriteArrayList`: shared maps and listener lists (6.6).
 - **Bounded pools and queues** (`ThreadPoolExecutor` with `ArrayBlockingQueue` and
   `AbortPolicy`): a flood of connections is refused instead of creating unlimited threads.
 - **Named threads** (`decoy-http-login-conn`, `op-block`, `attack-recon`): the shells show
@@ -481,7 +595,7 @@ classes of race conditions cannot happen. Other threads ask for changes by queui
   strategy its own pool thread. The simultaneous counter (`CounterOffensive.counterAll`) uses it
   with a fixed set of four techniques: concurrent, but bounded, never a flood.
 
-### 5.14 GUI programming with Swing
+### 6.14 GUI programming with Swing
 
 **What:** Swing is Java's desktop GUI toolkit: windows (`JFrame`), panels (`JPanel`), tables
 (`JTable`), text (`JTextPane`), layouts and timers.
@@ -507,7 +621,7 @@ or a Swing `Timer`. That is why the GUI never freezes, even during a flood.
 `ShellModel`, `ThreatTracker`, `AttackerDossier`, `ShellFilters`, `ResponseController`. Unit
 tests check them without a screen.
 
-### 5.15 Databases with JDBC
+### 6.15 Databases with JDBC
 
 **What:** JDBC is Java's standard API for SQL databases: `Connection`, `PreparedStatement`,
 `ResultSet`.
@@ -519,7 +633,7 @@ tests check them without a screen.
   install, which suits a lab demo. With `MIRAGE_DB_PASSWORD` the URL adds `;CIPHER=AES` and the
   file is encrypted.
 - **Schema on start-up:** `Database` runs `schema.sql`, creating six tables if they are missing
-  (see Part 7).
+  (see Part 8).
 - **DAO pattern (Data Access Object):** one class per table (`SensorDao`, `EventDao`,
   `ProfileDao`, `AlertDao`, `HoneytokenDao`, `BlockRuleDao`). All SQL lives there, so the rest of
   the code never sees SQL.
@@ -530,13 +644,13 @@ tests check them without a screen.
   `H2Persistence` is the real one; `Persistence.NONE` lets tests run without a database
   (**dependency inversion**).
 
-### 5.16 JSON serialisation
+### 6.16 JSON serialisation
 
 `common.JsonCodec` uses **Jackson's `ObjectMapper`** to turn `SensorMessage` and
 `ResponseCommand` records into one-line JSON and back. Because they are records, Jackson maps
 fields automatically, and the wire format is readable in a log.
 
-### 5.17 Design patterns
+### 6.17 Design patterns
 
 | Pattern | Where | Why it fits |
 | --- | --- | --- |
@@ -550,7 +664,7 @@ fields automatically, and the wire format is readable in a log.
 | **Factory** (static factory methods) | `TlsFactories`, `Campaigns`, `LabConfig.load` | Construction details in one place |
 | **Facade** | `Launcher` | One entry point hides how each role is started |
 
-### 5.18 SOLID, in one line each
+### 6.18 SOLID, in one line each
 
 - **S**ingle responsibility: one rule per class; the ledger only hashes and signs; DAOs only do SQL.
 - **O**pen/closed: new rules, responses, attacks and decoys are new classes; existing code is unchanged.
@@ -564,7 +678,7 @@ fields automatically, and the wire format is readable in a log.
 
 ---
 
-## Part 6. Security concepts, explained simply
+## Part 7. Security concepts, explained simply
 
 | Concept | Meaning | In Mirage |
 | --- | --- | --- |
@@ -598,7 +712,7 @@ alert. That is why the demo campaign records 4 alerts, not hundreds.
 
 ---
 
-## Part 7. The database
+## Part 8. The database
 
 ![Entity-relationship diagram](guide/database-er.png)
 
@@ -617,7 +731,7 @@ The schema is in `db/schema.sql` (the runtime copy is `src/main/resources/schema
 
 ---
 
-## Part 8. The wire protocol
+## Part 9. The wire protocol
 
 One JSON object per line, over TLS between machines.
 
@@ -633,7 +747,7 @@ oversized values are refused at the door.
 
 ---
 
-## Part 9. The screens
+## Part 10. The screens
 
 | Window | App | What it shows |
 | --- | --- | --- |
@@ -655,7 +769,7 @@ oversized values are refused at the door.
 
 ---
 
-## Part 10. Testing and quality
+## Part 11. Testing and quality
 
 - **299 JUnit 5 tests** in 91 classes (`src/test/java`). Run them with `./mvnw test`.
 - **What they cover:** ledger hashing, signatures, persistence and broken-link detection; every
@@ -674,7 +788,7 @@ oversized values are refused at the door.
 
 ---
 
-## Part 11. How the project was built
+## Part 12. How the project was built
 
 Iteratively, one subsystem per phase, each on its own Git branch with a pull request and CI.
 
@@ -694,7 +808,7 @@ Iteratively, one subsystem per phase, each on its own Git branch with a pull req
 
 ---
 
-## Part 12. Limitations (be ready to say these)
+## Part 13. Limitations (be ready to say these)
 
 - A lab prototype: it watches its own decoys, not real network traffic. IPv4 only.
 - The two-laptop set-up still has to be rehearsed on the real LAN.
@@ -705,7 +819,7 @@ Iteratively, one subsystem per phase, each on its own Git branch with a pull req
 
 ---
 
-## Part 13. Viva questions with short answers
+## Part 14. Viva questions with short answers
 
 **Why deception instead of a normal IDS?** Nobody legitimate touches a decoy, so every alert is
 high-confidence. No false-alarm flood.
@@ -755,12 +869,28 @@ passing an SSL factory turns TLS on. That is dependency injection plus a factory
 **What happens if a Sensor stops reading?** Each Sensor has its own outbox and writer thread
 with a timeout; a stuck one is dropped and reconnects, and the others are unaffected.
 
+**Why Java?** It is the course language; OOP and the patterns are built in; the JDK already has
+sockets, TLS, threads, Swing, JDBC and cryptography; threads run truly in parallel; it is
+memory-safe against attacker input; and one jar runs on Windows and Linux.
+
+**Why Maven?** It downloads the libraries at fixed versions, runs the tests and builds the
+runnable jar with one command. The Maven Wrapper means the demo laptop needs no Maven installed.
+
+**Why H2 and not MySQL?** H2 is embedded: the database is a file inside the app, with no server
+to install. It still uses standard SQL through JDBC.
+
+**Why Swing and not JavaFX?** Swing ships with the JDK and is in the syllabus; JavaFX is a
+separate download since Java 11.
+
+**Why JSON and not Java serialisation?** JSON is readable, and deserialising untrusted Java
+objects is a known security hole.
+
 **How is it tested?** 299 JUnit tests, an end-to-end test and a 28-check GUI dry run; every
 bug fix starts with a failing test.
 
 ---
 
-## Part 14. Glossary
+## Part 15. Glossary
 
 | Term | Meaning |
 | --- | --- |
