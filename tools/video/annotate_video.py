@@ -175,22 +175,82 @@ EDIT = [
 # --------------------------------------------------------------- timeline
 
 
-def build_timeline():
-    """Return (src_frame_for_each_out_frame, [(start_frame, end_frame, annot)])."""
-    src, annots = [], []
+def build_timeline(stretch=None, tail=0.0):
+    """Return (src_frame_for_each_out_frame, [(start_frame, end_frame, annot)]).
+
+    stretch: optional list of (base_start_s, base_end_s, factor). Inside each section every HOLD
+    is lengthened by `factor` (PLAY segments stay at 1x), so a narration that needs more time
+    can play over its own step; annotations inside a hold are stretched with it.
+    tail: seconds to hold the last frame at the end (for a closing line).
+    """
+    # 1. the base timeline
+    base_src, pieces, annots = [], [], []
     t = 0
     for kind, a, b, ann in EDIT:
         if kind == "play":
             n = round((b - a) * FPS)
             s0 = round(a * FPS)
-            src.extend(range(s0, s0 + n))
+            base_src.extend(range(s0, s0 + n))
         else:
             n = round(b * FPS)
             for an in ann:
                 annots.append((t + round(an["t0"] * FPS), t + round(an["t1"] * FPS), an))
-            src.extend([round(a * FPS)] * n)
+            base_src.extend([round(a * FPS)] * n)
+        pieces.append((t, t + n, kind))
         t += n
-    return src, annots
+    if not stretch and not tail:
+        return base_src, annots
+
+    # 2. the factor of every base frame (holds only)
+    factor = [1.0] * len(base_src)
+    for b0, b1, k in pieces:
+        if k != "hold":
+            continue
+        for f in range(b0, b1):
+            for s0, s1, fac in (stretch or []):
+                if s0 * FPS <= f < s1 * FPS:
+                    factor[f] = fac
+    # 3. warp: new time of each base frame boundary
+    new_at = [0.0]
+    for f in range(len(base_src)):
+        new_at.append(new_at[-1] + factor[f])
+    src = []
+    f = 0
+    for nf in range(int(round(new_at[-1]))):
+        while f < len(base_src) - 1 and new_at[f + 1] <= nf:
+            f += 1
+        src.append(base_src[f])
+    src.extend([src[-1]] * round(tail * FPS))
+    warp = lambda bf: int(round(new_at[min(max(bf, 0), len(base_src))]))
+    return src, [(warp(f0), warp(f1), an) for f0, f1, an in annots]
+
+
+def warp_time(stretch, t_base):
+    """New time (s) of base time t_base under `stretch`."""
+    t = 0.0
+    out = 0.0
+    for kind, a, b, ann in EDIT:
+        n = (b - a) if kind == "play" else b
+        seg0, seg1 = t, t + n
+        if t_base <= seg0:
+            break
+        upto = min(t_base, seg1)
+        if kind == "play":
+            out += upto - seg0
+        else:
+            x = seg0
+            while x < upto - 1e-9:
+                fac, nxt = 1.0, upto
+                for s0, s1, f in stretch:
+                    if s0 <= x < s1:
+                        fac, nxt = f, min(upto, s1)
+                        break
+                    if x < s0 < nxt:
+                        nxt = s0
+                out += (nxt - x) * fac
+                x = nxt
+        t = seg1
+    return out
 
 
 # --------------------------------------------------------------- drawing
@@ -402,7 +462,12 @@ def main():
         stills = sys.argv[sys.argv.index("--stills") + 1]
     if "--cues" in sys.argv:
         cues = sys.argv[sys.argv.index("--cues") + 1]
-    srcmap, annots = build_timeline()
+    stretch, tail = None, 0.0
+    if "--stretch" in sys.argv:
+        import json
+        cfg = json.load(open(sys.argv[sys.argv.index("--stretch") + 1]))
+        stretch, tail = [tuple(x) for x in cfg["sections"]], cfg.get("tail", 0.0)
+    srcmap, annots = build_timeline(stretch, tail)
     total = len(srcmap)
     print(f"output: {total} frames = {fmt(total / FPS)}", flush=True)
 

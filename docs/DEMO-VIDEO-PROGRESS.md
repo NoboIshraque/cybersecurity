@@ -45,6 +45,14 @@ placement). The coordinates are in the 1920x1080 v1 frame, so the edit list fits
       every line heard, in its slot. The video with the voice-over is embedded in
       `docs/submission/Mirage_Presentation.pptx` (slide 8, "Demo: Mirage in action", just before
       section 02).
+- [x] 2026-11-17 **Narrated by Nobo, in his own voice** (replaces the TTS voice-over). An AI clone
+      of his voice (XTTS-v2 from a 3-minute sample) still sounded artificial, so his real recording
+      of `docs/submission/Mirage_Voiceover_Script.md` (3:05) is used instead:
+      `tools/video/narrate_recording.py` cuts it into its 11 parts at the pauses, lengthens each
+      step's still holds to fit its part (`annotate_video.py --stretch`; clicks stay at real speed,
+      the circles stretch with the holds) and holds the last frame for the closing line. Result:
+      **3:20**, every part over its own step (checked by transcription), embedded on slide 8 of the
+      deck.
 
 The spoken script (short lines, paced for a slow speaker) is in [`VOICE-OVER-SCRIPT.md`](VOICE-OVER-SCRIPT.md).
 

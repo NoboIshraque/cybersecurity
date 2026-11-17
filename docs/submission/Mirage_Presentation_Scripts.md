@@ -25,7 +25,7 @@ In short: decoys, ATT&CK classification, a tamper-evident ledger, and scoped act
 For example: an attacker uses a stolen password. The Sensor reports it, the Console marks it critical, records it, and blocks the source.
 
 **Slide 8 — Demo: Mirage in action**  
-Here is the whole flow in a short demo. [Click to play the video. It runs 2:30 and has its own voice-over; it is not counted in the 90 seconds.]
+Here is the whole flow in a short demo. [Click to play the video. It runs 3:20 and is narrated by Nobo; it is not counted in the 90 seconds.]
 
 ## Part 2 — Our work from a code perspective — Nobo
 Slides 9–20 · 126 words · about 90 s
