@@ -42,6 +42,8 @@ placement). The coordinates are in the 1920x1080 v1 frame, so the edit list fits
 - [ ] (User) Save it as `D:\Mirage demo video v3.mp4`, add the voice-over (Clipchamp as before),
       export 1080p. Keep the narration within 2:30.
 
+The spoken script (short lines, paced for a slow speaker) is in [`VOICE-OVER-SCRIPT.md`](VOICE-OVER-SCRIPT.md).
+
 ### Voice-over cue sheet — v3 (times in the 2:30 video; each row is when that annotation starts)
 
 | Time | Annotation on screen | Talking point (from the cue sheet) |
