@@ -49,7 +49,8 @@ starts = [0.0] + [f0 / av.FPS for f0, f1, a in ann]
 lines = [l.strip() for l in open(f"{REPO}/tools/video/narration_v3.txt", encoding="utf-8") if l.strip()]
 assert len(lines) == len(starts)
 SAY = {"ScopeGuard": "Scope Guard", "brute-force": "brute force", "counter-attack": "counter attack",
-       "hash-chained": "hash chained", "port-scan": "port scan", "…": "."}
+       "hash-chained": "hash chained", "port-scan": "port scan", "Tarpit": "Tar pit", "tarpit": "tar pit",
+       "…": "."}
 
 cfg = XttsConfig(); cfg.load_json(f"{M}/config.json")
 model = Xtts.init_from_config(cfg)
@@ -82,7 +83,8 @@ def norm(t):
 def judge(audio, expected):
     a16 = to16(audio, SR)
     heard = " ".join(s.text for s in asr.transcribe(a16[0].numpy(), beam_size=5)[0])
-    words = difflib.SequenceMatcher(None, norm(expected), norm(heard)).ratio()
+    # compare letters only, so "Tarpit"/"tar pit" or "ScopeGuard"/"Scope Guard" count as the same
+    words = difflib.SequenceMatcher(None, "".join(norm(expected)), "".join(norm(heard))).ratio()
     voice = float(torch.nn.functional.cosine_similarity(REF_EMB, enc.encode_batch(a16).squeeze(), dim=0))
     return words, voice, heard.strip()
 
