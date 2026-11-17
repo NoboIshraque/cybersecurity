@@ -38,6 +38,13 @@ commit messages explain each fix and its design choices.
   mostly about what the screens and docs tell the presenter. **Waves 1 and 2 are fixed** (plus
   FC-01 and FC-02, two flaky tests found along the way); **wave 3 (polish: FB-11 to FB-17,
   FA-02) is still open**.
+- **Submission files (2026-11-17, branch `claude/gallant-heisenberg-1juxnt`, draft PR #15):**
+  `docs/submission/Mirage_Project_Report.docx` (+ `.pdf`), in the course's report format
+  (title page, abstract, TOC, chapters 1–5, conclusion, references, appendices; 32 pages, 18
+  figures), and `docs/submission/Mirage_Presentation.pptx` (23 slides: project details, code,
+  limitations and remarks; speaker notes on every slide). The same PR fixes 5 tests that failed
+  only on Linux (a `JAVA_TOOL_OPTIONS` banner in a child JVM; Linux's larger socket buffers);
+  299 tests and the 28-check dry run pass on Linux too.
 - **Left to do:**
   1. (User) The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`; firewall commands run as
      admin). Add anything it finds to the feature-check checklist and fix it the same way.
