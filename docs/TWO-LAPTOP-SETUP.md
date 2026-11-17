@@ -18,7 +18,7 @@ the first build) and about 5 minutes on later runs.
    Laptop B (attacker)                                   Laptop A (defender)
  ┌──────────────────────┐   attacks on 8081/8021/8023  ┌───────────────────────────┐
  │ Specter              │ ───────────────────────────▶ │ Sensor (3 decoys)         │
- │                      │                              │   │ 127.0.0.1:8443 (local) │
+ │                      │                              │  │ 127.0.0.1:8443 (local) │
  │ counter-watch :8080  │ ◀─────────────────────────── │ Console + dashboard       │
  └──────────────────────┘   counter-attack on 8080     └───────────────────────────┘
           └────────────── same Wi-Fi / hotspot, e.g. 192.168.0.0/24 ──────────────┘
