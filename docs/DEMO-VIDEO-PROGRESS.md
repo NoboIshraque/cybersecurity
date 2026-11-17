@@ -39,8 +39,12 @@ placement). The coordinates are in the 1920x1080 v1 frame, so the edit list fits
 - [x] 2026-11-17 Rendered: **2:30.3**, 1920x1080, 30 fps, 8.3 MB (under the 10 MB upload cap),
       41 annotations; every annotation checked on a still, and sample frames of the rendered
       video checked.
-- [ ] (User) Save it as `D:\Mirage demo video v3.mp4`, add the voice-over (Clipchamp as before),
-      export 1080p. Keep the narration within 2:30.
+- [x] 2026-11-17 Voice-over added: Kokoro TTS (voice `af_heart`), lines in
+      `tools/video/narration_v3.txt`, laid out by `tools/video/voiceover.py` (each line starts 0.25 s
+      after its annotation; 87 s of speech in 2:30). Checked by transcribing it back with Whisper:
+      every line heard, in its slot. The video with the voice-over is embedded in
+      `docs/submission/Mirage_Presentation.pptx` (slide 8, "Demo: Mirage in action", just before
+      section 02).
 
 The spoken script (short lines, paced for a slow speaker) is in [`VOICE-OVER-SCRIPT.md`](VOICE-OVER-SCRIPT.md).
 
