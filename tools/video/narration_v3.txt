@@ -3,7 +3,7 @@ On the left, Specter, our attacker.
 On the right, the Mirage console.
 First, the attacker runs a recon scan against the lab host.
 It finds three open ports. All three are decoys.
-Mirage flags the port scan straight away.
+An alert goes up at once.
 Next, it tries to brute-force the login.
 Every password is rejected.
 A second alert: brute force, high severity.
@@ -12,7 +12,7 @@ And it gets in…
 but that password was planted bait.
 Critical alert. Now it's the operator's move.
 We click Tarpit, to slow the attacker down.
-ScopeGuard checks the target first.
+A safety check runs first.
 The sensor confirms the tarpit.
 The attacker's connection stalls.
 Next, we feed the attacker fake data.

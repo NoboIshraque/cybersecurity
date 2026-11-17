@@ -51,8 +51,17 @@ placement). The coordinates are in the 1920x1080 v1 frame, so the edit list fits
       `tools/video/narrate_recording.py` cuts it into its 11 parts at the pauses, lengthens each
       step's still holds to fit its part (`annotate_video.py --stretch`; clicks stay at real speed,
       the circles stretch with the holds) and holds the last frame for the closing line. Result:
-      **3:20**, every part over its own step (checked by transcription), embedded on slide 8 of the
-      deck.
+      **3:20**, every part over its own step (checked by transcription), no longer used: its
+      script does not match this video.
+- [x] 2026-11-17 **Final: narrated in Nobo's voice by an AI voice trained on his recording**
+      (`tools/video/voiceover_cloned.py`). XTTS-v2 was fine-tuned for 8 passes on his 3-minute
+      recording (29 sentence clips, CPU, ~40 min); speaker similarity to his real voice (ECAPA, a
+      separate model) went from 0.41 (zero-shot clone) to 0.64 on unseen lines, 0.70 over the final
+      narration (his own 3-s clips score 0.74). Each of the 42 lines in `narration_v3.txt` keeps the
+      best of up to 12 takes (understood by Whisper, closest to his voice); four lines were reworded
+      where the voice stumbled. Nothing is sped up: steps are lengthened where his pace needs it, so
+      the video is **2:45**. The track is EQ-matched to his recording and laid on his room tone.
+      Embedded on slide 8 of the deck.
 
 The spoken script (short lines, paced for a slow speaker) is in [`VOICE-OVER-SCRIPT.md`](VOICE-OVER-SCRIPT.md).
 
