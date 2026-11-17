@@ -20,9 +20,7 @@ class ConsoleStartupMessageTest {
     /** The real case is two processes: a JVM shares its own open database, so lock it from a child. */
     @Test
     void aSecondConsoleInTheSameFolderIsToldWhy(@TempDir Path dir) throws Exception {
-        String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
-        Process holder = new ProcessBuilder(java, "-cp", System.getProperty("java.class.path"),
-                HoldDatabase.class.getName(), dir.toString()).redirectErrorStream(true).start();
+        Process holder = HoldDatabase.start(dir);
         try (BufferedReader out = new BufferedReader(new InputStreamReader(holder.getInputStream()))) {
             assertEquals("open", out.readLine(), "the child JVM holds the database");
             IllegalStateException e = assertThrows(IllegalStateException.class,

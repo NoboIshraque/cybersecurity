@@ -27,9 +27,14 @@ class StuckSensorTest {
 
     private static final int COMMANDS = 150;
 
-    /** A big target so a few commands fill the stuck peer's TCP buffers (real ones are small). */
+    /**
+     * A big target so the commands fill the stuck peer's TCP buffers (real ones are small). 150 of
+     * these are about 7 MB: more than Linux's loopback buffers take (send buffer autotunes up to
+     * 4 MB), so the write to the stuck peer really stalls there too, not only on Windows. Each one
+     * stays under the Sensor's 64 KB line limit.
+     */
     private static ResponseCommand command(int i) {
-        return new ResponseCommand(CommandType.BLOCK, "10.10.0." + (i % 250) + "#" + "x".repeat(8000));
+        return new ResponseCommand(CommandType.BLOCK, "10.10.0." + (i % 250) + "#" + "x".repeat(48_000));
     }
 
     @Test
