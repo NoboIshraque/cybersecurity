@@ -27,7 +27,7 @@ simulator, **Specter**, drives the whole demo — restricted to the lab's own ad
 
 ## Status
 
-Feature-complete and **all tests green** (265). The live-shells release adds terminal-style
+Feature-complete and **all tests green** (299). The live-shells release adds terminal-style
 process shells on both sides, an escalating threat popup with operator-driven responses, and
 a one-jar launcher for a two-laptop demo. A stress test then produced a fix list,
 [`docs/stress-test/CHECKLIST.md`](docs/stress-test/CHECKLIST.md); every item on it is fixed, each
@@ -98,6 +98,12 @@ docs/                       two-laptop setup guide and screenshots
 
 ## Documentation
 
+- [`docs/GUIDE.md`](docs/GUIDE.md) — **the complete guide**: how the system works end to end, a
+  map of every package, and which OODP concept (inheritance, interfaces, threads, Swing, JDBC,
+  design patterns, …) is used where and why, with viva questions. PDF:
+  [`docs/submission/Mirage_Complete_Guide.pdf`](docs/submission/Mirage_Complete_Guide.pdf).
+- [`docs/submission/`](docs/submission/) — the final report (`.docx`/`.pdf`), the slide deck
+  and the demo video's voice-over script.
 - [`CLAUDE.md`](CLAUDE.md) — project guide and conventions (read first each session).
 - [`HANDOVER.md`](HANDOVER.md) — live status, phases, decisions log, and next steps.
 - [`PROPOSAL.md`](PROPOSAL.md) — the project proposal (submission).

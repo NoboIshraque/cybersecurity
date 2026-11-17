@@ -44,7 +44,10 @@ commit messages explain each fix and its design choices.
   figures), and `docs/submission/Mirage_Presentation.pptx` (23 slides: project details, code,
   limitations and remarks; speaker notes on every slide). The same PR fixes 5 tests that failed
   only on Linux (a `JAVA_TOOL_OPTIONS` banner in a child JVM; Linux's larger socket buffers);
-  299 tests and the 28-check dry run pass on Linux too.
+  299 tests and the 28-check dry run pass on Linux too. Also there: the demo video's voice-over
+  script (`Mirage_Voiceover_Script.md`/`.pdf`, each line tied to an OODP topic) and **the
+  complete guide** (`docs/GUIDE.md`, PDF `Mirage_Complete_Guide.pdf`, 29 pages): how the
+  system works, a package map, which concept is used where and why, and viva questions.
 - **Left to do:**
   1. (User) The real two-laptop rehearsal (`docs/TWO-LAPTOP-SETUP.md`; firewall commands run as
      admin). Add anything it finds to the feature-check checklist and fix it the same way.

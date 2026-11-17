@@ -125,6 +125,8 @@ Optional passwords come from environment variables (`MIRAGE_LEDGER_PASSWORD`,
 ## Pointers
 
 - Live status + next steps: `HANDOVER.md` (start at "RESUME HERE")
+- Complete guide for the team (concepts used where and why): `docs/GUIDE.md`, rendered as
+  `docs/submission/Mirage_Complete_Guide.pdf`. Update both when a feature or a concept changes.
 - Stress-test fix list: `docs/stress-test/CHECKLIST.md`
 - Proposal: `PROPOSAL.md`; full report: `REPORT.md` (formatted master with figures: `docs/report.html`,
   published as the artifact linked in `HANDOVER.md`; republish it after editing)
