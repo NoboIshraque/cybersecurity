@@ -432,7 +432,7 @@ erDiagram
         throw new SecurityException(ip + " is outside the authorised lab range");
     }
 }</code></pre>
-    <p>The full, compiling sources (265 JUnit tests passing) are the authoritative reference.</p>
+    <p>The full, compiling sources (299 JUnit tests passing) are the authoritative reference.</p>
 
     <h2 id="result"><span class="num">5.</span>Result</h2>
     <p>The user-facing deliverable is two Swing applications, the blue-team <strong>Console dashboard</strong> and the red-team <strong>Specter console</strong>, and both are implemented. The screenshots below are from the running build: Figures 5–8 were captured on a headless display during a scripted demonstration, and Figures 9–14 during the automated dry run described in §5.5.</p>
@@ -495,7 +495,7 @@ erDiagram
       <img src="screenshots/live-counterwatch-incoming.png" alt="The attacker's counter-watch reporting an incoming counter-attack" loading="lazy">
       <figcaption><b>Figure 14.</b>Laptop B's counter-watch: every incoming connection, its source port and the first line it carried, on its own thread. It is accept-and-log only.</figcaption>
     </figure>
-    <p><strong>Verification.</strong> Besides 265 unit tests, the whole demo is exercised by an automated GUI dry run (<code>tools/screenshots/LiveDemoShot.java</code>). It starts the real Console, Sensor and Specter, presses their buttons the way the presenters would, and checks 28 outcomes: every campaign, every operator action (including fake data letting the attacker "in" to worthless files), auto-response on and off, a counter reaching the counter-watch, and an out-of-range target being refused. Figures 9–14 come from that run.</p>
+    <p><strong>Verification.</strong> Besides 299 unit tests, the whole demo is exercised by an automated GUI dry run (<code>tools/screenshots/LiveDemoShot.java</code>). It starts the real Console, Sensor and Specter, presses their buttons the way the presenters would, and checks 28 outcomes: every campaign, every operator action (including fake data letting the attacker "in" to worthless files), auto-response on and off, a counter reaching the counter-watch, and an out-of-range target being refused. Figures 9–14 come from that run.</p>
     <p><strong>Stress test.</strong> Two independent reviews then tested the build for security and robustness: floods, idle and malformed connections, lost links, skewed clocks, restarts, and mistyped settings. Every finding was fixed, each with a test that failed before the fix (<code>docs/stress-test/CHECKLIST.md</code>). Among them: the Sensor link uses mutual TLS between machines and fails closed; the ledger's signing key and hash chain survive restarts; the detection rules count within time windows; and a Sensor that stops reading can no longer stall the Console.</p>
 
     <h2 id="conclusion">Conclusion</h2>

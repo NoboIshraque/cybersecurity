@@ -15,9 +15,11 @@ Everything stays inside the lab range. `ScopeGuard` refuses any other address, o
   [automated dry run](tools/screenshots/README.md#live-shells-dry-run-livedemoshotjava) if you
   change anything.
 - **Start clean:** the dashboard opens with the alerts saved by earlier runs (that's what lets
-  a tampered alert show up red in step 7). So after the rehearsal, close the defender and
-  delete the `data` folder it was started from (next to `run-defender.bat`). The feed and the
-  map then start empty for the audience.
+  a tampered alert show up red in step 7). So after the rehearsal, close the defender and, in
+  the folder it was started from (next to `run-defender.bat`), delete `data`, `bait` and
+  `bait.sha256` together (`Remove-Item -Recurse -Force data, bait, bait.sha256`). Deleting only
+  `bait` would raise a bait-tampering alert at the next start. The feed and the map then start
+  empty for the audience. See [Reset for a clean demo](docs/TWO-LAPTOP-SETUP.md#reset-for-a-clean-demo).
 
 ## 0. Start (before you begin talking)
 
