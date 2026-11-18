@@ -3,7 +3,7 @@ On the left, Specter, our attacker.
 On the right, the Mirage console.
 First, the attacker runs a recon scan against the lab host.
 It finds three open ports. All three are decoys.
-Mirage raises a port-scan alert straight away.
+An alert goes up at once.
 Next, it tries to brute-force the login.
 Every password is rejected.
 A second alert: brute force, high severity.
@@ -12,16 +12,16 @@ And it gets in…
 but that password was planted bait.
 Critical alert. Now it's the operator's move.
 We click Tarpit, to slow the attacker down.
-ScopeGuard checks the target first.
+A safety check runs first.
 The sensor confirms the tarpit.
 The attacker's connection stalls.
 Next, we feed the attacker fake data.
-Fake files are armed.
+The fake files are ready.
 The attacker tries the brute force again.
 This time it seems to get in…
 but every file it sees is fake.
 Now we block the source.
-The threat is neutralised.
+The threat is now neutralised.
 The sensor confirms the block.
 The attacker tries once more…
 and the connection is cut.
@@ -32,7 +32,7 @@ Then several counters at once, one thread each.
 Four methods, running side by side.
 A fixed, bounded set. Never a flood.
 Back on the dashboard.
-One alert per technique.
+One alert for each technique.
 And a full attacker profile.
 We verify the ledger.
 Every alert is hash-chained and signed. Verified.
